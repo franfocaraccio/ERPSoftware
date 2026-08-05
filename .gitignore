@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Turborepo
+.turbo/
+
+# Entorno — nunca commitear secretos
+.env
+.env.*
+!.env.example
+
+# Tests
+coverage/
+
+# Logs
+*.log
+
+# Editor / SO
+.DS_Store
+Thumbs.db
