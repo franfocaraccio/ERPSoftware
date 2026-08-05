@@ -28,8 +28,8 @@ withTenant(tenantId, async (tx) => {
 ```
 
 - `SET LOCAL` vive solo dentro de la transacción → al terminar, la conexión vuelve limpia al pool.
-- Las políticas RLS leen `current_setting('app.tenant_id')::uuid`.
-- El rol de la aplicación NO es owner de las tablas y NO tiene `BYPASSRLS`. Las migraciones corren con otro rol.
+- Las políticas RLS leen `current_setting('app.tenant_id', true)` (missing_ok: sin SET LOCAL previo compara contra NULL y no devuelve filas). `tenant_id` es **text** — id de organización de BetterAuth, no uuid.
+- El rol de la aplicación (`erp_app` en desarrollo, via `DATABASE_URL`) NO es owner de las tablas y NO tiene `BYPASSRLS`. Las migraciones corren con el owner (`DATABASE_URL_MIGRATIONS`). Las tablas usan además `FORCE ROW LEVEL SECURITY` para que RLS aplique incluso al owner.
 - pg-boss usa el mismo wrapper: cada job recibe `tenantId` en su payload y abre su transacción tenantizada.
 - Con Supabase: la conexión de la app requiere **session mode** (puerto 5432 directo o pooler en session mode) porque los advisory locks fiscales y `SET LOCAL` no sobreviven al transaction pooling.
 
@@ -39,9 +39,10 @@ Cada tabla de negocio:
 
 ```sql
 ALTER TABLE <tabla> ENABLE ROW LEVEL SECURITY;
+ALTER TABLE <tabla> FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON <tabla>
-  USING (tenant_id = current_setting('app.tenant_id')::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+  USING (tenant_id = current_setting('app.tenant_id', true))
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
 ```
 
 Las políticas van en las migraciones SQL de Drizzle (custom migrations), no a mano en producción.
