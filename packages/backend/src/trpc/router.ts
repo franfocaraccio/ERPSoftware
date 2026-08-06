@@ -1,5 +1,6 @@
 import { clientesRouter } from "../modules/clientes/router.js";
 import { comprobantesRouter } from "../modules/comprobantes/router.js";
+import { financieroRouter } from "../modules/financiero/router.js";
 import { impuestosRouter } from "../modules/impuestos/router.js";
 import { invitacionesRouter } from "../modules/invitaciones/router.js";
 import { plataformaRouter } from "../modules/plataforma/router.js";
@@ -11,6 +12,7 @@ import { router } from "./trpc.js";
 export const appRouter = router({
   clientes: clientesRouter,
   comprobantes: comprobantesRouter,
+  financiero: financieroRouter,
   impuestos: impuestosRouter,
   invitaciones: invitacionesRouter,
   plataforma: plataformaRouter,

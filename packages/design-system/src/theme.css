@@ -44,6 +44,17 @@
   --color-danger-subtle: oklch(96% 0.025 27);
   --color-danger-foreground: oklch(100% 0 0);
 
+  /*
+   * Series de gráficos. Orden fijo: nunca se ciclan ni se reasignan por
+   * ranking, así un color siempre significa la misma entidad. El par está
+   * validado sobre estas superficies (separación para daltonismo y contraste
+   * ≥ 3:1 en ambos modos).
+   */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-grid: #e1e0d9;
+  --color-chart-axis: #898781;
+
   /* Radios y sombras: escala única, sin valores sueltos por componente */
   --radius-card: 0.75rem;
   --shadow-card: 0 1px 2px 0 oklch(21% 0.02 255 / 6%);
@@ -80,6 +91,12 @@
   --color-danger-hover: oklch(78% 0.15 25);
   --color-danger-subtle: oklch(28% 0.06 25);
   --color-danger-foreground: oklch(17% 0.02 258);
+
+  /* Mismos hues, re-escalonados para la superficie oscura: no es un invertido. */
+  --color-chart-1: #3987e5;
+  --color-chart-2: #d95926;
+  --color-chart-grid: #2c2c2a;
+  --color-chart-axis: #898781;
 
   --shadow-card: 0 1px 2px 0 oklch(0% 0 0 / 40%);
   --shadow-popover: 0 8px 24px -6px oklch(0% 0 0 / 55%);

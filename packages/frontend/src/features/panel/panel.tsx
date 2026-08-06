@@ -1,99 +1,171 @@
-import { Tarjeta } from "@erp/design-system";
+import { Boton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Boxes, Building2, FileText, Receipt, Users, Wallet } from "lucide-react";
+import { LayoutDashboard, Wallet } from "lucide-react";
+import { lazy, Suspense } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { formatearImporte } from "../../lib/formato.js";
+import { useTRPC } from "../../lib/trpc.js";
+import type { FilaProyeccion } from "./graficos.js";
+import { EsqueletoKpis, type Kpi, TarjetaKpi } from "./kpis.js";
 
-const MODULOS = [
-  {
-    a: "/clientes",
-    titulo: "Clientes",
-    descripcion: "Padrón, condición fiscal y límite de crédito.",
-    Icono: Users,
-  },
-  {
-    a: "/proveedores",
-    titulo: "Proveedores",
-    descripcion: "Condiciones de pago y saldo pendiente.",
-    Icono: Building2,
-  },
-  {
-    a: "/stock",
-    titulo: "Stock",
-    descripcion: "Niveles de reposición y capital inmovilizado.",
-    Icono: Boxes,
-  },
-  {
-    a: "/tesoreria",
-    titulo: "Tesorería",
-    descripcion: "Saldos por cuenta, movimientos y cheques.",
-    Icono: Wallet,
-  },
-  {
-    a: "/impuestos",
-    titulo: "Impuestos",
-    descripcion: "Vencimientos y saldos por obligación.",
-    Icono: Receipt,
-  },
-  {
-    a: "/comprobantes",
-    titulo: "Comprobantes",
-    descripcion: "Facturación de ventas y compras recibidas.",
-    Icono: FileText,
-  },
-] as const;
+// Recharts pesa cerca de la mitad del bundle y solo se usa acá: se carga
+// aparte, así el resto de los módulos no lo arrastran.
+const GraficoSaldoProyectado = lazy(() =>
+  import("./graficos.js").then((m) => ({ default: m.GraficoSaldoProyectado })),
+);
+const GraficoFlujoSemanal = lazy(() =>
+  import("./graficos.js").then((m) => ({ default: m.GraficoFlujoSemanal })),
+);
+const GraficoVentas = lazy(() =>
+  import("./graficos.js").then((m) => ({ default: m.GraficoVentas })),
+);
 
-/**
- * Panel de acceso a los módulos. Los KPIs, la proyección de caja a 13 semanas
- * y la Vista Consolidada corresponden a la Fase 2 (secciones 8 y 9 del PDF).
- */
+function EsqueletoGrafico() {
+  return <Esqueleto className="h-80 w-full" />;
+}
+
+/** Saldos por cuenta: el dato que la especificación pide ver primero. */
+function SaldosPorCuenta({
+  cuentas,
+}: {
+  cuentas: { nombre: string; moneda: string; saldo: string }[];
+}) {
+  if (cuentas.length === 0) {
+    return null;
+  }
+  const totalArs = cuentas
+    .filter((c) => c.moneda === "ARS")
+    .reduce((acc, c) => acc + Number(c.saldo), 0);
+
+  return (
+    <Tarjeta className="p-5">
+      <div className="mb-3 flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold text-foreground">Saldo por cuenta</h2>
+        <p className="text-xs text-muted-foreground">
+          Consolidado en pesos{" "}
+          <span className="tabular font-medium text-foreground">
+            {formatearImporte(totalArs.toFixed(2))}
+          </span>
+        </p>
+      </div>
+      <ul className="divide-y divide-border">
+        {cuentas.map((c) => {
+          const negativo = c.saldo.startsWith("-");
+          return (
+            <li key={c.nombre} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <span className="truncate text-muted-foreground">
+                {c.nombre}
+                <span className="ml-1.5 text-xs text-muted-foreground/70">{c.moneda}</span>
+              </span>
+              <span
+                className={`shrink-0 tabular font-medium ${negativo ? "text-danger" : "text-foreground"}`}
+              >
+                {formatearImporte(c.saldo, c.moneda as "ARS" | "USD")}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Tarjeta>
+  );
+}
+
 export function Panel() {
+  const trpc = useTRPC();
+  const { data, isPending, isError, refetch } = useQuery(trpc.financiero.resumen.queryOptions());
+
+  if (isError) {
+    return (
+      <>
+        <EncabezadoPagina titulo="Panel" />
+        <Tarjeta>
+          <EstadoVacio
+            titulo="No se pudo cargar el panel"
+            descripcion="Revisá que el servidor esté disponible y volvé a intentar."
+            accion={
+              <Boton variante="secundario" tamano="sm" onClick={() => refetch()}>
+                Reintentar
+              </Boton>
+            }
+          />
+        </Tarjeta>
+      </>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <>
+        <EncabezadoPagina titulo="Panel" descripcion="Indicadores y proyección de caja." />
+        <EsqueletoKpis />
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <Esqueleto className="h-80 w-full" />
+          <Esqueleto className="h-80 w-full" />
+        </div>
+      </>
+    );
+  }
+
+  const sinDatos =
+    data.saldoPorCuenta.length === 0 && data.kpis.every((k) => k.semaforo === "sin_datos");
+
   return (
     <>
       <EncabezadoPagina
         titulo="Panel"
-        descripcion="Resumen de la operación. Los indicadores financieros llegan en la próxima fase."
+        descripcion="Indicadores del negocio y proyección de caja a trece semanas."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {MODULOS.map(({ a, titulo, descripcion, Icono }) => (
-          <Link key={a} to={a} className="group">
-            <Tarjeta className="h-full p-5 transition-colors duration-150 group-hover:border-border-strong">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">{titulo}</p>
-                  <p className="text-sm text-muted-foreground">{descripcion}</p>
-                </div>
-                <Icono className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {sinDatos ? (
+        <Tarjeta>
+          <EstadoVacio
+            icono={<LayoutDashboard className="size-8" aria-hidden="true" />}
+            titulo="Todavía no hay datos para mostrar"
+            descripcion="Cargá cuentas, comprobantes e impuestos y el panel se arma solo."
+            accion={
+              <Link to="/tesoreria">
+                <Boton tamano="sm">
+                  <Wallet className="size-4" aria-hidden="true" />
+                  Empezar por Tesorería
+                </Boton>
+              </Link>
+            }
+          />
+        </Tarjeta>
+      ) : (
+        <div className="space-y-4">
+          <section aria-label="Indicadores">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(data.kpis as Kpi[]).map((kpi) => (
+                <TarjetaKpi key={kpi.id} kpi={kpi} />
+              ))}
+            </div>
+          </section>
+
+          <Suspense
+            fallback={
+              <div className="grid gap-4 lg:grid-cols-2">
+                <EsqueletoGrafico />
+                <EsqueletoGrafico />
               </div>
-              <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary">
-                Ir al módulo
-                <ArrowRight
-                  className="size-4 transition-transform duration-150 group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </span>
-            </Tarjeta>
-          </Link>
-        ))}
-      </div>
+            }
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <GraficoSaldoProyectado
+                datos={data.proyeccion as FilaProyeccion[]}
+                minimoOperativo={data.minimoOperativo}
+              />
+              <GraficoFlujoSemanal datos={data.proyeccion as FilaProyeccion[]} />
+            </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Tarjeta className="border-dashed p-5">
-          <p className="font-medium text-muted-foreground">Indicadores financieros</p>
-          <p className="mt-1 text-sm text-muted-foreground/80">
-            Liquidez, DSO, DPO, rotación de stock y margen bruto.
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground/70">Disponible en la Fase 2</p>
-        </Tarjeta>
-
-        <Tarjeta className="border-dashed p-5">
-          <p className="font-medium text-muted-foreground">Proyección de caja</p>
-          <p className="mt-1 text-sm text-muted-foreground/80">
-            Trece semanas móviles con semáforo sobre el mínimo operativo.
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground/70">Disponible en la Fase 2</p>
-        </Tarjeta>
-      </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <GraficoVentas datos={data.ventasPorMes} />
+              <SaldosPorCuenta cuentas={data.saldoPorCuenta} />
+            </div>
+          </Suspense>
+        </div>
+      )}
     </>
   );
 }
