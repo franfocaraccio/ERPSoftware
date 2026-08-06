@@ -5,7 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { Boxes, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
-import { formatearCantidad, formatearImporte } from "../../lib/formato.js";
+import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaProducto {
@@ -80,7 +80,7 @@ const columnas = helper.columns([
       const valor = info.getValue();
       return (
         <span className="block text-right tabular text-muted-foreground">
-          {valor === null ? "—" : `${valor.replace(".", ",")} %`}
+          {valor === null ? "—" : formatearPorcentaje(valor)}
         </span>
       );
     },

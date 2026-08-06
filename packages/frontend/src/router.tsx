@@ -2,6 +2,8 @@ import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/re
 import { Layout } from "./components/layout.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
+import { FormularioImpuesto } from "./features/impuestos/formulario.js";
+import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Panel } from "./features/panel/panel.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
@@ -85,6 +87,27 @@ const rutaProductoEditar = createRoute({
   },
 });
 
+const rutaImpuestos = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/impuestos",
+  component: ListaImpuestos,
+});
+
+const rutaImpuestoNuevo = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/impuestos/nueva",
+  component: () => <FormularioImpuesto />,
+});
+
+const rutaImpuestoEditar = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/impuestos/$impuestoId",
+  component: function EditarImpuesto() {
+    const { impuestoId } = rutaImpuestoEditar.useParams();
+    return <FormularioImpuesto impuestoId={impuestoId} />;
+  },
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaPanel,
   rutaClientes,
@@ -96,6 +119,9 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaStock,
   rutaProductoNuevo,
   rutaProductoEditar,
+  rutaImpuestos,
+  rutaImpuestoNuevo,
+  rutaImpuestoEditar,
 ]);
 
 export const router = createRouter({ routeTree: arbolRutas });

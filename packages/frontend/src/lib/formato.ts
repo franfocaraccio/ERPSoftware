@@ -37,6 +37,35 @@ export function etiquetaEstado(valor: string): string {
   return ETIQUETAS_ESTADO[valor] ?? valor;
 }
 
+const MESES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+] as const;
+
+/** Período mensual guardado como 2026-07-01 → "julio 2026". */
+export function formatearPeriodo(iso: string): string {
+  const [anio, mes] = iso.slice(0, 10).split("-");
+  const nombre = MESES[Number(mes) - 1];
+  return nombre && anio ? `${nombre} ${anio}` : iso;
+}
+
+const FORMATO_PORCENTAJE = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 3 });
+
+/** La columna es numeric(6,3): "21.000" se muestra como "21 %", no "21,000 %". */
+export function formatearPorcentaje(valor: string): string {
+  return `${FORMATO_PORCENTAJE.format(Number(valor))} %`;
+}
+
 const FORMATO_CANTIDAD = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 3 });
 
 /** Cantidades (no dinero): hasta 3 decimales, sin ceros de relleno. */

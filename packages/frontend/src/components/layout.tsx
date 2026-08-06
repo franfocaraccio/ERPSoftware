@@ -18,7 +18,7 @@ const NAVEGACION: ItemNav[] = [
   { a: "/proveedores", etiqueta: "Proveedores", Icono: Building2, habilitado: true },
   { a: "/stock", etiqueta: "Stock", Icono: Boxes, habilitado: true },
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: false },
-  { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: false },
+  { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: false },
 ];
 
