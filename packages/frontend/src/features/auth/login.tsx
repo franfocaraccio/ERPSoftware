@@ -147,10 +147,6 @@ export function Login() {
           </Tarjeta>
 
           {/* Sin link de "crear cuenta": el alta es solo por invitación. */}
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            El acceso se otorga por invitación. Si no tenés cuenta, pedile una al dueño de tu
-            empresa.
-          </p>
         </div>
       </main>
     </div>
