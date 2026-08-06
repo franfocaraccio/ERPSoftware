@@ -19,7 +19,7 @@ const NAVEGACION: ItemNav[] = [
   { a: "/stock", etiqueta: "Stock", Icono: Boxes, habilitado: true },
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: true },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
-  { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: false },
+  { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: true },
 ];
 
 function Navegacion() {

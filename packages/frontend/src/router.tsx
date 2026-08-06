@@ -2,6 +2,9 @@ import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/re
 import { Layout } from "./components/layout.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
+import { DetalleComprobante } from "./features/comprobantes/detalle.js";
+import { FormularioComprobante } from "./features/comprobantes/formulario.js";
+import { Comprobantes } from "./features/comprobantes/index.js";
 import { FormularioImpuesto } from "./features/impuestos/formulario.js";
 import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Panel } from "./features/panel/panel.js";
@@ -115,6 +118,27 @@ const rutaTesoreria = createRoute({
   component: Tesoreria,
 });
 
+const rutaComprobantes = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/comprobantes",
+  component: Comprobantes,
+});
+
+const rutaComprobanteNuevo = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/comprobantes/nuevo",
+  component: FormularioComprobante,
+});
+
+const rutaComprobanteDetalle = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/comprobantes/$comprobanteId",
+  component: function VerComprobante() {
+    const { comprobanteId } = rutaComprobanteDetalle.useParams();
+    return <DetalleComprobante comprobanteId={comprobanteId} />;
+  },
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaPanel,
   rutaClientes,
@@ -130,6 +154,9 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaImpuestoNuevo,
   rutaImpuestoEditar,
   rutaTesoreria,
+  rutaComprobantes,
+  rutaComprobanteNuevo,
+  rutaComprobanteDetalle,
 ]);
 
 export const router = createRouter({ routeTree: arbolRutas });
