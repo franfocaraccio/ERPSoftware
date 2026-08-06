@@ -7,6 +7,6 @@ export default defineConfig({
   out: "./drizzle",
   casing: "snake_case",
   dbCredentials: {
-    url: process.env["DATABASE_URL_MIGRATIONS"] ?? "postgresql://erp:erp@localhost:5432/erp",
+    url: process.env.DATABASE_URL_MIGRATIONS ?? "postgresql://erp:erp@localhost:5432/erp",
   },
 });

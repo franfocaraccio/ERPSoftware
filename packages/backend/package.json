@@ -3,17 +3,31 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "exports": {
+    "./router": "./src/trpc/router.ts"
+  },
   "scripts": {
+    "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
+    "@erp/core": "workspace:*",
+    "@trpc/server": "^11.18.0",
+    "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",
-    "pg": "^8.22.0"
+    "express": "^5.2.1",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/pg": "^8.20.4",
-    "drizzle-kit": "^0.31.10"
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.5",
+    "vitest": "^4.1.10"
   }
 }

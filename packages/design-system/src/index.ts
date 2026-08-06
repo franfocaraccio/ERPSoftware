@@ -1,2 +1,18 @@
-// shadcn/ui sobre Base UI + Tailwind v4 — tema y componentes compartidos.
-export {};
+export { Boton, type BotonProps } from "./components/button.js";
+export {
+  Campo,
+  Entrada,
+  type EntradaProps,
+  Selector,
+  type SelectorProps,
+} from "./components/campo.js";
+export { DialogoConfirmacion } from "./components/dialogo.js";
+export { Esqueleto, EstadoVacio, Insignia, Tarjeta } from "./components/superficie.js";
+export {
+  ProveedorTema,
+  SCRIPT_TEMA_INICIAL,
+  type Tema,
+  ToggleTema,
+  useTema,
+} from "./components/tema.js";
+export { cn } from "./lib/cn.js";

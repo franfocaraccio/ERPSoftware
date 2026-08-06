@@ -1,4 +1,4 @@
-import Decimal from "decimal.js";
+import { Decimal } from "decimal.js";
 
 // Clon propio de Decimal: no tocamos la configuración global de la librería.
 // Precisión alta para cálculos intermedios; el redondeo a 2 decimales es

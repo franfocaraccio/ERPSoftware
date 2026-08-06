@@ -1,0 +1,5 @@
+@import "@erp/design-system/theme.css";
+
+/* Las clases usadas por los componentes del design system viven fuera de este
+   package: Tailwind v4 necesita escanear sus fuentes explícitamente. */
+@source "../../design-system/src";
