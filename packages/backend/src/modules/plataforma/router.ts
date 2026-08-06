@@ -95,14 +95,25 @@ export const plataformaRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo crear" });
       }
 
-      // El admin de plataforma queda como creador pero no debe ser miembro:
-      // no puede ver los datos de la PyME.
-      await db.delete(member).where(eq(member.organizationId, creada.id));
+      // Crear la organización deja al admin como miembro, y esa membresía es
+      // justo lo que habilita a invitar. Recién después de mandar la
+      // invitación se la quitamos: un admin de plataforma no debe poder ver
+      // los datos de la PyME.
+      //
+      // Los llamados a auth.api no comparten transacción con nosotros, así que
+      // si la invitación falla hay que deshacer la organización a mano: si no,
+      // queda una empresa huérfana que nadie puede reclamar.
+      try {
+        await auth.api.createInvitation({
+          body: { email: input.emailDueno, role: "dueno", organizationId: creada.id },
+          headers: ctx.headers,
+        });
+      } catch (error) {
+        await db.delete(organization).where(eq(organization.id, creada.id));
+        throw error;
+      }
 
-      await auth.api.createInvitation({
-        body: { email: input.emailDueno, role: "dueno", organizationId: creada.id },
-        headers: ctx.headers,
-      });
+      await db.delete(member).where(eq(member.organizationId, creada.id));
 
       return { id: creada.id, nombre: creada.name, slug: creada.slug };
     }),

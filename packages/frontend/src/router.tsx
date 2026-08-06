@@ -1,5 +1,9 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
 import { Layout } from "./components/layout.js";
+import { Guardia } from "./components/sesion.js";
+import { PanelAdmin } from "./features/admin/panel.js";
+import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
+import { Login } from "./features/auth/login.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
@@ -14,7 +18,44 @@ import { FormularioProducto } from "./features/stock/formulario.js";
 import { ListaStock } from "./features/stock/lista.js";
 import { Tesoreria } from "./features/tesoreria/index.js";
 
+/** La raíz solo decide si hay sesión; el layout lo pone cada rama. */
 const rutaRaiz = createRootRoute({
+  component: () => (
+    <Guardia>
+      <Outlet />
+    </Guardia>
+  ),
+});
+
+// --- Rutas públicas, con su propia pantalla completa ---
+
+const rutaLogin = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/login",
+  component: Login,
+});
+
+const rutaAceptarInvitacion = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/aceptar-invitacion/$invitacionId",
+  component: function Aceptar() {
+    const { invitacionId } = rutaAceptarInvitacion.useParams();
+    return <AceptarInvitacion invitacionId={invitacionId} />;
+  },
+});
+
+/** Panel de plataforma: layout propio, sin el sidebar de módulos. */
+const rutaAdmin = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/admin",
+  component: PanelAdmin,
+});
+
+// --- El ERP, todo bajo el layout con sidebar ---
+
+const rutaApp = createRoute({
+  getParentRoute: () => rutaRaiz,
+  id: "app",
   component: () => (
     <Layout>
       <Outlet />
@@ -23,25 +64,25 @@ const rutaRaiz = createRootRoute({
 });
 
 const rutaPanel = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/",
   component: Panel,
 });
 
 const rutaClientes = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/clientes",
   component: ListaClientes,
 });
 
 const rutaClienteNuevo = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/clientes/nuevo",
   component: () => <FormularioCliente />,
 });
 
 const rutaClienteEditar = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/clientes/$clienteId",
   component: function EditarCliente() {
     const { clienteId } = rutaClienteEditar.useParams();
@@ -50,19 +91,19 @@ const rutaClienteEditar = createRoute({
 });
 
 const rutaProveedores = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/proveedores",
   component: ListaProveedores,
 });
 
 const rutaProveedorNuevo = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/proveedores/nuevo",
   component: () => <FormularioProveedor />,
 });
 
 const rutaProveedorEditar = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/proveedores/$proveedorId",
   component: function EditarProveedor() {
     const { proveedorId } = rutaProveedorEditar.useParams();
@@ -71,19 +112,19 @@ const rutaProveedorEditar = createRoute({
 });
 
 const rutaStock = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/stock",
   component: ListaStock,
 });
 
 const rutaProductoNuevo = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/stock/nuevo",
   component: () => <FormularioProducto />,
 });
 
 const rutaProductoEditar = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/stock/$productoId",
   component: function EditarProducto() {
     const { productoId } = rutaProductoEditar.useParams();
@@ -92,19 +133,19 @@ const rutaProductoEditar = createRoute({
 });
 
 const rutaImpuestos = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/impuestos",
   component: ListaImpuestos,
 });
 
 const rutaImpuestoNuevo = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/impuestos/nueva",
   component: () => <FormularioImpuesto />,
 });
 
 const rutaImpuestoEditar = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/impuestos/$impuestoId",
   component: function EditarImpuesto() {
     const { impuestoId } = rutaImpuestoEditar.useParams();
@@ -113,25 +154,25 @@ const rutaImpuestoEditar = createRoute({
 });
 
 const rutaTesoreria = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/tesoreria",
   component: Tesoreria,
 });
 
 const rutaComprobantes = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/comprobantes",
   component: Comprobantes,
 });
 
 const rutaComprobanteNuevo = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/comprobantes/nuevo",
   component: FormularioComprobante,
 });
 
 const rutaComprobanteDetalle = createRoute({
-  getParentRoute: () => rutaRaiz,
+  getParentRoute: () => rutaApp,
   path: "/comprobantes/$comprobanteId",
   component: function VerComprobante() {
     const { comprobanteId } = rutaComprobanteDetalle.useParams();
@@ -140,23 +181,28 @@ const rutaComprobanteDetalle = createRoute({
 });
 
 const arbolRutas = rutaRaiz.addChildren([
-  rutaPanel,
-  rutaClientes,
-  rutaClienteNuevo,
-  rutaClienteEditar,
-  rutaProveedores,
-  rutaProveedorNuevo,
-  rutaProveedorEditar,
-  rutaStock,
-  rutaProductoNuevo,
-  rutaProductoEditar,
-  rutaImpuestos,
-  rutaImpuestoNuevo,
-  rutaImpuestoEditar,
-  rutaTesoreria,
-  rutaComprobantes,
-  rutaComprobanteNuevo,
-  rutaComprobanteDetalle,
+  rutaLogin,
+  rutaAceptarInvitacion,
+  rutaAdmin,
+  rutaApp.addChildren([
+    rutaPanel,
+    rutaClientes,
+    rutaClienteNuevo,
+    rutaClienteEditar,
+    rutaProveedores,
+    rutaProveedorNuevo,
+    rutaProveedorEditar,
+    rutaStock,
+    rutaProductoNuevo,
+    rutaProductoEditar,
+    rutaImpuestos,
+    rutaImpuestoNuevo,
+    rutaImpuestoEditar,
+    rutaTesoreria,
+    rutaComprobantes,
+    rutaComprobanteNuevo,
+    rutaComprobanteDetalle,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree: arbolRutas });

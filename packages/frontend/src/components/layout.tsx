@@ -2,6 +2,7 @@ import { cn, ToggleTema } from "@erp/design-system";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Boxes, Building2, FileText, LayoutDashboard, Receipt, Users, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
+import { MenuUsuario, SelectorOrganizacion } from "./sesion.js";
 
 interface ItemNav {
   a: string;
@@ -84,7 +85,11 @@ export function Layout({ children }: { children: ReactNode }) {
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-canvas/85 px-4 backdrop-blur-sm sm:px-6">
           <p className="text-sm font-semibold tracking-tight text-foreground lg:hidden">ERP PyME</p>
           <div className="hidden lg:block" />
-          <ToggleTema />
+          <div className="flex items-center gap-2">
+            <SelectorOrganizacion />
+            <ToggleTema />
+            <MenuUsuario />
+          </div>
         </header>
 
         {/* Navegación horizontal en pantallas chicas (el sidebar se oculta). */}
