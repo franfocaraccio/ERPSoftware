@@ -37,6 +37,13 @@ export function etiquetaEstado(valor: string): string {
   return ETIQUETAS_ESTADO[valor] ?? valor;
 }
 
+const FORMATO_CANTIDAD = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 3 });
+
+/** Cantidades (no dinero): hasta 3 decimales, sin ceros de relleno. */
+export function formatearCantidad(valor: string): string {
+  return FORMATO_CANTIDAD.format(Number(valor));
+}
+
 /** Fechas ISO (2026-08-31) → 31/08/2026, sin pasar por Date para no correr el huso. */
 export function formatearFecha(iso: string | null): string {
   if (!iso) {

@@ -16,7 +16,7 @@ const NAVEGACION: ItemNav[] = [
   { a: "/", etiqueta: "Panel", Icono: LayoutDashboard, habilitado: true },
   { a: "/clientes", etiqueta: "Clientes", Icono: Users, habilitado: true },
   { a: "/proveedores", etiqueta: "Proveedores", Icono: Building2, habilitado: true },
-  { a: "/stock", etiqueta: "Stock", Icono: Boxes, habilitado: false },
+  { a: "/stock", etiqueta: "Stock", Icono: Boxes, habilitado: true },
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: false },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: false },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: false },
