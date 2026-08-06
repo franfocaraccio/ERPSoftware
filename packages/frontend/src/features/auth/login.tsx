@@ -1,8 +1,8 @@
 import { Boton, Campo, Entrada, Tarjeta, ToggleTema } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
-import { authClient } from "../../lib/auth.js";
+import { authClient, useSession } from "../../lib/auth.js";
 import { primerError } from "../../lib/formulario.js";
 
 const loginSchema = z.object({
@@ -12,23 +12,45 @@ const loginSchema = z.object({
 
 export function Login() {
   const [error, setError] = useState<string | null>(null);
+  const { data: sesion, isPending: cargandoSesion } = useSession();
+
+  // Con sesión activa el login no tiene sentido: se manda a donde corresponda
+  // según el rol. Para cambiar de cuenta está "Cerrar sesión" en el menú.
+  useEffect(() => {
+    if (!cargandoSesion && sesion) {
+      window.location.replace(sesion.user.role === "admin" ? "/admin" : "/");
+    }
+  }, [cargandoSesion, sesion]);
 
   const form = useForm({
     defaultValues: { email: "", password: "" },
     validators: { onBlur: loginSchema },
     onSubmit: async ({ value }) => {
       setError(null);
+      // Si quedó una cookie de otra cuenta, better-auth responde 200 pero deja
+      // la sesión anterior intacta y el ingreso parece fallar sin motivo.
+      // Cerrarla primero garantiza que la nueva sea la que queda.
+      await authClient.signOut().catch(() => undefined);
+
       const { error: fallo } = await authClient.signIn.email({
         email: value.email.trim(),
         password: value.password,
       });
       if (fallo) {
-        // Mensaje genérico: no revelamos si el mail existe o no.
-        setError("Email o contraseña incorrectos.");
+        // Ante credenciales rechazadas el mensaje es genérico a propósito: no
+        // revelamos si el mail existe. Pero un fallo de red o del servidor se
+        // dice tal cual, porque si no el usuario cree que erró la contraseña.
+        const credencialesInvalidas = fallo.status === 401 || fallo.status === 403;
+        setError(
+          credencialesInvalidas
+            ? "Email o contraseña incorrectos."
+            : `No pudimos conectarnos con el servidor${fallo.status ? ` (${fallo.status})` : ""}. Volvé a intentar en unos segundos.`,
+        );
         return;
       }
       // Carga completa en vez de navegación cliente: así el store de sesión
       // arranca con la cookie ya puesta y el guardia no rebota al login.
+      // El guardia se encarga de mandar a /admin si es admin de plataforma.
       window.location.assign("/");
     },
   });

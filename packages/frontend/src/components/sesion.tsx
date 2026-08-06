@@ -22,17 +22,29 @@ export function Guardia({ children }: { children: ReactNode }) {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
   const publica = esRutaPublica(ruta);
 
+  const esAdminPlataforma = sesion?.user.role === "admin";
+  const enAdmin = ruta.startsWith("/admin");
+
   useEffect(() => {
-    if (!isPending && !sesion && !publica) {
-      void navigate({ to: "/login" });
+    if (isPending || publica) {
+      return;
     }
-  }, [isPending, sesion, publica, navigate]);
+    if (!sesion) {
+      void navigate({ to: "/login" });
+      return;
+    }
+    // Un admin de plataforma no pertenece a ninguna empresa: el ERP no tiene
+    // nada que mostrarle. Su lugar es el panel de plataforma.
+    if (esAdminPlataforma && !enAdmin) {
+      void navigate({ to: "/admin" });
+    }
+  }, [isPending, sesion, publica, esAdminPlataforma, enAdmin, navigate]);
 
   if (publica) {
     return <>{children}</>;
   }
 
-  if (isPending || !sesion) {
+  if (isPending || !sesion || (esAdminPlataforma && !enAdmin)) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-canvas">
         <Esqueleto className="h-24 w-64" />

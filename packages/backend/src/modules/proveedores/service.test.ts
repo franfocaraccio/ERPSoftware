@@ -3,7 +3,7 @@ import { pool } from "../../db/client.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
-import { crearTenantDePrueba } from "../../test/tenant.js";
+import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import {
   actualizarProveedor,
   crearProveedor,
@@ -20,6 +20,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await limpiarTenantsDePrueba();
   await pool.end();
 });
 

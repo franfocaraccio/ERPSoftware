@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
-import { crearTenantDePrueba } from "../../test/tenant.js";
+import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { crearProveedor } from "../proveedores/service.js";
 import { actualizarProducto, crearProducto, listarProductos, obtenerProducto } from "./service.js";
 
@@ -13,6 +13,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await limpiarTenantsDePrueba();
   await pool.end();
 });
 

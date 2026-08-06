@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
 import { auditLog } from "../../db/schema/auditoria.js";
 import { withTenant } from "../../db/tenant-db.js";
-import { crearTenantDePrueba } from "../../test/tenant.js";
+import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { actualizarCliente, crearCliente, listarClientes, obtenerCliente } from "./service.js";
 
 // Cada corrida usa tenants aleatorios: el aislamiento por RLS hace que no
@@ -17,6 +17,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await limpiarTenantsDePrueba();
   await pool.end();
 });
 

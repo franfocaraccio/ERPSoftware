@@ -583,12 +583,9 @@ export function PanelAdmin() {
             <ShieldCheck className="size-5 text-primary" aria-hidden="true" />
             <span className="text-sm font-semibold tracking-tight text-foreground">Plataforma</span>
           </div>
+          {/* Sin botón "Ir al ERP": el admin no pertenece a ninguna empresa,
+              así que allá no tendría nada que ver. */}
           <div className="flex items-center gap-2">
-            <Link to="/">
-              <Boton variante="secundario" tamano="sm">
-                Ir al ERP
-              </Boton>
-            </Link>
             <ToggleTema />
             <MenuUsuario />
           </div>
