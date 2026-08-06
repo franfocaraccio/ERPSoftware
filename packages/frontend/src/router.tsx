@@ -3,6 +3,8 @@ import { Layout } from "./components/layout.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
 import { Panel } from "./features/panel/panel.js";
+import { FormularioProveedor } from "./features/proveedores/formulario.js";
+import { ListaProveedores } from "./features/proveedores/lista.js";
 
 const rutaRaiz = createRootRoute({
   component: () => (
@@ -39,11 +41,35 @@ const rutaClienteEditar = createRoute({
   },
 });
 
+const rutaProveedores = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/proveedores",
+  component: ListaProveedores,
+});
+
+const rutaProveedorNuevo = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/proveedores/nuevo",
+  component: () => <FormularioProveedor />,
+});
+
+const rutaProveedorEditar = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/proveedores/$proveedorId",
+  component: function EditarProveedor() {
+    const { proveedorId } = rutaProveedorEditar.useParams();
+    return <FormularioProveedor proveedorId={proveedorId} />;
+  },
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaPanel,
   rutaClientes,
   rutaClienteNuevo,
   rutaClienteEditar,
+  rutaProveedores,
+  rutaProveedorNuevo,
+  rutaProveedorEditar,
 ]);
 
 export const router = createRouter({ routeTree: arbolRutas });

@@ -8,9 +8,8 @@ import { EncabezadoPagina } from "../../components/layout.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
 
-// Validación de UI. El servidor revalida todo con sus propios schemas Zod
-// (incluida la verificación del dígito verificador del CUIT): esto es
-// feedback temprano, no la última palabra.
+// Feedback temprano; el servidor revalida con sus propios schemas
+// (incluido el dígito verificador del CUIT).
 const formularioSchema = z.object({
   razonSocial: z.string().trim().min(1, "La razón social es obligatoria"),
   cuit: z
@@ -21,20 +20,21 @@ const formularioSchema = z.object({
       "El CUIT debe tener 11 dígitos",
     ),
   condicionIva: z.enum(["responsable_inscripto", "monotributo", "exento", "consumidor_final"]),
+  rubro: z.string().trim(),
+  condicionPagoDias: z
+    .string()
+    .trim()
+    .refine((v) => /^\d+$/.test(v) && Number(v) <= 365, "Ingresá un número de días entre 0 y 365"),
+  cbu: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{22}$/.test(v), "El CBU tiene 22 dígitos"),
+  aliasCbu: z.string().trim(),
   email: z
     .string()
     .trim()
     .refine((v) => v === "" || z.email().safeParse(v).success, "Email inválido"),
   telefono: z.string().trim(),
-  direccion: z.string().trim(),
-  limiteCredito: z
-    .string()
-    .trim()
-    .refine(
-      (v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v),
-      "Usá punto decimal, máximo 2 decimales",
-    ),
-  estado: z.enum(["activo", "inactivo", "en_mora"]),
 });
 
 type ValoresFormulario = z.infer<typeof formularioSchema>;
@@ -43,11 +43,12 @@ const VALORES_INICIALES: ValoresFormulario = {
   razonSocial: "",
   cuit: "",
   condicionIva: "responsable_inscripto",
+  rubro: "",
+  condicionPagoDias: "30",
+  cbu: "",
+  aliasCbu: "",
   email: "",
   telefono: "",
-  direccion: "",
-  limiteCredito: "",
-  estado: "activo",
 };
 
 const CONDICIONES_IVA = [
@@ -57,39 +58,34 @@ const CONDICIONES_IVA = [
   { valor: "consumidor_final", etiqueta: "Consumidor Final" },
 ] as const;
 
-const ESTADOS = [
-  { valor: "activo", etiqueta: "Activo" },
-  { valor: "inactivo", etiqueta: "Inactivo" },
-  { valor: "en_mora", etiqueta: "En mora" },
-] as const;
-
-export function FormularioCliente({ clienteId }: { clienteId?: string }) {
+export function FormularioProveedor({ proveedorId }: { proveedorId?: string }) {
   const trpc = useTRPC();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const esEdicion = Boolean(clienteId);
+  const esEdicion = Boolean(proveedorId);
 
   const consulta = useQuery({
-    ...trpc.clientes.obtener.queryOptions({ id: clienteId ?? "" }),
+    ...trpc.proveedores.obtener.queryOptions({ id: proveedorId ?? "" }),
     enabled: esEdicion,
   });
 
-  const crear = useMutation(trpc.clientes.crear.mutationOptions());
-  const actualizar = useMutation(trpc.clientes.actualizar.mutationOptions());
+  const crear = useMutation(trpc.proveedores.crear.mutationOptions());
+  const actualizar = useMutation(trpc.proveedores.actualizar.mutationOptions());
   const mutacion = esEdicion ? actualizar : crear;
 
-  const cliente = consulta.data;
+  const proveedor = consulta.data;
   const form = useForm({
-    defaultValues: cliente
+    defaultValues: proveedor
       ? {
-          razonSocial: cliente.razonSocial,
-          cuit: cliente.cuit ?? "",
-          condicionIva: cliente.condicionIva,
-          email: cliente.email ?? "",
-          telefono: cliente.telefono ?? "",
-          direccion: cliente.direccion ?? "",
-          limiteCredito: cliente.limiteCredito ?? "",
-          estado: cliente.estado,
+          razonSocial: proveedor.razonSocial,
+          cuit: proveedor.cuit ?? "",
+          condicionIva: proveedor.condicionIva,
+          rubro: proveedor.rubro ?? "",
+          condicionPagoDias: String(proveedor.condicionPagoDias),
+          cbu: proveedor.cbu ?? "",
+          aliasCbu: proveedor.aliasCbu ?? "",
+          email: proveedor.email ?? "",
+          telefono: proveedor.telefono ?? "",
         }
       : VALORES_INICIALES,
     validators: { onBlur: formularioSchema },
@@ -98,25 +94,27 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
         razonSocial: value.razonSocial.trim(),
         cuit: opcional(value.cuit),
         condicionIva: value.condicionIva,
+        rubro: opcional(value.rubro),
+        condicionPagoDias: Number(value.condicionPagoDias),
+        cbu: opcional(value.cbu),
+        aliasCbu: opcional(value.aliasCbu),
         email: opcional(value.email),
         telefono: opcional(value.telefono),
-        direccion: opcional(value.direccion),
-        limiteCredito: opcional(value.limiteCredito),
       };
-      if (clienteId) {
-        await actualizar.mutateAsync({ id: clienteId, datos: { ...datos, estado: value.estado } });
+      if (proveedorId) {
+        await actualizar.mutateAsync({ id: proveedorId, datos });
       } else {
         await crear.mutateAsync(datos);
       }
-      await queryClient.invalidateQueries({ queryKey: trpc.clientes.pathKey() });
-      await navigate({ to: "/clientes" });
+      await queryClient.invalidateQueries({ queryKey: trpc.proveedores.pathKey() });
+      await navigate({ to: "/proveedores" });
     },
   });
 
   if (esEdicion && consulta.isPending) {
     return (
       <>
-        <EncabezadoPagina titulo="Editar cliente" />
+        <EncabezadoPagina titulo="Editar proveedor" />
         <Tarjeta className="max-w-2xl space-y-4 p-6">
           {[0, 1, 2, 3].map((i) => (
             <Esqueleto key={i} className="h-16 w-full" />
@@ -129,19 +127,19 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
   return (
     <>
       <Link
-        to="/clientes"
+        to="/proveedores"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Volver a clientes
+        Volver a proveedores
       </Link>
 
       <EncabezadoPagina
-        titulo={esEdicion ? "Editar cliente" : "Nuevo cliente"}
+        titulo={esEdicion ? "Editar proveedor" : "Nuevo proveedor"}
         descripcion={
           esEdicion
-            ? "Modificá los datos del cliente. Los cambios quedan registrados en auditoría."
-            : "Los datos fiscales determinan qué tipo de comprobante se le puede emitir."
+            ? "Modificá los datos del proveedor. Los cambios quedan registrados en auditoría."
+            : "La condición de pago define cuándo vence cada compra en la proyección de caja."
         }
       />
 
@@ -237,10 +235,101 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
 
           <fieldset className="space-y-5 border-0 p-0">
             <legend className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Contacto
+              Condiciones comerciales
             </legend>
 
             <div className="grid gap-5 sm:grid-cols-2">
+              <form.Field name="rubro">
+                {(field) => (
+                  <Campo etiqueta="Rubro" ayuda="Para segmentar compras y negociar condiciones">
+                    {({ id, describedBy }) => (
+                      <Entrada
+                        id={id}
+                        aria-describedby={describedBy}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+
+              <form.Field name="condicionPagoDias">
+                {(field) => (
+                  <Campo
+                    etiqueta="Condición de pago (días)"
+                    requerido
+                    ayuda="0 = contado"
+                    error={
+                      field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
+                    }
+                  >
+                    {({ id, describedBy, invalido }) => (
+                      <Entrada
+                        id={id}
+                        inputMode="numeric"
+                        className="tabular"
+                        aria-describedby={describedBy}
+                        invalido={invalido}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-5 border-0 p-0">
+            <legend className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Datos de pago y contacto
+            </legend>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <form.Field name="cbu">
+                {(field) => (
+                  <Campo
+                    etiqueta="CBU"
+                    ayuda="22 dígitos"
+                    error={
+                      field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
+                    }
+                  >
+                    {({ id, describedBy, invalido }) => (
+                      <Entrada
+                        id={id}
+                        inputMode="numeric"
+                        className="tabular"
+                        aria-describedby={describedBy}
+                        invalido={invalido}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+
+              <form.Field name="aliasCbu">
+                {(field) => (
+                  <Campo etiqueta="Alias">
+                    {({ id, describedBy }) => (
+                      <Entrada
+                        id={id}
+                        aria-describedby={describedBy}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+
               <form.Field name="email">
                 {(field) => (
                   <Campo
@@ -283,83 +372,6 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
                 )}
               </form.Field>
             </div>
-
-            <form.Field name="direccion">
-              {(field) => (
-                <Campo etiqueta="Dirección">
-                  {({ id, describedBy }) => (
-                    <Entrada
-                      id={id}
-                      autoComplete="street-address"
-                      aria-describedby={describedBy}
-                      value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
-                      onBlur={field.handleBlur}
-                    />
-                  )}
-                </Campo>
-              )}
-            </form.Field>
-          </fieldset>
-
-          <fieldset className="space-y-5 border-0 p-0">
-            <legend className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Condiciones comerciales
-            </legend>
-
-            <div className="grid gap-5 sm:grid-cols-2">
-              <form.Field name="limiteCredito">
-                {(field) => (
-                  <Campo
-                    etiqueta="Límite de crédito"
-                    ayuda="En pesos. Se usa para alertar sobregiros."
-                    error={
-                      field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
-                    }
-                  >
-                    {({ id, describedBy, invalido }) => (
-                      <Entrada
-                        id={id}
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        className="tabular"
-                        aria-describedby={describedBy}
-                        invalido={invalido}
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                      />
-                    )}
-                  </Campo>
-                )}
-              </form.Field>
-
-              {esEdicion && (
-                <form.Field name="estado">
-                  {(field) => (
-                    <Campo etiqueta="Estado">
-                      {({ id, describedBy }) => (
-                        <Selector
-                          id={id}
-                          aria-describedby={describedBy}
-                          value={field.state.value}
-                          onChange={(e) =>
-                            field.handleChange(e.target.value as ValoresFormulario["estado"])
-                          }
-                          onBlur={field.handleBlur}
-                        >
-                          {ESTADOS.map((o) => (
-                            <option key={o.valor} value={o.valor}>
-                              {o.etiqueta}
-                            </option>
-                          ))}
-                        </Selector>
-                      )}
-                    </Campo>
-                  )}
-                </form.Field>
-              )}
-            </div>
           </fieldset>
 
           {mutacion.isError && (
@@ -372,7 +384,7 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-5">
-            <Link to="/clientes">
+            <Link to="/proveedores">
               <Boton variante="secundario" tamano="sm" type="button">
                 Cancelar
               </Boton>
@@ -380,7 +392,7 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
             <form.Subscribe selector={(s) => s.isSubmitting}>
               {(enviando) => (
                 <Boton type="submit" tamano="sm" cargando={enviando}>
-                  {esEdicion ? "Guardar cambios" : "Crear cliente"}
+                  {esEdicion ? "Guardar cambios" : "Crear proveedor"}
                 </Boton>
               )}
             </form.Subscribe>

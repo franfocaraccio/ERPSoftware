@@ -37,6 +37,15 @@ export function etiquetaEstado(valor: string): string {
   return ETIQUETAS_ESTADO[valor] ?? valor;
 }
 
+/** Fechas ISO (2026-08-31) → 31/08/2026, sin pasar por Date para no correr el huso. */
+export function formatearFecha(iso: string | null): string {
+  if (!iso) {
+    return "—";
+  }
+  const [anio, mes, dia] = iso.slice(0, 10).split("-");
+  return anio && mes && dia ? `${dia}/${mes}/${anio}` : iso;
+}
+
 /** 30703088534 → 30-70308853-4 */
 export function formatearCuit(cuit: string | null): string {
   if (cuit?.length !== 11) {
