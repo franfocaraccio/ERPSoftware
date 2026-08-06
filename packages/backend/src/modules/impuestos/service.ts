@@ -1,3 +1,4 @@
+import { hoyEnArgentina } from "@erp/core/dates";
 import { Money } from "@erp/core/money";
 import {
   type EstadoImpuesto,
@@ -20,10 +21,9 @@ export interface ImpuestoConDerivados extends Impuesto {
   estado: EstadoImpuesto;
 }
 
-/** Fecha de hoy en ISO, sin componente horario. */
-function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+// "Hoy" es un concepto local: calcularlo en UTC marcaría vencido un impuesto
+// un día antes, a partir de las 21:00 hora argentina.
+const hoyISO = hoyEnArgentina;
 
 function conDerivados(impuesto: Impuesto, hoy: string): ImpuestoConDerivados {
   // Los impuestos son siempre en ARS (decisión de modelado).

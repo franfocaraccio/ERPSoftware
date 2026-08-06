@@ -3,17 +3,24 @@
  * sin convertirlo a number para operar (regla dura: nada de aritmética con
  * float sobre importes).
  */
-const FORMATO_ARS = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  minimumFractionDigits: 2,
-});
+const FORMATOS_MONEDA = {
+  ARS: new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 2,
+  }),
+  USD: new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }),
+} as const;
 
-export function formatearImporte(valor: string | null): string {
+export function formatearImporte(valor: string | null, moneda: "ARS" | "USD" = "ARS"): string {
   if (valor === null) {
     return "—";
   }
-  return FORMATO_ARS.format(Number(valor));
+  return FORMATOS_MONEDA[moneda].format(Number(valor));
 }
 
 const ETIQUETAS_CONDICION_IVA: Record<string, string> = {

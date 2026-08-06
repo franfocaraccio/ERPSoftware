@@ -9,6 +9,7 @@ import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
 import { ListaStock } from "./features/stock/lista.js";
+import { Tesoreria } from "./features/tesoreria/index.js";
 
 const rutaRaiz = createRootRoute({
   component: () => (
@@ -108,6 +109,12 @@ const rutaImpuestoEditar = createRoute({
   },
 });
 
+const rutaTesoreria = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/tesoreria",
+  component: Tesoreria,
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaPanel,
   rutaClientes,
@@ -122,6 +129,7 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaImpuestos,
   rutaImpuestoNuevo,
   rutaImpuestoEditar,
+  rutaTesoreria,
 ]);
 
 export const router = createRouter({ routeTree: arbolRutas });
