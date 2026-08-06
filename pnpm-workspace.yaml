@@ -1,4 +1,8 @@
 packages:
   - packages/*
 allowBuilds:
+  # Dependencias opcionales del CLI de better-auth: no usamos Prisma ni SQLite
+  # (Postgres con Drizzle), así que sus build scripts no hacen falta.
+  '@prisma/client': false
+  better-sqlite3: false
   esbuild: true

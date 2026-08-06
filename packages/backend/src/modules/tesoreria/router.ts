@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, tenantProcedure } from "../../trpc/trpc.js";
+import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import {
   chequeActualizarSchema,
   chequeInputSchema,
@@ -38,16 +38,18 @@ export const tesoreriaRouter = router({
       }
       return cuenta;
     }),
-    crear: tenantProcedure.input(cuentaInputSchema).mutation(({ ctx, input }) => {
+    crear: escrituraProcedure.input(cuentaInputSchema).mutation(({ ctx, input }) => {
       return crearCuenta(ctx, input);
     }),
-    actualizar: tenantProcedure.input(cuentaActualizarSchema).mutation(async ({ ctx, input }) => {
-      const cuenta = await actualizarCuenta(ctx, input);
-      if (!cuenta) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Cuenta no encontrada" });
-      }
-      return cuenta;
-    }),
+    actualizar: escrituraProcedure
+      .input(cuentaActualizarSchema)
+      .mutation(async ({ ctx, input }) => {
+        const cuenta = await actualizarCuenta(ctx, input);
+        if (!cuenta) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cuenta no encontrada" });
+        }
+        return cuenta;
+      }),
   }),
 
   movimientos: router({
@@ -61,10 +63,10 @@ export const tesoreriaRouter = router({
       }
       return movimiento;
     }),
-    crear: tenantProcedure.input(movimientoInputSchema).mutation(({ ctx, input }) => {
+    crear: escrituraProcedure.input(movimientoInputSchema).mutation(({ ctx, input }) => {
       return crearMovimiento(ctx, input);
     }),
-    actualizar: tenantProcedure
+    actualizar: escrituraProcedure
       .input(movimientoActualizarSchema)
       .mutation(async ({ ctx, input }) => {
         const movimiento = await actualizarMovimiento(ctx, input);
@@ -86,15 +88,17 @@ export const tesoreriaRouter = router({
       }
       return cheque;
     }),
-    crear: tenantProcedure.input(chequeInputSchema).mutation(({ ctx, input }) => {
+    crear: escrituraProcedure.input(chequeInputSchema).mutation(({ ctx, input }) => {
       return crearCheque(ctx, input);
     }),
-    actualizar: tenantProcedure.input(chequeActualizarSchema).mutation(async ({ ctx, input }) => {
-      const cheque = await actualizarCheque(ctx, input);
-      if (!cheque) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Cheque no encontrado" });
-      }
-      return cheque;
-    }),
+    actualizar: escrituraProcedure
+      .input(chequeActualizarSchema)
+      .mutation(async ({ ctx, input }) => {
+        const cheque = await actualizarCheque(ctx, input);
+        if (!cheque) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Cheque no encontrado" });
+        }
+        return cheque;
+      }),
   }),
 });

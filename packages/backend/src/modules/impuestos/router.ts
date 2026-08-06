@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, tenantProcedure } from "../../trpc/trpc.js";
+import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { impuestoActualizarSchema, impuestoInputSchema, impuestosListarSchema } from "./schema.js";
 import { actualizarImpuesto, crearImpuesto, listarImpuestos, obtenerImpuesto } from "./service.js";
 
@@ -17,15 +17,17 @@ export const impuestosRouter = router({
     return impuesto;
   }),
 
-  crear: tenantProcedure.input(impuestoInputSchema).mutation(({ ctx, input }) => {
+  crear: escrituraProcedure.input(impuestoInputSchema).mutation(({ ctx, input }) => {
     return crearImpuesto(ctx, input);
   }),
 
-  actualizar: tenantProcedure.input(impuestoActualizarSchema).mutation(async ({ ctx, input }) => {
-    const impuesto = await actualizarImpuesto(ctx, input);
-    if (!impuesto) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Obligación no encontrada" });
-    }
-    return impuesto;
-  }),
+  actualizar: escrituraProcedure
+    .input(impuestoActualizarSchema)
+    .mutation(async ({ ctx, input }) => {
+      const impuesto = await actualizarImpuesto(ctx, input);
+      if (!impuesto) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Obligación no encontrada" });
+      }
+      return impuesto;
+    }),
 });

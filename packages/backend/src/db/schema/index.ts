@@ -1,5 +1,6 @@
 export * from "./_comunes.js";
 export * from "./auditoria.js";
+export * from "./auth.js";
 export * from "./clientes.js";
 export * from "./compras.js";
 export * from "./facturacion.js";

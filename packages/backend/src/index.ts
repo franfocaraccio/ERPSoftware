@@ -1,7 +1,9 @@
 import "./env.js";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
+import { auth } from "./auth/auth.js";
 import { createContext } from "./trpc/context.js";
 import { appRouter } from "./trpc/router.js";
 
@@ -17,6 +19,10 @@ app.use(
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
+
+// BetterAuth va ANTES de cualquier body parser: necesita el stream crudo.
+// En Express 5 el comodín de ruta lleva nombre.
+app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 

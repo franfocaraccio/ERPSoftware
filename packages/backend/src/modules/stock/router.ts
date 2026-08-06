@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, tenantProcedure } from "../../trpc/trpc.js";
+import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { productoActualizarSchema, productoInputSchema, productosListarSchema } from "./schema.js";
 import { actualizarProducto, crearProducto, listarProductos, obtenerProducto } from "./service.js";
 
@@ -17,15 +17,17 @@ export const stockRouter = router({
     return producto;
   }),
 
-  crear: tenantProcedure.input(productoInputSchema).mutation(({ ctx, input }) => {
+  crear: escrituraProcedure.input(productoInputSchema).mutation(({ ctx, input }) => {
     return crearProducto(ctx, input);
   }),
 
-  actualizar: tenantProcedure.input(productoActualizarSchema).mutation(async ({ ctx, input }) => {
-    const producto = await actualizarProducto(ctx, input);
-    if (!producto) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Producto no encontrado" });
-    }
-    return producto;
-  }),
+  actualizar: escrituraProcedure
+    .input(productoActualizarSchema)
+    .mutation(async ({ ctx, input }) => {
+      const producto = await actualizarProducto(ctx, input);
+      if (!producto) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Producto no encontrado" });
+      }
+      return producto;
+    }),
 });

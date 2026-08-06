@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, tenantProcedure } from "../../trpc/trpc.js";
+import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import {
   proveedorActualizarSchema,
   proveedoresListarSchema,
@@ -26,15 +26,17 @@ export const proveedoresRouter = router({
     return proveedor;
   }),
 
-  crear: tenantProcedure.input(proveedorInputSchema).mutation(({ ctx, input }) => {
+  crear: escrituraProcedure.input(proveedorInputSchema).mutation(({ ctx, input }) => {
     return crearProveedor(ctx, input);
   }),
 
-  actualizar: tenantProcedure.input(proveedorActualizarSchema).mutation(async ({ ctx, input }) => {
-    const proveedor = await actualizarProveedor(ctx, input);
-    if (!proveedor) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Proveedor no encontrado" });
-    }
-    return proveedor;
-  }),
+  actualizar: escrituraProcedure
+    .input(proveedorActualizarSchema)
+    .mutation(async ({ ctx, input }) => {
+      const proveedor = await actualizarProveedor(ctx, input);
+      if (!proveedor) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Proveedor no encontrado" });
+      }
+      return proveedor;
+    }),
 });

@@ -1,12 +1,17 @@
-import { randomUUID } from "node:crypto";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
+import { crearTenantDePrueba } from "../../test/tenant.js";
 import { actualizarImpuesto, crearImpuesto, listarImpuestos, obtenerImpuesto } from "./service.js";
 
-const tenantA = { tenantId: `test-${randomUUID()}`, usuarioId: "test-user" };
-const tenantB = { tenantId: `test-${randomUUID()}`, usuarioId: "test-user" };
+let tenantA: { tenantId: string; usuarioId: string };
+let tenantB: { tenantId: string; usuarioId: string };
 
 const listar = () => listarImpuestos(tenantA, { soloImpagos: false, pagina: 1, tamanoPagina: 50 });
+
+beforeAll(async () => {
+  tenantA = await crearTenantDePrueba();
+  tenantB = await crearTenantDePrueba();
+});
 
 afterAll(async () => {
   await pool.end();

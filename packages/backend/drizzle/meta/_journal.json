@@ -15,6 +15,20 @@
       "when": 1785973289829,
       "tag": "0001_rls_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785984511871,
+      "tag": "0002_mushy_vulture",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785985003003,
+      "tag": "0003_tenant_fk",
+      "breakpoints": true
     }
   ]
 }

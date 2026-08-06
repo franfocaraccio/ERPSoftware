@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { router, tenantProcedure } from "../../trpc/trpc.js";
+import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import {
   compraActualizarSchema,
   compraInputSchema,
@@ -49,23 +49,25 @@ export const comprobantesRouter = router({
       }
       return venta;
     }),
-    crear: tenantProcedure.input(ventaInputSchema).mutation(({ ctx, input }) => {
+    crear: escrituraProcedure.input(ventaInputSchema).mutation(({ ctx, input }) => {
       return crearVenta(ctx, input);
     }),
-    actualizar: tenantProcedure.input(ventaActualizarSchema).mutation(async ({ ctx, input }) => {
+    actualizar: escrituraProcedure.input(ventaActualizarSchema).mutation(async ({ ctx, input }) => {
       const venta = await actualizarVenta(ctx, input).catch(traducirError);
       if (!venta) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Comprobante no encontrado" });
       }
       return venta;
     }),
-    transicionar: tenantProcedure.input(ventaTransicionSchema).mutation(async ({ ctx, input }) => {
-      const venta = await transicionarVenta(ctx, input).catch(traducirError);
-      if (!venta) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Comprobante no encontrado" });
-      }
-      return venta;
-    }),
+    transicionar: escrituraProcedure
+      .input(ventaTransicionSchema)
+      .mutation(async ({ ctx, input }) => {
+        const venta = await transicionarVenta(ctx, input).catch(traducirError);
+        if (!venta) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Comprobante no encontrado" });
+        }
+        return venta;
+      }),
   }),
 
   compras: router({
@@ -79,15 +81,17 @@ export const comprobantesRouter = router({
       }
       return compra;
     }),
-    crear: tenantProcedure.input(compraInputSchema).mutation(({ ctx, input }) => {
+    crear: escrituraProcedure.input(compraInputSchema).mutation(({ ctx, input }) => {
       return crearCompra(ctx, input);
     }),
-    actualizar: tenantProcedure.input(compraActualizarSchema).mutation(async ({ ctx, input }) => {
-      const compra = await actualizarCompra(ctx, input);
-      if (!compra) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Compra no encontrada" });
-      }
-      return compra;
-    }),
+    actualizar: escrituraProcedure
+      .input(compraActualizarSchema)
+      .mutation(async ({ ctx, input }) => {
+        const compra = await actualizarCompra(ctx, input);
+        if (!compra) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Compra no encontrada" });
+        }
+        return compra;
+      }),
   }),
 });

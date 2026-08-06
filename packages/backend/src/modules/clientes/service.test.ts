@@ -1,15 +1,20 @@
-import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
 import { auditLog } from "../../db/schema/auditoria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { crearTenantDePrueba } from "../../test/tenant.js";
 import { actualizarCliente, crearCliente, listarClientes, obtenerCliente } from "./service.js";
 
 // Cada corrida usa tenants aleatorios: el aislamiento por RLS hace que no
 // interfieran con datos existentes ni entre corridas.
-const tenantA = { tenantId: `test-${randomUUID()}`, usuarioId: "test-user" };
-const tenantB = { tenantId: `test-${randomUUID()}`, usuarioId: "test-user" };
+let tenantA: { tenantId: string; usuarioId: string };
+let tenantB: { tenantId: string; usuarioId: string };
+
+beforeAll(async () => {
+  tenantA = await crearTenantDePrueba();
+  tenantB = await crearTenantDePrueba();
+});
 
 afterAll(async () => {
   await pool.end();
