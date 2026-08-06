@@ -14,7 +14,7 @@ interface ItemNav {
 // Un ítem por módulo del PDF. Los que aún no tienen slice se muestran
 // deshabilitados en lugar de ocultarse: el usuario ve el alcance del sistema.
 const NAVEGACION: ItemNav[] = [
-  { a: "/", etiqueta: "Panel", Icono: LayoutDashboard, habilitado: true },
+  { a: "/panel", etiqueta: "Panel", Icono: LayoutDashboard, habilitado: true },
   { a: "/clientes", etiqueta: "Clientes", Icono: Users, habilitado: true },
   { a: "/proveedores", etiqueta: "Proveedores", Icono: Building2, habilitado: true },
   { a: "/stock", etiqueta: "Stock", Icono: Boxes, habilitado: true },
@@ -29,7 +29,7 @@ function Navegacion() {
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
       {NAVEGACION.map(({ a, etiqueta, Icono, habilitado }) => {
-        const activo = a === "/" ? ruta === "/" : ruta.startsWith(a);
+        const activo = ruta.startsWith(a);
         const clases = cn(
           "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
         );

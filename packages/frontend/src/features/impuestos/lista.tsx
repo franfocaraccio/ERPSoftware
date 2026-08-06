@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -143,11 +143,9 @@ export function ListaImpuestos() {
         titulo="Impuestos"
         descripcion="Obligaciones fiscales, vencimientos y saldos pendientes."
         acciones={
-          <Link to="/impuestos/nueva">
-            <Boton tamano="sm">
-              <Plus className="size-4" aria-hidden="true" />
-              Nueva obligación
-            </Boton>
+          <Link to="/impuestos/nueva" className={clasesBoton("primario", "sm")}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nueva obligación
           </Link>
         }
       />
@@ -249,11 +247,9 @@ export function ListaImpuestos() {
                   Ver todas
                 </Boton>
               ) : (
-                <Link to="/impuestos/nueva">
-                  <Boton tamano="sm">
-                    <Plus className="size-4" aria-hidden="true" />
-                    Nueva obligación
-                  </Boton>
+                <Link to="/impuestos/nueva" className={clasesBoton("primario", "sm")}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Nueva obligación
                 </Link>
               )
             }

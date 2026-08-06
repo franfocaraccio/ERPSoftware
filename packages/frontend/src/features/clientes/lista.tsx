@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -110,11 +110,9 @@ export function ListaClientes() {
         titulo="Clientes"
         descripcion="Padrón de clientes, condición fiscal y límite de crédito."
         acciones={
-          <Link to="/clientes/nuevo">
-            <Boton tamano="sm">
-              <Plus className="size-4" aria-hidden="true" />
-              Nuevo cliente
-            </Boton>
+          <Link to="/clientes/nuevo" className={clasesBoton("primario", "sm")}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nuevo cliente
           </Link>
         }
       />
@@ -178,11 +176,9 @@ export function ListaClientes() {
                   Limpiar búsqueda
                 </Boton>
               ) : (
-                <Link to="/clientes/nuevo">
-                  <Boton tamano="sm">
-                    <Plus className="size-4" aria-hidden="true" />
-                    Nuevo cliente
-                  </Boton>
+                <Link to="/clientes/nuevo" className={clasesBoton("primario", "sm")}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Nuevo cliente
                 </Link>
               )
             }

@@ -18,7 +18,7 @@ export function Login() {
   // según el rol. Para cambiar de cuenta está "Cerrar sesión" en el menú.
   useEffect(() => {
     if (!cargandoSesion && sesion) {
-      window.location.replace(sesion.user.role === "admin" ? "/admin" : "/");
+      window.location.replace(sesion.user.role === "admin" ? "/admin" : "/panel");
     }
   }, [cargandoSesion, sesion]);
 
@@ -51,7 +51,7 @@ export function Login() {
       // Carga completa en vez de navegación cliente: así el store de sesión
       // arranca con la cookie ya puesta y el guardia no rebota al login.
       // El guardia se encarga de mandar a /admin si es admin de plataforma.
-      window.location.assign("/");
+      window.location.assign("/panel");
     },
   });
 

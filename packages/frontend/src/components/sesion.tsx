@@ -9,7 +9,8 @@ import { authClient, ETIQUETA_ROL, useSession } from "../lib/auth.js";
 const RUTAS_PUBLICAS = ["/login", "/aceptar-invitacion"];
 
 function esRutaPublica(ruta: string): boolean {
-  return RUTAS_PUBLICAS.some((p) => ruta.startsWith(p));
+  // La portada se compara exacta: con startsWith, "/" haría pública toda la app.
+  return ruta === "/" || RUTAS_PUBLICAS.some((p) => ruta.startsWith(p));
 }
 
 /**
@@ -104,7 +105,7 @@ export function SelectorOrganizacion() {
 
       {abierto && (
         <ul
-          // biome-ignore lint/a11y/useSemanticElements: listbox de opciones, no un select nativo
+          // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: patrón ARIA listbox sobre lista, con role="option" en los hijos
           role="listbox"
           aria-label="Empresas"
           className="absolute right-0 z-40 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-[--shadow-popover]"
@@ -142,7 +143,6 @@ export function MenuUsuario() {
   const { data: sesion } = useSession();
   const { data: activa } = authClient.useActiveOrganization();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [abierto, setAbierto] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
@@ -194,7 +194,6 @@ export function MenuUsuario() {
 
       {abierto && (
         <div
-          // biome-ignore lint/a11y/useSemanticElements: menú desplegable propio
           role="menu"
           className="absolute right-0 z-40 mt-1 w-60 overflow-hidden rounded-lg border border-border bg-surface shadow-[--shadow-popover]"
         >

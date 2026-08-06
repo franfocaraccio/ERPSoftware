@@ -1,4 +1,12 @@
-import { Boton, Campo, Entrada, Esqueleto, Selector, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  Campo,
+  clasesBoton,
+  Entrada,
+  Esqueleto,
+  Selector,
+  Tarjeta,
+} from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -372,10 +380,8 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-5">
-            <Link to="/clientes">
-              <Boton variante="secundario" tamano="sm" type="button">
-                Cancelar
-              </Boton>
+            <Link to="/clientes" className={clasesBoton("secundario", "sm")}>
+              Cancelar
             </Link>
             <form.Subscribe selector={(s) => s.isSubmitting}>
               {(enviando) => (

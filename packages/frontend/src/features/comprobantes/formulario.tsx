@@ -1,6 +1,6 @@
 import { hoyEnArgentina } from "@erp/core/dates";
 import { type AlicuotaIva, calcularComprobante } from "@erp/core/invoicing";
-import { Boton, Campo, Entrada, Selector, Tarjeta } from "@erp/design-system";
+import { Boton, Campo, clasesBoton, Entrada, Selector, Tarjeta } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -456,10 +456,8 @@ export function FormularioComprobante() {
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-5">
-            <Link to="/comprobantes">
-              <Boton variante="secundario" tamano="sm" type="button">
-                Cancelar
-              </Boton>
+            <Link to="/comprobantes" className={clasesBoton("secundario", "sm")}>
+              Cancelar
             </Link>
             <form.Subscribe selector={(s) => s.isSubmitting}>
               {(enviando) => (

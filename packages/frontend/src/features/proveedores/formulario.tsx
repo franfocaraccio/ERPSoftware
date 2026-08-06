@@ -1,4 +1,12 @@
-import { Boton, Campo, Entrada, Esqueleto, Selector, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  Campo,
+  clasesBoton,
+  Entrada,
+  Esqueleto,
+  Selector,
+  Tarjeta,
+} from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -384,10 +392,8 @@ export function FormularioProveedor({ proveedorId }: { proveedorId?: string }) {
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border pt-5">
-            <Link to="/proveedores">
-              <Boton variante="secundario" tamano="sm" type="button">
-                Cancelar
-              </Boton>
+            <Link to="/proveedores" className={clasesBoton("secundario", "sm")}>
+              Cancelar
             </Link>
             <form.Subscribe selector={(s) => s.isSubmitting}>
               {(enviando) => (

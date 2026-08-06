@@ -1,6 +1,7 @@
 import {
   Boton,
   Campo,
+  clasesBoton,
   cn,
   DialogoConfirmacion,
   Entrada,
@@ -562,11 +563,9 @@ export function PanelAdmin() {
           <p className="mt-1 text-sm text-muted-foreground">
             Tu cuenta no tiene permisos de administrador.
           </p>
-          <Link to="/" className="mt-4 inline-block">
-            <Boton variante="secundario" tamano="sm">
-              <ArrowLeft className="size-4" aria-hidden="true" />
-              Volver al ERP
-            </Boton>
+          <Link to="/panel" className={cn("mt-4 inline-block", clasesBoton("secundario", "sm"))}>
+            <ArrowLeft className="size-4" aria-hidden="true" />
+            Volver al ERP
           </Link>
         </Tarjeta>
       </div>

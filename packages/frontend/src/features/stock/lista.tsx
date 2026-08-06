@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -124,11 +124,9 @@ export function ListaStock() {
         titulo="Stock"
         descripcion="Productos, niveles de reposición y capital inmovilizado."
         acciones={
-          <Link to="/stock/nuevo">
-            <Boton tamano="sm">
-              <Plus className="size-4" aria-hidden="true" />
-              Nuevo producto
-            </Boton>
+          <Link to="/stock/nuevo" className={clasesBoton("primario", "sm")}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nuevo producto
           </Link>
         }
       />
@@ -219,11 +217,9 @@ export function ListaStock() {
                   Limpiar búsqueda
                 </Boton>
               ) : (
-                <Link to="/stock/nuevo">
-                  <Boton tamano="sm">
-                    <Plus className="size-4" aria-hidden="true" />
-                    Nuevo producto
-                  </Boton>
+                <Link to="/stock/nuevo" className={clasesBoton("primario", "sm")}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Nuevo producto
                 </Link>
               )
             }

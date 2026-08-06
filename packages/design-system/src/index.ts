@@ -1,4 +1,4 @@
-export { Boton, type BotonProps } from "./components/button.js";
+export { Boton, type BotonProps, clasesBoton } from "./components/button.js";
 export {
   Campo,
   Entrada,

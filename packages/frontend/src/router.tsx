@@ -11,6 +11,7 @@ import { FormularioComprobante } from "./features/comprobantes/formulario.js";
 import { Comprobantes } from "./features/comprobantes/index.js";
 import { FormularioImpuesto } from "./features/impuestos/formulario.js";
 import { ListaImpuestos } from "./features/impuestos/lista.js";
+import { Landing } from "./features/landing/landing.js";
 import { Panel } from "./features/panel/panel.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
@@ -28,6 +29,13 @@ const rutaRaiz = createRootRoute({
 });
 
 // --- Rutas públicas, con su propia pantalla completa ---
+
+/** Portada: lo que ve cualquiera que llega sin sesión. El ERP vive en /panel. */
+const rutaLanding = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/",
+  component: Landing,
+});
 
 const rutaLogin = createRoute({
   getParentRoute: () => rutaRaiz,
@@ -65,7 +73,7 @@ const rutaApp = createRoute({
 
 const rutaPanel = createRoute({
   getParentRoute: () => rutaApp,
-  path: "/",
+  path: "/panel",
   component: Panel,
 });
 
@@ -181,6 +189,7 @@ const rutaComprobanteDetalle = createRoute({
 });
 
 const arbolRutas = rutaRaiz.addChildren([
+  rutaLanding,
   rutaLogin,
   rutaAceptarInvitacion,
   rutaAdmin,

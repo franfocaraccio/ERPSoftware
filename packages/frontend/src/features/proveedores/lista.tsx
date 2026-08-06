@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -113,11 +113,9 @@ export function ListaProveedores() {
         titulo="Proveedores"
         descripcion="Padrón de proveedores, condiciones de pago y saldo pendiente."
         acciones={
-          <Link to="/proveedores/nuevo">
-            <Boton tamano="sm">
-              <Plus className="size-4" aria-hidden="true" />
-              Nuevo proveedor
-            </Boton>
+          <Link to="/proveedores/nuevo" className={clasesBoton("primario", "sm")}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nuevo proveedor
           </Link>
         }
       />
@@ -181,11 +179,9 @@ export function ListaProveedores() {
                   Limpiar búsqueda
                 </Boton>
               ) : (
-                <Link to="/proveedores/nuevo">
-                  <Boton tamano="sm">
-                    <Plus className="size-4" aria-hidden="true" />
-                    Nuevo proveedor
-                  </Boton>
+                <Link to="/proveedores/nuevo" className={clasesBoton("primario", "sm")}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Nuevo proveedor
                 </Link>
               )
             }

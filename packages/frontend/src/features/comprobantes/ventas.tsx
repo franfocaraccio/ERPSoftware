@@ -1,4 +1,12 @@
-import { Boton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  clasesBoton,
+  cn,
+  Esqueleto,
+  EstadoVacio,
+  Insignia,
+  Tarjeta,
+} from "@erp/design-system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, Plus } from "lucide-react";
@@ -75,11 +83,9 @@ export function Ventas() {
           </p>
         )}
 
-        <Link to="/comprobantes/nuevo" className="ml-auto">
-          <Boton tamano="sm">
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo comprobante
-          </Boton>
+        <Link to="/comprobantes/nuevo" className={cn("ml-auto", clasesBoton("primario", "sm"))}>
+          <Plus className="size-4" aria-hidden="true" />
+          Nuevo comprobante
         </Link>
       </div>
 
@@ -114,11 +120,9 @@ export function Ventas() {
             titulo={estado ? "Sin comprobantes en ese estado" : "Todavía no hay comprobantes"}
             descripcion="Emitís en borrador y el sistema calcula neto, IVA y total por alícuota."
             accion={
-              <Link to="/comprobantes/nuevo">
-                <Boton tamano="sm">
-                  <Plus className="size-4" aria-hidden="true" />
-                  Nuevo comprobante
-                </Boton>
+              <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
+                <Plus className="size-4" aria-hidden="true" />
+                Nuevo comprobante
               </Link>
             }
           />

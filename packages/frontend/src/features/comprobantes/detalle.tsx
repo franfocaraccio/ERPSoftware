@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
@@ -58,10 +58,8 @@ export function DetalleComprobante({ comprobanteId }: { comprobanteId: string })
         <EstadoVacio
           titulo="No se encontró el comprobante"
           accion={
-            <Link to="/comprobantes">
-              <Boton variante="secundario" tamano="sm">
-                Volver
-              </Boton>
+            <Link to="/comprobantes" className={clasesBoton("secundario", "sm")}>
+              Volver
             </Link>
           }
         />

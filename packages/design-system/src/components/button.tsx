@@ -18,6 +18,21 @@ const TAMANOS: Record<Tamano, string> = {
   icono: "h-10 w-10 justify-center",
 };
 
+const BASE =
+  "inline-flex cursor-pointer items-center rounded-lg font-medium transition-colors duration-150";
+
+/**
+ * Las clases del botón, sin el elemento.
+ *
+ * Sirve para que un enlace se vea como botón sin envolver un `<button>` dentro
+ * de un `<a>`: eso anida dos elementos interactivos, duplica la parada de
+ * tabulación y confunde a los lectores de pantalla. Un CTA que navega es un
+ * enlace; uno que ejecuta algo es un botón.
+ */
+export function clasesBoton(variante: Variante = "primario", tamano: Tamano = "md"): string {
+  return cn(BASE, VARIANTES[variante], TAMANOS[tamano]);
+}
+
 export interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variante?: Variante;
   tamano?: Tamano;
@@ -41,7 +56,7 @@ export function Boton({
       disabled={inactivo}
       aria-busy={cargando || undefined}
       className={cn(
-        "inline-flex cursor-pointer items-center rounded-lg font-medium transition-colors duration-150",
+        BASE,
         "disabled:pointer-events-none disabled:opacity-50",
         VARIANTES[variante],
         TAMANOS[tamano],

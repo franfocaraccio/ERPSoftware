@@ -1,4 +1,4 @@
-import { Boton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, Wallet } from "lucide-react";
@@ -124,11 +124,9 @@ export function Panel() {
             titulo="Todavía no hay datos para mostrar"
             descripcion="Cargá cuentas, comprobantes e impuestos y el panel se arma solo."
             accion={
-              <Link to="/tesoreria">
-                <Boton tamano="sm">
-                  <Wallet className="size-4" aria-hidden="true" />
-                  Empezar por Tesorería
-                </Boton>
+              <Link to="/tesoreria" className={clasesBoton("primario", "sm")}>
+                <Wallet className="size-4" aria-hidden="true" />
+                Empezar por Tesorería
               </Link>
             }
           />

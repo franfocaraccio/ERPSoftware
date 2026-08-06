@@ -1,4 +1,12 @@
-import { Boton, Campo, Entrada, Esqueleto, Tarjeta, ToggleTema } from "@erp/design-system";
+import {
+  Boton,
+  Campo,
+  clasesBoton,
+  Entrada,
+  Esqueleto,
+  Tarjeta,
+  ToggleTema,
+} from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -51,7 +59,7 @@ export function AceptarInvitacion({ invitacionId }: { invitacionId: string }) {
           setError("Tu cuenta se creó, pero no pudimos iniciar sesión. Probá desde el login.");
           return;
         }
-        window.location.assign("/");
+        window.location.assign("/panel");
       } catch (e) {
         setError(e instanceof Error ? e.message : "No se pudo aceptar la invitación.");
       }
@@ -90,10 +98,8 @@ export function AceptarInvitacion({ invitacionId }: { invitacionId: string }) {
             ) : invitacion.isError ? (
               <div className="space-y-4 text-center">
                 <p className="text-sm text-danger">{invitacion.error.message}</p>
-                <Link to="/login">
-                  <Boton variante="secundario" tamano="sm">
-                    Ir al inicio de sesión
-                  </Boton>
+                <Link to="/login" className={clasesBoton("secundario", "sm")}>
+                  Ir al inicio de sesión
                 </Link>
               </div>
             ) : (
