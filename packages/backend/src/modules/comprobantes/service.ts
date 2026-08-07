@@ -15,6 +15,8 @@ import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { filtroRango } from "../_comunes/fechas.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type {
   CompraActualizar,
   CompraInput,
@@ -74,6 +76,10 @@ export async function listarVentas(
     if (input.clienteId) {
       condiciones.push(eq(comprobantesVenta.clienteId, input.clienteId));
     }
+    const rangoVentas = filtroRango(comprobantesVenta.fechaEmision, input);
+    if (rangoVentas) {
+      condiciones.push(rangoVentas);
+    }
     const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
@@ -81,7 +87,20 @@ export async function listarVentas(
       .from(comprobantesVenta)
       .innerJoin(clientes, eq(clientes.id, comprobantesVenta.clienteId))
       .where(filtro)
-      .orderBy(desc(comprobantesVenta.fechaEmision), desc(comprobantesVenta.createdAt))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            fechaEmision: comprobantesVenta.fechaEmision,
+            // Ventas numera por punto de venta: el desempate lo da el orden natural.
+            numero: comprobantesVenta.numero,
+            total: comprobantesVenta.total,
+            estado: comprobantesVenta.estado,
+          },
+          input.orden,
+          input.direccion,
+          comprobantesVenta.createdAt,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
@@ -296,16 +315,33 @@ export async function listarCompras(
   input: ComprasListar,
 ): Promise<{ items: CompraConProveedor[]; total: number }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = input.proveedorId
-      ? eq(comprobantesCompra.proveedorId, input.proveedorId)
-      : undefined;
+    const condicionesCompra = [];
+    if (input.proveedorId) {
+      condicionesCompra.push(eq(comprobantesCompra.proveedorId, input.proveedorId));
+    }
+    const rangoCompras = filtroRango(comprobantesCompra.fechaRecepcion, input);
+    if (rangoCompras) {
+      condicionesCompra.push(rangoCompras);
+    }
+    const filtro = condicionesCompra.length > 0 ? and(...condicionesCompra) : undefined;
 
     const filas = await tx
       .select({ compra: comprobantesCompra, proveedor: proveedores.razonSocial })
       .from(comprobantesCompra)
       .innerJoin(proveedores, eq(proveedores.id, comprobantesCompra.proveedorId))
       .where(filtro)
-      .orderBy(desc(comprobantesCompra.fechaRecepcion))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            fechaRecepcion: comprobantesCompra.fechaRecepcion,
+            numeroCompleto: comprobantesCompra.numeroCompleto,
+            total: comprobantesCompra.total,
+          },
+          input.orden,
+          input.direccion,
+          comprobantesCompra.createdAt,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 

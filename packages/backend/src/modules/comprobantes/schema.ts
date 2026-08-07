@@ -1,6 +1,8 @@
 import { ESTADOS_COMPROBANTE } from "@erp/core/invoicing";
 import { z } from "zod";
 import type { estadoComprobanteEnum } from "../../db/schema/facturacion.js";
+import { rangoFechasSchema } from "../_comunes/fechas.js";
+import { ordenSchema } from "../_comunes/orden.js";
 
 /**
  * Paridad en tiempo de compilación entre el pgEnum de Drizzle (fuente de
@@ -58,9 +60,13 @@ export const ventaTransicionSchema = z.object({
   evento: z.enum(["emitir", "aprobar", "rechazar", "corregir"]),
 });
 
+export const CAMPOS_ORDEN_VENTAS = ["fechaEmision", "numero", "total", "estado"] as const;
+
 export const ventasListarSchema = z.object({
   estado: z.enum(ESTADOS_COMPROBANTE).optional(),
   clienteId: z.uuid().optional(),
+  ...rangoFechasSchema,
+  ...ordenSchema(CAMPOS_ORDEN_VENTAS, "fechaEmision", "desc"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(50),
 });
@@ -86,8 +92,15 @@ export const compraActualizarSchema = z.object({
   datos: compraInputSchema,
 });
 
+/** El rango cae sobre la fecha de recepción: es obligatoria, así que ninguna
+ *  fila queda invisible al filtrar. La de emisión la pone el proveedor y puede
+ *  faltar. */
+export const CAMPOS_ORDEN_COMPRAS = ["fechaRecepcion", "numeroCompleto", "total"] as const;
+
 export const comprasListarSchema = z.object({
   proveedorId: z.uuid().optional(),
+  ...rangoFechasSchema,
+  ...ordenSchema(CAMPOS_ORDEN_COMPRAS, "fechaRecepcion", "desc"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(50),
 });

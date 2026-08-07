@@ -11,6 +11,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, Plus } from "lucide-react";
 import { useState } from "react";
+import {
+  ariaSort,
+  type Direccion,
+  EncabezadoOrdenable,
+  RangoFechas,
+} from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -48,10 +54,42 @@ export function Ventas() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [estado, setEstado] = useState<Estado | "">("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [orden, setOrden] = useState("fechaEmision");
+  const [direccion, setDireccion] = useState<Direccion>("desc");
+  const ordenar = (campo: string, dir: Direccion) => {
+    setOrden(campo);
+    setDireccion(dir);
+  };
+  const encabezado = (etiqueta: string, campo: string, alineado?: "derecha") => (
+    <th
+      key={campo}
+      scope="col"
+      aria-sort={ariaSort(campo, orden, direccion)}
+      className={cn(
+        "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+        alineado === "derecha" ? "text-right" : "text-left",
+      )}
+    >
+      <EncabezadoOrdenable
+        etiqueta={etiqueta}
+        campo={campo}
+        ordenActual={orden}
+        direccion={direccion}
+        onOrdenar={ordenar}
+        {...(alineado ? { alineado } : {})}
+      />
+    </th>
+  );
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.comprobantes.ventas.listar.queryOptions({
       estado: estado || undefined,
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
+      orden: orden as "fechaEmision",
+      direccion,
       pagina: 1,
       tamanoPagina: 50,
     }),
@@ -64,7 +102,8 @@ export function Ventas() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
         <select
           value={estado}
           onChange={(e) => setEstado(e.target.value as Estado | "")}
@@ -137,20 +176,28 @@ export function Ventas() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Comprobante", "Cliente", "Fecha", "Neto", "IVA", "Total", "Estado", ""].map(
-                    (h, i) => (
-                      <th
-                        // biome-ignore lint/suspicious/noArrayIndexKey: encabezados fijos, uno vacío
-                        key={i}
-                        scope="col"
-                        className={`px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase ${
-                          ["Neto", "IVA", "Total"].includes(h) ? "text-right" : "text-left"
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                  {/* El orden de los encabezados sigue al del cuerpo: cambiarlo
+                      acá desalinearía la tabla entera. */}
+                  {encabezado("Comprobante", "numero")}
+                  <th
+                    scope="col"
+                    className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                  >
+                    Cliente
+                  </th>
+                  {encabezado("Fecha", "fechaEmision")}
+                  {["Neto", "IVA"].map((h) => (
+                    <th
+                      key={h}
+                      scope="col"
+                      className="px-4 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                  {encabezado("Total", "total", "derecha")}
+                  {encabezado("Estado", "estado")}
+                  <th scope="col" className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>

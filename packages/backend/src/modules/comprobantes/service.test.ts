@@ -81,21 +81,36 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
   });
 
   it("expone availableEvents y editable para el frontend", async () => {
-    const { items } = await listarVentas(tenantA, { pagina: 1, tamanoPagina: 10 });
+    const { items } = await listarVentas(tenantA, {
+      orden: "fechaEmision",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     const borrador = items[0];
     expect(borrador?.availableEvents).toEqual(["emitir"]);
     expect(borrador?.editable).toBe(true);
   });
 
   it("guarda los ítems y los devuelve ordenados", async () => {
-    const { items } = await listarVentas(tenantA, { pagina: 1, tamanoPagina: 10 });
+    const { items } = await listarVentas(tenantA, {
+      orden: "fechaEmision",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     const conItems = await obtenerVenta(tenantA, items.at(-1)?.id ?? "");
     expect(conItems?.items).toHaveLength(2);
     expect(conItems?.items[0]?.orden).toBe(0);
   });
 
   it("recorre el ciclo de vida borrador → enviada → aprobada", async () => {
-    const { items } = await listarVentas(tenantA, { pagina: 1, tamanoPagina: 10 });
+    const { items } = await listarVentas(tenantA, {
+      orden: "fechaEmision",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     const id = items.at(-1)?.id ?? "";
 
     const enviada = await transicionarVenta(tenantA, { id, evento: "emitir" });
@@ -108,6 +123,8 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
   it("rechaza una transición inválida", async () => {
     const { items } = await listarVentas(tenantA, {
       estado: "aprobada",
+      orden: "fechaEmision",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 10,
     });
@@ -120,6 +137,8 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
   it("un comprobante fuera de borrador es inmutable", async () => {
     const { items } = await listarVentas(tenantA, {
       estado: "aprobada",
+      orden: "fechaEmision",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 10,
     });
@@ -145,6 +164,8 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
   it("un borrador sí se puede editar y recalcula los totales", async () => {
     const { items } = await listarVentas(tenantA, {
       estado: "borrador",
+      orden: "fechaEmision",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 10,
     });
@@ -168,7 +189,12 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
   });
 
   it("el aislamiento RLS impide ver comprobantes de otro tenant", async () => {
-    const { total } = await listarVentas(tenantB, { pagina: 1, tamanoPagina: 10 });
+    const { total } = await listarVentas(tenantB, {
+      orden: "fechaEmision",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     expect(total).toBe(0);
   });
 });
@@ -192,14 +218,24 @@ describe("comprobantes de compra (integración)", () => {
       total: "242000.00",
     });
 
-    const { items, total } = await listarCompras(tenantA, { pagina: 1, tamanoPagina: 10 });
+    const { items, total } = await listarCompras(tenantA, {
+      orden: "fechaRecepcion",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     expect(total).toBe(1);
     expect(items[0]?.proveedorRazonSocial).toBe("Importadora Andes SRL");
     expect(items[0]?.total).toBe("242000.00");
   });
 
   it("el aislamiento RLS impide ver compras de otro tenant", async () => {
-    const { total } = await listarCompras(tenantB, { pagina: 1, tamanoPagina: 10 });
+    const { total } = await listarCompras(tenantB, {
+      orden: "fechaRecepcion",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 10,
+    });
     expect(total).toBe(0);
   });
 });
