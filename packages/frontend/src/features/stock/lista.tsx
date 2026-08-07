@@ -5,6 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { Boxes, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { useModoLectura } from "../../components/sesion.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -99,6 +100,7 @@ const SIN_DATOS: FilaProducto[] = [];
 
 export function ListaStock() {
   const trpc = useTRPC();
+  const soloLectura = useModoLectura();
   const [busqueda, setBusqueda] = useState("");
   const [soloReponer, setSoloReponer] = useState(false);
   const busquedaDiferida = useDeferredValue(busqueda);
@@ -124,10 +126,12 @@ export function ListaStock() {
         titulo="Stock"
         descripcion="Productos, niveles de reposición y capital inmovilizado."
         acciones={
-          <Link to="/stock/nuevo" className={clasesBoton("primario", "sm")}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo producto
-          </Link>
+          soloLectura ? null : (
+            <Link to="/stock/nuevo" className={clasesBoton("primario", "sm")}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nuevo producto
+            </Link>
+          )
         }
       />
 
@@ -216,7 +220,7 @@ export function ListaStock() {
                 <Boton variante="secundario" tamano="sm" onClick={() => setBusqueda("")}>
                   Limpiar búsqueda
                 </Boton>
-              ) : (
+              ) : soloLectura ? null : (
                 <Link to="/stock/nuevo" className={clasesBoton("primario", "sm")}>
                   <Plus className="size-4" aria-hidden="true" />
                   Nuevo producto

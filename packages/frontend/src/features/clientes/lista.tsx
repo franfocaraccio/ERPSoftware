@@ -5,6 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { Plus, Search, Users } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { useModoLectura } from "../../components/sesion.js";
 import {
   etiquetaCondicionIva,
   etiquetaEstado,
@@ -86,6 +87,7 @@ const SIN_DATOS: FilaCliente[] = [];
 
 export function ListaClientes() {
   const trpc = useTRPC();
+  const soloLectura = useModoLectura();
   const [busqueda, setBusqueda] = useState("");
   // Difiere el filtrado para no disparar una request por tecla.
   const busquedaDiferida = useDeferredValue(busqueda);
@@ -110,10 +112,12 @@ export function ListaClientes() {
         titulo="Clientes"
         descripcion="Padrón de clientes, condición fiscal y límite de crédito."
         acciones={
-          <Link to="/clientes/nuevo" className={clasesBoton("primario", "sm")}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo cliente
-          </Link>
+          soloLectura ? null : (
+            <Link to="/clientes/nuevo" className={clasesBoton("primario", "sm")}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nuevo cliente
+            </Link>
+          )
         }
       />
 
@@ -175,7 +179,7 @@ export function ListaClientes() {
                 <Boton variante="secundario" tamano="sm" onClick={() => setBusqueda("")}>
                   Limpiar búsqueda
                 </Boton>
-              ) : (
+              ) : soloLectura ? null : (
                 <Link to="/clientes/nuevo" className={clasesBoton("primario", "sm")}>
                   <Plus className="size-4" aria-hidden="true" />
                   Nuevo cliente

@@ -57,6 +57,13 @@
       "when": 1786062257291,
       "tag": "0007_crear_permisos_panel",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786115082738,
+      "tag": "0008_crear_accesos_consolidado",
+      "breakpoints": true
     }
   ]
 }

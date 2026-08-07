@@ -1,6 +1,7 @@
 import { auditoriaRouter } from "../modules/auditoria/router.js";
 import { clientesRouter } from "../modules/clientes/router.js";
 import { comprobantesRouter } from "../modules/comprobantes/router.js";
+import { consolidadoRouter } from "../modules/consolidado/router.js";
 import { equipoRouter } from "../modules/equipo/router.js";
 import { financieroRouter } from "../modules/financiero/router.js";
 import { impuestosRouter } from "../modules/impuestos/router.js";
@@ -16,6 +17,7 @@ export const appRouter = router({
   auditoria: auditoriaRouter,
   clientes: clientesRouter,
   comprobantes: comprobantesRouter,
+  consolidado: consolidadoRouter,
   equipo: equipoRouter,
   financiero: financieroRouter,
   impuestos: impuestosRouter,

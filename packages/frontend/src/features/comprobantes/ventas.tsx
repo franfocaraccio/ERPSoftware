@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, Plus } from "lucide-react";
 import { useState } from "react";
+import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -43,6 +44,7 @@ const ETIQUETA_EVENTO: Record<Evento, string> = {
 const ESTADOS: Estado[] = ["borrador", "enviada", "aprobada", "rechazada"];
 
 export function Ventas() {
+  const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [estado, setEstado] = useState<Estado | "">("");
@@ -83,10 +85,12 @@ export function Ventas() {
           </p>
         )}
 
-        <Link to="/comprobantes/nuevo" className={cn("ml-auto", clasesBoton("primario", "sm"))}>
-          <Plus className="size-4" aria-hidden="true" />
-          Nuevo comprobante
-        </Link>
+        {!soloLectura && (
+          <Link to="/comprobantes/nuevo" className={cn("ml-auto", clasesBoton("primario", "sm"))}>
+            <Plus className="size-4" aria-hidden="true" />
+            Nuevo comprobante
+          </Link>
+        )}
       </div>
 
       {transicionar.isError && (
@@ -120,10 +124,12 @@ export function Ventas() {
             titulo={estado ? "Sin comprobantes en ese estado" : "Todavía no hay comprobantes"}
             descripcion="Emitís en borrador y el sistema calcula neto, IVA y total por alícuota."
             accion={
-              <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
-                <Plus className="size-4" aria-hidden="true" />
-                Nuevo comprobante
-              </Link>
+              soloLectura ? null : (
+                <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  Nuevo comprobante
+                </Link>
+              )
             }
           />
         ) : (

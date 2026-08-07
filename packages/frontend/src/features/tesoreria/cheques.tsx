@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -293,6 +294,7 @@ function TextoDias({ dias, estado }: { dias: number; estado: string }) {
 }
 
 export function Cheques() {
+  const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
   const [estado, setEstado] = useState<ValoresCheque["estado"] | "">("");
@@ -332,7 +334,7 @@ export function Cheques() {
           </p>
         )}
 
-        {!creando && (
+        {!creando && !soloLectura && (
           <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
             <Plus className="size-4" aria-hidden="true" />
             Nuevo cheque

@@ -5,6 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { Building2, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { useModoLectura } from "../../components/sesion.js";
 import {
   etiquetaCondicionIva,
   formatearCuit,
@@ -90,6 +91,7 @@ const SIN_DATOS: FilaProveedor[] = [];
 
 export function ListaProveedores() {
   const trpc = useTRPC();
+  const soloLectura = useModoLectura();
   const [busqueda, setBusqueda] = useState("");
   const busquedaDiferida = useDeferredValue(busqueda);
 
@@ -113,10 +115,12 @@ export function ListaProveedores() {
         titulo="Proveedores"
         descripcion="Padrón de proveedores, condiciones de pago y saldo pendiente."
         acciones={
-          <Link to="/proveedores/nuevo" className={clasesBoton("primario", "sm")}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo proveedor
-          </Link>
+          soloLectura ? null : (
+            <Link to="/proveedores/nuevo" className={clasesBoton("primario", "sm")}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nuevo proveedor
+            </Link>
+          )
         }
       />
 
@@ -178,7 +182,7 @@ export function ListaProveedores() {
                 <Boton variante="secundario" tamano="sm" onClick={() => setBusqueda("")}>
                   Limpiar búsqueda
                 </Boton>
-              ) : (
+              ) : soloLectura ? null : (
                 <Link to="/proveedores/nuevo" className={clasesBoton("primario", "sm")}>
                   <Plus className="size-4" aria-hidden="true" />
                   Nuevo proveedor

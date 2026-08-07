@@ -1,6 +1,9 @@
+import { EstadoVacio, Tarjeta } from "@erp/design-system";
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
+import { Eye } from "lucide-react";
+import type { ReactNode } from "react";
 import { Layout } from "./components/layout.js";
-import { Guardia, useRolOrganizacion } from "./components/sesion.js";
+import { Guardia, useModoLectura, useRolOrganizacion } from "./components/sesion.js";
 import { PanelAdmin } from "./features/admin/panel.js";
 import { Auditoria, AuditoriaSinPermiso } from "./features/auditoria/lista.js";
 import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
@@ -12,6 +15,8 @@ import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
 import { FormularioComprobante } from "./features/comprobantes/formulario.js";
 import { Comprobantes } from "./features/comprobantes/index.js";
+import { Accesos, AccesosSinPermiso } from "./features/consolidado/accesos.js";
+import { EntradaConsolidado } from "./features/consolidado/entrada.js";
 import { Equipo, EquipoSinPermiso } from "./features/equipo/lista.js";
 import { FormularioImpuesto } from "./features/impuestos/formulario.js";
 import { ListaImpuestos } from "./features/impuestos/lista.js";
@@ -23,6 +28,29 @@ import { ListaProveedores } from "./features/proveedores/lista.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
 import { ListaStock } from "./features/stock/lista.js";
 import { Tesoreria } from "./features/tesoreria/index.js";
+
+/**
+ * Envoltorio para las pantallas que escriben. Sin esto, quien está en modo
+ * lectura llega por URL a un formulario que va a fallar recién al guardar.
+ *
+ * El permiso real lo aplica el backend; esto es para no hacerle perder el
+ * tiempo a nadie.
+ */
+function SoloEscritura({ children }: { children: ReactNode }) {
+  const soloLectura = useModoLectura();
+  if (!soloLectura) {
+    return <>{children}</>;
+  }
+  return (
+    <Tarjeta>
+      <EstadoVacio
+        icono={<Eye className="size-8" aria-hidden="true" />}
+        titulo="Estás viendo en modo lectura"
+        descripcion="Tu acceso permite consultar la información, no modificarla."
+      />
+    </Tarjeta>
+  );
+}
 
 /** La raíz solo decide si hay sesión; el layout lo pone cada rama. */
 const rutaRaiz = createRootRoute({
@@ -64,6 +92,25 @@ const rutaRestablecer = createRoute({
   component: function ElegirPassword() {
     const { token } = rutaRestablecer.useSearch();
     return <Restablecer token={token} />;
+  },
+});
+
+/** Canje del link de solo lectura. Público: el token es la credencial. */
+const rutaConsolidado = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/consolidado/$tenantId/$token",
+  component: function AbrirConsolidado() {
+    const { tenantId, token } = rutaConsolidado.useParams();
+    return <EntradaConsolidado tenantId={tenantId} token={token} />;
+  },
+});
+
+const rutaAccesos = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/accesos",
+  component: function GestionAccesos() {
+    const rol = useRolOrganizacion();
+    return rol === "administrador" ? <Accesos /> : <AccesosSinPermiso />;
   },
 });
 
@@ -141,7 +188,11 @@ const rutaClientes = createRoute({
 const rutaClienteNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/clientes/nuevo",
-  component: () => <FormularioCliente />,
+  component: () => (
+    <SoloEscritura>
+      <FormularioCliente />
+    </SoloEscritura>
+  ),
 });
 
 const rutaClienteEditar = createRoute({
@@ -149,7 +200,11 @@ const rutaClienteEditar = createRoute({
   path: "/clientes/$clienteId",
   component: function EditarCliente() {
     const { clienteId } = rutaClienteEditar.useParams();
-    return <FormularioCliente clienteId={clienteId} />;
+    return (
+      <SoloEscritura>
+        <FormularioCliente clienteId={clienteId} />
+      </SoloEscritura>
+    );
   },
 });
 
@@ -162,7 +217,11 @@ const rutaProveedores = createRoute({
 const rutaProveedorNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/proveedores/nuevo",
-  component: () => <FormularioProveedor />,
+  component: () => (
+    <SoloEscritura>
+      <FormularioProveedor />
+    </SoloEscritura>
+  ),
 });
 
 const rutaProveedorEditar = createRoute({
@@ -170,7 +229,11 @@ const rutaProveedorEditar = createRoute({
   path: "/proveedores/$proveedorId",
   component: function EditarProveedor() {
     const { proveedorId } = rutaProveedorEditar.useParams();
-    return <FormularioProveedor proveedorId={proveedorId} />;
+    return (
+      <SoloEscritura>
+        <FormularioProveedor proveedorId={proveedorId} />
+      </SoloEscritura>
+    );
   },
 });
 
@@ -183,7 +246,11 @@ const rutaStock = createRoute({
 const rutaProductoNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/stock/nuevo",
-  component: () => <FormularioProducto />,
+  component: () => (
+    <SoloEscritura>
+      <FormularioProducto />
+    </SoloEscritura>
+  ),
 });
 
 const rutaProductoEditar = createRoute({
@@ -191,7 +258,11 @@ const rutaProductoEditar = createRoute({
   path: "/stock/$productoId",
   component: function EditarProducto() {
     const { productoId } = rutaProductoEditar.useParams();
-    return <FormularioProducto productoId={productoId} />;
+    return (
+      <SoloEscritura>
+        <FormularioProducto productoId={productoId} />
+      </SoloEscritura>
+    );
   },
 });
 
@@ -204,7 +275,11 @@ const rutaImpuestos = createRoute({
 const rutaImpuestoNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/impuestos/nueva",
-  component: () => <FormularioImpuesto />,
+  component: () => (
+    <SoloEscritura>
+      <FormularioImpuesto />
+    </SoloEscritura>
+  ),
 });
 
 const rutaImpuestoEditar = createRoute({
@@ -212,7 +287,11 @@ const rutaImpuestoEditar = createRoute({
   path: "/impuestos/$impuestoId",
   component: function EditarImpuesto() {
     const { impuestoId } = rutaImpuestoEditar.useParams();
-    return <FormularioImpuesto impuestoId={impuestoId} />;
+    return (
+      <SoloEscritura>
+        <FormularioImpuesto impuestoId={impuestoId} />
+      </SoloEscritura>
+    );
   },
 });
 
@@ -231,7 +310,11 @@ const rutaComprobantes = createRoute({
 const rutaComprobanteNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/comprobantes/nuevo",
-  component: FormularioComprobante,
+  component: () => (
+    <SoloEscritura>
+      <FormularioComprobante />
+    </SoloEscritura>
+  ),
 });
 
 const rutaComprobanteDetalle = createRoute({
@@ -248,6 +331,7 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaLogin,
   rutaRecuperar,
   rutaRestablecer,
+  rutaConsolidado,
   rutaAceptarInvitacion,
   rutaAdmin,
   rutaApp.addChildren([
@@ -255,6 +339,7 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaEquipo,
     rutaParametros,
     rutaAuditoria,
+    rutaAccesos,
     rutaClientes,
     rutaClienteNuevo,
     rutaClienteEditar,

@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
   Building2,
+  Eye,
   FileText,
   LayoutDashboard,
   Receipt,
@@ -13,7 +14,13 @@ import {
   Wallet,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { MenuUsuario, SelectorOrganizacion, useRolOrganizacion } from "./sesion.js";
+import { hayAccesoPorLink } from "../lib/acceso-consolidado.js";
+import {
+  AvisoAccesoPorLink,
+  MenuUsuario,
+  SelectorOrganizacion,
+  useRolOrganizacion,
+} from "./sesion.js";
 
 interface ItemNav {
   a: string;
@@ -52,6 +59,13 @@ const NAVEGACION: ItemNav[] = [
     a: "/historial",
     etiqueta: "Historial",
     Icono: ScrollText,
+    habilitado: true,
+    roles: ["administrador"],
+  },
+  {
+    a: "/accesos",
+    etiqueta: "Accesos",
+    Icono: Eye,
     habilitado: true,
     roles: ["administrador"],
   },
@@ -107,6 +121,8 @@ function Navegacion() {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
+  const porLink = hayAccesoPorLink();
+
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
       {/* Sidebar: navegación secundaria persistente en pantallas grandes. */}
@@ -123,9 +139,18 @@ export function Layout({ children }: { children: ReactNode }) {
           <p className="text-sm font-semibold tracking-tight text-foreground lg:hidden">ERP PyME</p>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
-            <SelectorOrganizacion />
-            <ToggleTema />
-            <MenuUsuario />
+            {porLink ? (
+              <>
+                <ToggleTema />
+                <AvisoAccesoPorLink />
+              </>
+            ) : (
+              <>
+                <SelectorOrganizacion />
+                <ToggleTema />
+                <MenuUsuario />
+              </>
+            )}
           </div>
         </header>
 

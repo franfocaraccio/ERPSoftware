@@ -1,12 +1,20 @@
 import { Boton, cn, Esqueleto } from "@erp/design-system";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Building2, Check, ChevronDown, LogOut, ShieldCheck } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { borrarAcceso, cabeceraAcceso, hayAccesoPorLink } from "../lib/acceso-consolidado.js";
 import { authClient, ETIQUETA_ROL, useSession } from "../lib/auth.js";
+import { useTRPC } from "../lib/trpc.js";
 
 /** Rutas que se ven sin sesión iniciada. */
-const RUTAS_PUBLICAS = ["/login", "/aceptar-invitacion", "/recuperar", "/restablecer"];
+const RUTAS_PUBLICAS = [
+  "/login",
+  "/aceptar-invitacion",
+  "/recuperar",
+  "/restablecer",
+  "/consolidado",
+];
 
 function esRutaPublica(ruta: string): boolean {
   // La portada se compara exacta: con startsWith, "/" haría pública toda la app.
@@ -21,7 +29,10 @@ export function Guardia({ children }: { children: ReactNode }) {
   const { data: sesion, isPending } = useSession();
   const navigate = useNavigate();
   const ruta = useRouterState({ select: (s) => s.location.pathname });
-  const publica = esRutaPublica(ruta);
+  // Un acceso por link no tiene cuenta ni cookie: su credencial es el token
+  // que la pestaña ya guardó. Para el portón cuenta como entrada válida.
+  const porLink = hayAccesoPorLink();
+  const publica = esRutaPublica(ruta) || porLink;
 
   const esAdminPlataforma = sesion?.user.role === "admin";
   const enAdmin = ruta.startsWith("/admin");
@@ -63,10 +74,24 @@ export function Guardia({ children }: { children: ReactNode }) {
 export function useRolOrganizacion(): string | null {
   const { data: sesion } = useSession();
   const { data: activa } = authClient.useActiveOrganization();
+  if (hayAccesoPorLink()) {
+    return "solo_lectura";
+  }
   if (!sesion || !activa) {
     return null;
   }
   return activa.members?.find((m) => m.userId === sesion.user.id)?.role ?? null;
+}
+
+/**
+ * True cuando esta pantalla no puede escribir nada: un miembro de solo lectura
+ * o alguien que entró por un link de acceso.
+ *
+ * Es para no mostrar botones que van a fallar. Quien decide de verdad es el
+ * backend, que rechaza la escritura por rol.
+ */
+export function useModoLectura(): boolean {
+  return useRolOrganizacion() === "solo_lectura";
 }
 
 /** Selector de organización. Solo aparece si el usuario pertenece a más de una. */
@@ -149,6 +174,57 @@ export function SelectorOrganizacion() {
       )}
     </div>
   );
+}
+
+/**
+ * Aviso para quien entró por un link de acceso. Dice qué está viendo y hasta
+ * cuándo: nadie debería tener que adivinar por qué no puede tocar nada.
+ */
+export function AvisoAccesoPorLink() {
+  const trpc = useTRPC();
+  const acceso = cabeceraAcceso();
+  const [tenantId = "", token = ""] = acceso
+    ? [acceso.slice(0, acceso.indexOf(":")), acceso.slice(acceso.indexOf(":") + 1)]
+    : [];
+  const { data } = useQuery({
+    ...trpc.consolidado.abrir.queryOptions({ tenantId, token }),
+    enabled: Boolean(acceso),
+    retry: false,
+  });
+
+  if (!acceso) {
+    return null;
+  }
+
+  const salir = () => {
+    borrarAcceso();
+    window.location.assign("/");
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="hidden text-right sm:block">
+        <p className="text-xs font-medium text-foreground">
+          {data?.empresa ?? "Acceso de solo lectura"}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Solo lectura{data?.expira ? ` · vence ${formatearVencimiento(data.expira)}` : ""}
+        </p>
+      </div>
+      <Boton variante="secundario" tamano="sm" onClick={salir}>
+        <LogOut className="size-4" aria-hidden="true" />
+        Salir
+      </Boton>
+    </div>
+  );
+}
+
+function formatearVencimiento(valor: string | Date): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(new Date(valor));
 }
 
 /** Menú del usuario con su rol y el cierre de sesión. */

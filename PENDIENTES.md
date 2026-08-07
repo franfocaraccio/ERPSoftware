@@ -3,29 +3,21 @@
 Estado real del proyecto, verificado contra el código. Lo que está acá es lo que
 falta; lo que no está, está hecho.
 
-## Fase Z — bloqueado, no se toca por ahora
+## Fase 2
 
-Cosas que no dependen de escribir código nuestro. No se planifican ni se estiman
-hasta que se destraben.
+- **Histórico de KPIs y selector dinámico de indicadores.**
 
-- **Envío de mails (Resend).** El código está listo y enganchado en
-  `packages/backend/src/auth/emails.ts`: sin `RESEND_API_KEY` cae a imprimir el
-  mensaje en la consola del backend. Bloquea que invitaciones y recuperación de
-  contraseña salgan de la máquina de desarrollo.
+## Fase 3 — TBD
+
+- **Envío de mails (Resend).** Bloqueado por algo que no es escribir código: la
+  API key. El resto está listo y enganchado en
+  `packages/backend/src/auth/emails.ts`; sin la key cae a imprimir el mensaje en
+  la consola del backend. Mientras siga así, invitaciones y recuperación de
+  contraseña no salen de la máquina de desarrollo.
   - Mientras tanto: el link de invitación se puede copiar desde `/equipo` y
     desde `/admin`. El de recuperación **no** se muestra en pantalla a
     propósito —sería entregarle la cuenta a cualquiera que escriba un mail—;
     aparece solo en la consola del backend.
-
-## Fase 2
-
-- **Vista Consolidada de solo lectura con magic link.** El plugin ya está
-  configurado; faltan ruta y pantalla. Es lo que le va a dar sentido propio al
-  rol Solo lectura, que hoy ve lo mismo que los demás.
-- **Histórico de KPIs y selector dinámico de indicadores.**
-
-## Fase 3 — ARCA
-
 - **`packages/arca` es un stub** (`export {}`): falta WSAA, WSFEv1, CAE, QR, PDF
   y la suite contra homologación.
 - **Guardia de MFA obligatorio** para los roles que emiten comprobantes

@@ -1,4 +1,5 @@
 export * from "./_comunes.js";
+export * from "./accesos.js";
 export * from "./auditoria.js";
 export * from "./auth.js";
 export * from "./clientes.js";

@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Landmark, PiggyBank, Plus, Wallet } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { useModoLectura } from "../../components/sesion.js";
 import { formatearImporte } from "../../lib/formato.js";
 import { primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -149,6 +150,7 @@ function FormularioCuenta({ onListo }: { onListo: () => void }) {
 }
 
 export function Cuentas() {
+  const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
   const { data, isPending, isError, refetch } = useQuery(
@@ -166,7 +168,7 @@ export function Cuentas() {
             </span>
           </p>
         )}
-        {!creando && (
+        {!creando && !soloLectura && (
           <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
             <Plus className="size-4" aria-hidden="true" />
             Nueva cuenta

@@ -5,6 +5,7 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { AlertTriangle, Plus, Receipt } from "lucide-react";
 import { useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { useModoLectura } from "../../components/sesion.js";
 import {
   formatearFecha,
   formatearImporte,
@@ -119,6 +120,7 @@ const TIPOS = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
 
 export function ListaImpuestos() {
   const trpc = useTRPC();
+  const soloLectura = useModoLectura();
   const [tipo, setTipo] = useState<(typeof TIPOS)[number] | "">("");
   const [soloImpagos, setSoloImpagos] = useState(false);
 
@@ -143,10 +145,12 @@ export function ListaImpuestos() {
         titulo="Impuestos"
         descripcion="Obligaciones fiscales, vencimientos y saldos pendientes."
         acciones={
-          <Link to="/impuestos/nueva" className={clasesBoton("primario", "sm")}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nueva obligación
-          </Link>
+          soloLectura ? null : (
+            <Link to="/impuestos/nueva" className={clasesBoton("primario", "sm")}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nueva obligación
+            </Link>
+          )
         }
       />
 
@@ -246,7 +250,7 @@ export function ListaImpuestos() {
                 >
                   Ver todas
                 </Boton>
-              ) : (
+              ) : soloLectura ? null : (
                 <Link to="/impuestos/nueva" className={clasesBoton("primario", "sm")}>
                   <Plus className="size-4" aria-hidden="true" />
                   Nueva obligación
