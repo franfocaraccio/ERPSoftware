@@ -3,9 +3,17 @@
 Estado real del proyecto, verificado contra el código. Lo que está acá es lo que
 falta; lo que no está, está hecho.
 
-## Fase 2
+Fase 1 y Fase 2 no tienen nada pendiente.
 
-- **Histórico de KPIs y selector dinámico de indicadores.**
+## Descartado
+
+- **Histórico de KPIs y selector dinámico de indicadores.** Decisión de Fran:
+  no se hace, el panel se queda con la foto del momento. Si alguna vez se
+  retoma, el análisis ya está: caja, cobranzas, saldo a pagar, ventas, compras,
+  margen, cheques e impuestos se pueden recalcular a cualquier fecha pasada
+  porque los movimientos tienen fecha y apuntan al comprobante que cancelan;
+  rotación de stock y ciclo de conversión no, porque `stock_actual` es un valor
+  de hoy sin historia (decisión de Fase 1: sin tabla de movimientos de stock).
 
 ## Fase 3 — TBD
 
