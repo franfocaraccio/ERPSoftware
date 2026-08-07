@@ -3,17 +3,19 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
   Building2,
+  ChevronDown,
   Eye,
   FileText,
   LayoutDashboard,
   Receipt,
   ScrollText,
+  Settings,
   SlidersHorizontal,
   UserCog,
   Users,
   Wallet,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { hayAccesoPorLink } from "../lib/acceso-consolidado.js";
 import {
   AvisoAccesoPorLink,
@@ -27,8 +29,6 @@ interface ItemNav {
   etiqueta: string;
   Icono: typeof Users;
   habilitado: boolean;
-  /** Si está, el ítem solo se muestra a esos roles. */
-  roles?: readonly string[];
 }
 
 // Un ítem por módulo del PDF. Los que aún no tienen slice se muestran
@@ -41,80 +41,124 @@ const NAVEGACION: ItemNav[] = [
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: true },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: true },
-  {
-    a: "/equipo",
-    etiqueta: "Equipo",
-    Icono: UserCog,
-    habilitado: true,
-    roles: ["administrador"],
-  },
-  {
-    a: "/parametros",
-    etiqueta: "Parámetros",
-    Icono: SlidersHorizontal,
-    habilitado: true,
-    roles: ["administrador"],
-  },
-  {
-    a: "/historial",
-    etiqueta: "Historial",
-    Icono: ScrollText,
-    habilitado: true,
-    roles: ["administrador"],
-  },
-  {
-    a: "/accesos",
-    etiqueta: "Accesos",
-    Icono: Eye,
-    habilitado: true,
-    roles: ["administrador"],
-  },
 ];
+
+/**
+ * Configuración de la empresa. Es todo lo que se toca de vez en cuando y no
+ * forma parte de la operación diaria, así que va agrupado y plegado: son
+ * cuatro pantallas que de otro modo compiten en el menú con las que se usan
+ * todos los días.
+ *
+ * Solo la ve el Administrador. Como en el resto de la app, esto es navegación:
+ * quien decide de verdad es el backend, que rechaza estos procedures para
+ * cualquier otro rol.
+ */
+const ROL_CONFIGURACION = "administrador";
+
+const CONFIGURACION: ItemNav[] = [
+  { a: "/equipo", etiqueta: "Equipo", Icono: UserCog, habilitado: true },
+  { a: "/parametros", etiqueta: "Parámetros", Icono: SlidersHorizontal, habilitado: true },
+  { a: "/historial", etiqueta: "Historial", Icono: ScrollText, habilitado: true },
+  { a: "/accesos", etiqueta: "Accesos", Icono: Eye, habilitado: true },
+];
+
+const CLASES_ITEM =
+  "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150";
+
+function ItemNavegacion({
+  item,
+  activo,
+  sangria = false,
+}: {
+  item: ItemNav;
+  activo: boolean;
+  sangria?: boolean;
+}) {
+  const { a, etiqueta, Icono, habilitado } = item;
+
+  if (!habilitado) {
+    return (
+      <span
+        aria-disabled="true"
+        title="Disponible próximamente"
+        className={cn(CLASES_ITEM, "cursor-not-allowed text-muted-foreground/45")}
+      >
+        <Icono className="size-4 shrink-0" aria-hidden="true" />
+        {etiqueta}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      to={a}
+      aria-current={activo ? "page" : undefined}
+      className={cn(
+        CLASES_ITEM,
+        sangria && "ml-3",
+        activo
+          ? "bg-primary-subtle text-primary"
+          : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+      )}
+    >
+      <Icono className="size-4 shrink-0" aria-hidden="true" />
+      {etiqueta}
+    </Link>
+  );
+}
 
 function Navegacion() {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
   const rol = useRolOrganizacion();
+  const idSubmenu = useId();
+
+  const enConfiguracion = CONFIGURACION.some((item) => ruta.startsWith(item.a));
+  // Arranca abierto si estás parado en una de sus pantallas: si no, la sección
+  // activa quedaría escondida detrás de un menú cerrado.
+  const [abierto, setAbierto] = useState(enConfiguracion);
 
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
-      {NAVEGACION.filter((item) => !item.roles || (rol !== null && item.roles.includes(rol))).map(
-        ({ a, etiqueta, Icono, habilitado }) => {
-          const activo = ruta.startsWith(a);
-          const clases = cn(
-            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
-          );
+      {NAVEGACION.map((item) => (
+        <ItemNavegacion key={item.a} item={item} activo={ruta.startsWith(item.a)} />
+      ))}
 
-          if (!habilitado) {
-            return (
-              <span
-                key={a}
-                aria-disabled="true"
-                title="Disponible próximamente"
-                className={cn(clases, "cursor-not-allowed text-muted-foreground/45")}
-              >
-                <Icono className="size-4 shrink-0" aria-hidden="true" />
-                {etiqueta}
-              </span>
-            );
-          }
-
-          return (
-            <Link
-              key={a}
-              to={a}
-              aria-current={activo ? "page" : undefined}
+      {rol === ROL_CONFIGURACION && (
+        <>
+          <button
+            type="button"
+            aria-expanded={abierto}
+            aria-controls={idSubmenu}
+            onClick={() => setAbierto((v) => !v)}
+            className={cn(
+              CLASES_ITEM,
+              "mt-2 w-full cursor-pointer",
+              // Resaltada si alguna de sus pantallas está activa pero el grupo
+              // está plegado: si no, no habría ninguna señal de dónde estás.
+              enConfiguracion && !abierto
+                ? "bg-primary-subtle text-primary"
+                : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+            )}
+          >
+            <Settings className="size-4 shrink-0" aria-hidden="true" />
+            Configuración
+            <ChevronDown
               className={cn(
-                clases,
-                activo
-                  ? "bg-primary-subtle text-primary"
-                  : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+                "ml-auto size-4 shrink-0 transition-transform duration-150",
+                abierto && "rotate-180",
               )}
-            >
-              <Icono className="size-4 shrink-0" aria-hidden="true" />
-              {etiqueta}
-            </Link>
-          );
-        },
+              aria-hidden="true"
+            />
+          </button>
+
+          {abierto && (
+            <div id={idSubmenu} className="flex flex-col gap-0.5">
+              {CONFIGURACION.map((item) => (
+                <ItemNavegacion key={item.a} item={item} activo={ruta.startsWith(item.a)} sangria />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </nav>
   );

@@ -31,7 +31,7 @@ async function buscarInvitacionVigente(id: string) {
     .where(eq(invitation.id, id))
     .limit(1);
 
-  if (!fila || fila.estado !== "pending" || fila.expira.getTime() < Date.now()) {
+  if (fila?.estado !== "pending" || fila.expira.getTime() < Date.now()) {
     return null;
   }
   return fila;

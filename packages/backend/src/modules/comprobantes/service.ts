@@ -8,7 +8,7 @@ import {
   type LetraComprobante,
   letraPermitida,
 } from "@erp/core/invoicing";
-import { and, asc, count, desc, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
