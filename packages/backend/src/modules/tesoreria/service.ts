@@ -1,11 +1,13 @@
 import { hoyEnArgentina } from "@erp/core/dates";
 import { Money } from "@erp/core/money";
 import { diasParaCobro, saldoCuenta } from "@erp/core/treasury";
-import { and, asc, count, desc, eq, gte, lte, sum } from "drizzle-orm";
+import { and, asc, count, eq, gte, lte, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { filtroRango } from "../_comunes/fechas.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type {
   ChequeActualizar,
   ChequeInput,
@@ -146,6 +148,9 @@ export async function listarMovimientos(
     if (input.cuentaId) {
       condiciones.push(eq(movimientos.cuentaId, input.cuentaId));
     }
+    if (input.tipo) {
+      condiciones.push(eq(movimientos.tipo, input.tipo));
+    }
     if (input.desde) {
       condiciones.push(gte(movimientos.fecha, input.desde));
     }
@@ -159,7 +164,19 @@ export async function listarMovimientos(
       .from(movimientos)
       .innerJoin(cuentas, eq(cuentas.id, movimientos.cuentaId))
       .where(filtro)
-      .orderBy(desc(movimientos.fecha), desc(movimientos.createdAt))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            fecha: movimientos.fecha,
+            importe: movimientos.importe,
+            cuenta: cuentas.nombre,
+            tipo: movimientos.tipo,
+          },
+          input.orden,
+          input.direccion,
+          movimientos.createdAt,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
@@ -252,14 +269,36 @@ export async function listarCheques(
   input: ChequesListar,
 ): Promise<{ items: ChequeConDerivados[]; total: number; totalEnCartera: string }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = input.estado ? eq(cheques.estado, input.estado) : undefined;
+    const condiciones = [];
+    if (input.estado) {
+      condiciones.push(eq(cheques.estado, input.estado));
+    }
+    const rango = filtroRango(cheques.fechaPago, input);
+    if (rango) {
+      condiciones.push(rango);
+    }
+    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
       .select({ cheque: cheques, libradorCliente: clientes.razonSocial })
       .from(cheques)
       .leftJoin(clientes, eq(clientes.id, cheques.libradorClienteId))
       .where(filtro)
-      .orderBy(asc(cheques.fechaPago))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            fechaPago: cheques.fechaPago,
+            importe: cheques.importe,
+            // Ordena por el nombre libre; el del cliente enlazado se resuelve
+            // al leer y no se puede ordenar sin traer todo.
+            librador: cheques.libradorNombre,
+            estado: cheques.estado,
+          },
+          input.orden,
+          input.direccion,
+          cheques.createdAt,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 

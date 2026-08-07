@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { ordenSchema } from "../_comunes/orden.js";
+
+export const tiposMovimiento = ["ingreso", "egreso"] as const;
 
 const importePositivo = z
   .string()
@@ -50,10 +53,15 @@ export const movimientoActualizarSchema = z.object({
   datos: movimientoInputSchema,
 });
 
+/** Columnas por las que se puede ordenar el listado de movimientos. */
+export const CAMPOS_ORDEN_MOVIMIENTOS = ["fecha", "importe", "cuenta", "tipo"] as const;
+
 export const movimientosListarSchema = z.object({
   cuentaId: z.uuid().optional(),
+  tipo: z.enum(tiposMovimiento).optional(),
   desde: fecha.optional(),
   hasta: fecha.optional(),
+  ...ordenSchema(CAMPOS_ORDEN_MOVIMIENTOS, "fecha", "desc"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(200).default(50),
 });
@@ -83,8 +91,15 @@ export const chequeActualizarSchema = z.object({
   datos: chequeInputSchema,
 });
 
+/** El rango de fechas de cheques aplica sobre la fecha de pago: es la que
+ *  dice cuándo entra la plata, que es para lo que se mira la cartera. */
+export const CAMPOS_ORDEN_CHEQUES = ["fechaPago", "importe", "librador", "estado"] as const;
+
 export const chequesListarSchema = z.object({
   estado: z.enum(["en_cartera", "depositado", "acreditado", "rechazado", "endosado"]).optional(),
+  desde: fecha.optional(),
+  hasta: fecha.optional(),
+  ...ordenSchema(CAMPOS_ORDEN_CHEQUES, "fechaPago"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(200).default(50),
 });

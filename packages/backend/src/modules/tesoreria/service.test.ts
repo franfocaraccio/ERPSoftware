@@ -98,6 +98,8 @@ describe("tesorería service (integración, RLS activo)", () => {
     const { total } = await listarMovimientos(tenantA, {
       desde: "2026-08-02",
       hasta: "2026-08-02",
+      orden: "fecha",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 50,
     });
@@ -118,7 +120,12 @@ describe("tesorería service (integración, RLS activo)", () => {
       estado: "en_cartera",
     });
 
-    const { items, totalEnCartera } = await listarCheques(tenantA, { pagina: 1, tamanoPagina: 50 });
+    const { items, totalEnCartera } = await listarCheques(tenantA, {
+      orden: "fechaPago",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     expect(items[0]?.libradorNombreEfectivo).toBe("Comercial Sur SA");
     expect(items[0]?.diasParaCobro).toBe(15);
     expect(totalEnCartera).toBe("80000.00");
@@ -133,7 +140,12 @@ describe("tesorería service (integración, RLS activo)", () => {
       estado: "en_cartera",
     });
 
-    const { items } = await listarCheques(tenantA, { pagina: 1, tamanoPagina: 50 });
+    const { items } = await listarCheques(tenantA, {
+      orden: "fechaPago",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     const tercero = items.find((c) => c.numero === "00099999");
     expect(tercero?.libradorNombreEfectivo).toBe("Juan Pérez");
     // Fecha ya pasada: días negativos.
@@ -141,7 +153,12 @@ describe("tesorería service (integración, RLS activo)", () => {
   });
 
   it("el total en cartera excluye los cheques depositados", async () => {
-    const { items } = await listarCheques(tenantA, { pagina: 1, tamanoPagina: 50 });
+    const { items } = await listarCheques(tenantA, {
+      orden: "fechaPago",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     const id = items.find((c) => c.numero === "00099999")?.id ?? "";
 
     await actualizarCheque(tenantA, {
@@ -155,13 +172,20 @@ describe("tesorería service (integración, RLS activo)", () => {
       },
     });
 
-    const { totalEnCartera } = await listarCheques(tenantA, { pagina: 1, tamanoPagina: 50 });
+    const { totalEnCartera } = await listarCheques(tenantA, {
+      orden: "fechaPago",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     expect(totalEnCartera).toBe("80000.00");
   });
 
   it("filtra cheques por estado", async () => {
     const { items } = await listarCheques(tenantA, {
       estado: "depositado",
+      orden: "fechaPago",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 50,
     });
@@ -174,10 +198,20 @@ describe("tesorería service (integración, RLS activo)", () => {
     expect(cuentasB).toHaveLength(0);
     expect(saldoConsolidadoArs).toBe("0.00");
 
-    const { total: movsB } = await listarMovimientos(tenantB, { pagina: 1, tamanoPagina: 50 });
+    const { total: movsB } = await listarMovimientos(tenantB, {
+      orden: "fecha",
+      direccion: "desc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     expect(movsB).toBe(0);
 
-    const { total: chequesB } = await listarCheques(tenantB, { pagina: 1, tamanoPagina: 50 });
+    const { total: chequesB } = await listarCheques(tenantB, {
+      orden: "fechaPago",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+    });
     expect(chequesB).toBe(0);
   });
 

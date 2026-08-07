@@ -14,6 +14,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownLeft, ArrowUpRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import {
+  ariaSort,
+  BarraFiltros,
+  type Direccion,
+  EncabezadoOrdenable,
+  FiltroSelector,
+  RangoFechas,
+} from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -320,22 +328,98 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
   );
 }
 
+const TIPOS_MOVIMIENTO = [
+  { id: "ingreso" as const, etiqueta: "Ingresos" },
+  { id: "egreso" as const, etiqueta: "Egresos" },
+];
+
 export function Movimientos() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
+  const [cuentaId, setCuentaId] = useState("");
+  const [tipo, setTipo] = useState<"ingreso" | "egreso" | "">("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [orden, setOrden] = useState<string>("fecha");
+  const [direccion, setDireccion] = useState<Direccion>("desc");
+
+  const cuentas = useQuery(trpc.tesoreria.cuentas.listar.queryOptions());
   const { data, isPending, isError, refetch } = useQuery(
-    trpc.tesoreria.movimientos.listar.queryOptions({ pagina: 1, tamanoPagina: 100 }),
+    trpc.tesoreria.movimientos.listar.queryOptions({
+      ...(cuentaId ? { cuentaId } : {}),
+      ...(tipo ? { tipo } : {}),
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
+      orden: orden as "fecha",
+      direccion,
+      pagina: 1,
+      tamanoPagina: 100,
+    }),
+  );
+
+  const hayFiltros = Boolean(cuentaId || tipo || desde || hasta);
+  const limpiar = () => {
+    setCuentaId("");
+    setTipo("");
+    setDesde("");
+    setHasta("");
+  };
+
+  const ordenar = (campo: string, dir: Direccion) => {
+    setOrden(campo);
+    setDireccion(dir);
+  };
+
+  const encabezado = (etiqueta: string, campo: string, alineado?: "derecha") => (
+    <th
+      key={campo}
+      scope="col"
+      aria-sort={ariaSort(campo, orden, direccion)}
+      className={`px-4 py-2.5 text-xs font-medium tracking-wide uppercase ${alineado === "derecha" ? "text-right" : "text-left"}`}
+    >
+      <EncabezadoOrdenable
+        etiqueta={etiqueta}
+        campo={campo}
+        ordenActual={orden}
+        direccion={direccion}
+        onOrdenar={ordenar}
+        {...(alineado ? { alineado } : {})}
+      />
+    </th>
   );
 
   return (
     <>
+      <BarraFiltros
+        hayFiltros={hayFiltros}
+        onLimpiar={limpiar}
+        resumen={
+          !isPending &&
+          data && (
+            <p className="text-xs text-muted-foreground tabular">
+              {data.total} {data.total === 1 ? "movimiento" : "movimientos"}
+            </p>
+          )
+        }
+      >
+        <FiltroSelector
+          etiqueta="Cuenta"
+          valor={cuentaId}
+          textoTodos="Todas"
+          opciones={(cuentas.data?.items ?? []).map((c) => ({ id: c.id, etiqueta: c.nombre }))}
+          onCambio={setCuentaId}
+        />
+        <FiltroSelector
+          etiqueta="Tipo"
+          valor={tipo}
+          opciones={TIPOS_MOVIMIENTO}
+          onCambio={setTipo}
+        />
+        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+      </BarraFiltros>
+
       <div className="mb-4 flex items-center justify-between gap-3">
-        {!isPending && data && (
-          <p className="text-xs text-muted-foreground tabular">
-            {data.total} {data.total === 1 ? "movimiento" : "movimientos"}
-          </p>
-        )}
         {!creando && !soloLectura && (
           <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
             <Plus className="size-4" aria-hidden="true" />
@@ -373,7 +457,9 @@ export function Movimientos() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Fecha", "Cuenta", "Concepto", "Medio", "Tipo"].map((h) => (
+                  {encabezado("Fecha", "fecha")}
+                  {encabezado("Cuenta", "cuenta")}
+                  {["Concepto", "Medio"].map((h) => (
                     <th
                       key={h}
                       scope="col"
@@ -382,12 +468,8 @@ export function Movimientos() {
                       {h}
                     </th>
                   ))}
-                  <th
-                    scope="col"
-                    className="px-4 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                  >
-                    Importe
-                  </th>
+                  {encabezado("Tipo", "tipo")}
+                  {encabezado("Importe", "importe", "derecha")}
                 </tr>
               </thead>
               <tbody>
