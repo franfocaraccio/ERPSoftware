@@ -56,6 +56,19 @@ export function Guardia({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Rol del usuario en la organización activa. Es para decidir qué mostrar; los
+ * permisos de verdad los aplica el backend en cada procedure.
+ */
+export function useRolOrganizacion(): string | null {
+  const { data: sesion } = useSession();
+  const { data: activa } = authClient.useActiveOrganization();
+  if (!sesion || !activa) {
+    return null;
+  }
+  return activa.members?.find((m) => m.userId === sesion.user.id)?.role ?? null;
+}
+
 /** Selector de organización. Solo aparece si el usuario pertenece a más de una. */
 export function SelectorOrganizacion() {
   const queryClient = useQueryClient();

@@ -8,7 +8,7 @@ import { invitation, member, organization, user } from "../../db/schema/auth.js"
 import { adminPlataformaProcedure, router } from "../../trpc/trpc.js";
 
 /**
- * Panel de plataforma: crear organizaciones, invitar dueños y dar de alta más
+ * Panel de plataforma: crear organizaciones, invitar administradores y dar de alta más
  * admins. Estos procedures NO pasan por withTenant y no tocan ninguna tabla de
  * negocio — por decisión de producto, un admin de plataforma no puede ver los
  * datos de las PyMEs.
@@ -44,7 +44,7 @@ async function slugDisponible(base: string): Promise<string> {
 }
 
 export const plataformaRouter = router({
-  /** Listado de organizaciones con su dueño y cuántos miembros tiene. */
+  /** Listado de organizaciones con su administrador y cuántos miembros tiene. */
   organizaciones: adminPlataformaProcedure.query(async () => {
     const filas = await db
       .select({
@@ -62,10 +62,10 @@ export const plataformaRouter = router({
           select count(*)::int from "invitation" i
           where i.organization_id = "organization".id and i.status = 'pending'
         )`,
-        duenoEmail: sql<string | null>`(
+        administradorEmail: sql<string | null>`(
           select u.email from "member" m
           join "user" u on u.id = m.user_id
-          where m.organization_id = "organization".id and m.role = 'dueno'
+          where m.organization_id = "organization".id and m.role = 'administrador'
           limit 1
         )`,
       })
@@ -75,14 +75,14 @@ export const plataformaRouter = router({
   }),
 
   /**
-   * Crea la organización e invita a su dueño en un solo paso: es el flujo
+   * Crea la organización e invita a su administrador en un solo paso: es el flujo
    * real de alta de un cliente nuevo.
    */
   crearOrganizacion: adminPlataformaProcedure
     .input(
       z.object({
         nombre: nombreSchema,
-        emailDueno: z.email("Email inválido"),
+        emailAdministrador: z.email("Email inválido"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -105,7 +105,11 @@ export const plataformaRouter = router({
       // queda una empresa huérfana que nadie puede reclamar.
       try {
         await auth.api.createInvitation({
-          body: { email: input.emailDueno, role: "dueno", organizationId: creada.id },
+          body: {
+            email: input.emailAdministrador,
+            role: "administrador",
+            organizationId: creada.id,
+          },
           headers: ctx.headers,
         });
       } catch (error) {

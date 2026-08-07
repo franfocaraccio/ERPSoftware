@@ -65,7 +65,7 @@ export const auth = betterAuth({
       // middlewares de tRPC, no la UI.
       ac,
       roles: rolesOrganizacion,
-      creatorRole: "dueno",
+      creatorRole: "administrador",
       sendInvitationEmail: async (datos) => {
         await enviarInvitacion({
           email: datos.email,
@@ -76,7 +76,7 @@ export const auth = betterAuth({
       },
     }),
 
-    // Rol de plataforma: quien crea organizaciones e invita dueños.
+    // Rol de plataforma: quien crea organizaciones e invita administradores.
     admin({ adminRoles: [ROL_PLATAFORMA_ADMIN], defaultRole: ROL_PLATAFORMA_USUARIO }),
 
     // Solo para el panel de solo lectura de la Vista Consolidada.

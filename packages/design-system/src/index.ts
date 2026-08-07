@@ -6,6 +6,7 @@ export {
   Selector,
   type SelectorProps,
 } from "./components/campo.js";
+export { Casilla, type CasillaProps } from "./components/casilla.js";
 export { DialogoConfirmacion } from "./components/dialogo.js";
 export { Esqueleto, EstadoVacio, Insignia, Tarjeta } from "./components/superficie.js";
 export {

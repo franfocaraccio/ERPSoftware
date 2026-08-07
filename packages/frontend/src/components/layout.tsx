@@ -1,14 +1,25 @@
 import { cn, ToggleTema } from "@erp/design-system";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Boxes, Building2, FileText, LayoutDashboard, Receipt, Users, Wallet } from "lucide-react";
+import {
+  Boxes,
+  Building2,
+  FileText,
+  LayoutDashboard,
+  Receipt,
+  UserCog,
+  Users,
+  Wallet,
+} from "lucide-react";
 import type { ReactNode } from "react";
-import { MenuUsuario, SelectorOrganizacion } from "./sesion.js";
+import { MenuUsuario, SelectorOrganizacion, useRolOrganizacion } from "./sesion.js";
 
 interface ItemNav {
   a: string;
   etiqueta: string;
   Icono: typeof Users;
   habilitado: boolean;
+  /** Si está, el ítem solo se muestra a esos roles. */
+  roles?: readonly string[];
 }
 
 // Un ítem por módulo del PDF. Los que aún no tienen slice se muestran
@@ -21,50 +32,60 @@ const NAVEGACION: ItemNav[] = [
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: true },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: true },
+  {
+    a: "/equipo",
+    etiqueta: "Equipo",
+    Icono: UserCog,
+    habilitado: true,
+    roles: ["administrador"],
+  },
 ];
 
 function Navegacion() {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
+  const rol = useRolOrganizacion();
 
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
-      {NAVEGACION.map(({ a, etiqueta, Icono, habilitado }) => {
-        const activo = ruta.startsWith(a);
-        const clases = cn(
-          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
-        );
+      {NAVEGACION.filter((item) => !item.roles || (rol !== null && item.roles.includes(rol))).map(
+        ({ a, etiqueta, Icono, habilitado }) => {
+          const activo = ruta.startsWith(a);
+          const clases = cn(
+            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
+          );
 
-        if (!habilitado) {
+          if (!habilitado) {
+            return (
+              <span
+                key={a}
+                aria-disabled="true"
+                title="Disponible próximamente"
+                className={cn(clases, "cursor-not-allowed text-muted-foreground/45")}
+              >
+                <Icono className="size-4 shrink-0" aria-hidden="true" />
+                {etiqueta}
+              </span>
+            );
+          }
+
           return (
-            <span
+            <Link
               key={a}
-              aria-disabled="true"
-              title="Disponible próximamente"
-              className={cn(clases, "cursor-not-allowed text-muted-foreground/45")}
+              to={a}
+              aria-current={activo ? "page" : undefined}
+              className={cn(
+                clases,
+                activo
+                  ? "bg-primary-subtle text-primary"
+                  : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+              )}
             >
               <Icono className="size-4 shrink-0" aria-hidden="true" />
               {etiqueta}
-            </span>
+            </Link>
           );
-        }
-
-        return (
-          <Link
-            key={a}
-            to={a}
-            aria-current={activo ? "page" : undefined}
-            className={cn(
-              clases,
-              activo
-                ? "bg-primary-subtle text-primary"
-                : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
-            )}
-          >
-            <Icono className="size-4 shrink-0" aria-hidden="true" />
-            {etiqueta}
-          </Link>
-        );
-      })}
+        },
+      )}
     </nav>
   );
 }

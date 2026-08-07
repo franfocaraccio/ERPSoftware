@@ -35,7 +35,7 @@ type Vista = (typeof VISTAS)[number]["id"];
 
 const orgSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio"),
-  emailDueno: z.email("Email inválido"),
+  emailAdministrador: z.email("Email inválido"),
 });
 
 function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
@@ -44,12 +44,12 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
   const crear = useMutation(trpc.plataforma.crearOrganizacion.mutationOptions());
 
   const form = useForm({
-    defaultValues: { nombre: "", emailDueno: "" },
+    defaultValues: { nombre: "", emailAdministrador: "" },
     validators: { onBlur: orgSchema },
     onSubmit: async ({ value }) => {
       await crear.mutateAsync({
         nombre: value.nombre.trim(),
-        emailDueno: value.emailDueno.trim(),
+        emailAdministrador: value.emailAdministrador.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: trpc.plataforma.pathKey() });
       onListo();
@@ -66,7 +66,7 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
         className="space-y-4"
       >
         <p className="text-sm text-muted-foreground">
-          Se crea la empresa y se le envía la invitación al dueño en un solo paso.
+          Se crea la empresa y se le envía la invitación a su administrador en un solo paso.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -93,10 +93,10 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
             )}
           </form.Field>
 
-          <form.Field name="emailDueno">
+          <form.Field name="emailAdministrador">
             {(field) => (
               <Campo
-                etiqueta="Email del dueño"
+                etiqueta="Email del administrador"
                 requerido
                 ayuda="Le llega la invitación para crear su cuenta"
                 error={
@@ -187,14 +187,14 @@ function Organizaciones() {
           <EstadoVacio
             icono={<Building2 className="size-8" aria-hidden="true" />}
             titulo="Todavía no hay empresas"
-            descripcion="Creá la primera y se le envía la invitación al dueño."
+            descripcion="Creá la primera y se le envía la invitación a su administrador."
           />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {["Empresa", "Dueño", "Miembros", "Invitaciones", "Creada"].map((h) => (
+                  {["Empresa", "Administrador", "Miembros", "Invitaciones", "Creada"].map((h) => (
                     <th
                       key={h}
                       scope="col"
@@ -216,7 +216,9 @@ function Organizaciones() {
                       <p className="text-xs text-muted-foreground">{org.slug}</p>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {org.duenoEmail ?? <Insignia tono="advertencia">Sin dueño todavía</Insignia>}
+                      {org.administradorEmail ?? (
+                        <Insignia tono="advertencia">Sin administrador todavía</Insignia>
+                      )}
                     </td>
                     <td className="px-4 py-3 tabular text-muted-foreground">{org.miembros}</td>
                     <td className="px-4 py-3 tabular text-muted-foreground">

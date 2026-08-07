@@ -1,7 +1,7 @@
 import { Boton, clasesBoton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { LayoutDashboard, Wallet } from "lucide-react";
+import { LayoutDashboard, Lock, Wallet } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { formatearImporte } from "../../lib/formato.js";
@@ -103,6 +103,24 @@ export function Panel() {
           <Esqueleto className="h-80 w-full" />
           <Esqueleto className="h-80 w-full" />
         </div>
+      </>
+    );
+  }
+
+  // El acceso a los indicadores es por persona y lo decide el Administrador.
+  // El servidor no manda los datos; acá se explica por qué la pantalla está
+  // vacía, en vez de mostrar todo en cero.
+  if (!data.habilitado) {
+    return (
+      <>
+        <EncabezadoPagina titulo="Panel" />
+        <Tarjeta>
+          <EstadoVacio
+            icono={<Lock className="size-8" aria-hidden="true" />}
+            titulo="Tu cuenta no tiene habilitados los indicadores"
+            descripcion="Los módulos del menú siguen disponibles. Si necesitás ver el panel, pedíselo al Administrador de la empresa."
+          />
+        </Tarjeta>
       </>
     );
   }

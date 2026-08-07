@@ -7,6 +7,7 @@ import { esRolOrganizacion } from "../../auth/roles.js";
 import { db } from "../../db/client.js";
 import { account, invitation, member, organization, user } from "../../db/schema/auth.js";
 import { publicProcedure, router } from "../../trpc/trpc.js";
+import { traspasarPermisoDeInvitacion } from "../equipo/service.js";
 
 /**
  * Alta por invitación. El registro público está desactivado a propósito, así
@@ -122,6 +123,10 @@ export const invitacionesRouter = router({
           createdAt: ahora,
         });
       }
+
+      // El acceso al panel se eligió al invitar: ahora que hay miembro, la
+      // reserva pasa a ser el permiso de esa persona.
+      await traspasarPermisoDeInvitacion(inv.organizacionId, inv.id, usuarioId);
 
       await db.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, inv.id));
 

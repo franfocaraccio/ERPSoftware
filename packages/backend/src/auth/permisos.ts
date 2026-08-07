@@ -9,7 +9,7 @@ import { defaultStatements } from "better-auth/plugins/organization/access";
 export const ac = createAccessControl(defaultStatements);
 
 /** Todo, incluida la gestión de usuarios y la delegación de ARCA. */
-export const dueno = ac.newRole({
+export const administrador = ac.newRole({
   organization: ["update", "delete"],
   member: ["create", "update", "delete"],
   invitation: ["create", "cancel"],
@@ -17,18 +17,19 @@ export const dueno = ac.newRole({
   ac: ["create", "read", "update", "delete"],
 });
 
-/** Opera comprobantes, tesorería e impuestos, pero no gestiona la organización. */
-export const administrativo = ac.newRole({});
+/** Carga y edita datos de negocio, pero no gestiona la organización. */
+export const escrituraLectura = ac.newRole({});
 
-/** Solo lectura y descarga de comprobantes e impuestos. */
-export const contador = ac.newRole({});
-
-/** Vista Consolidada únicamente. */
+/**
+ * Lectura sin escritura. Es el rol del contador externo y de cualquiera que
+ * tenga que mirar sin tocar. Antes existía un rol `contador` aparte, pero sus
+ * permisos eran idénticos a este: dos nombres para lo mismo confunden a quien
+ * invita.
+ */
 export const soloLectura = ac.newRole({});
 
 export const rolesOrganizacion = {
-  dueno,
-  administrativo,
-  contador,
+  administrador,
+  escritura_lectura: escrituraLectura,
   solo_lectura: soloLectura,
 };

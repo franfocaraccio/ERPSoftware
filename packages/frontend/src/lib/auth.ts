@@ -15,8 +15,7 @@ export const { useSession, signIn, signOut } = authClient;
 
 /** Roles del dominio, en el mismo orden que el backend. */
 export const ETIQUETA_ROL: Record<string, string> = {
-  dueno: "Dueño",
-  administrativo: "Administrativo",
-  contador: "Contador",
+  administrador: "Administrador",
+  escritura_lectura: "Escritura/Lectura",
   solo_lectura: "Solo lectura",
 };

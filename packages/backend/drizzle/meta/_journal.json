@@ -29,6 +29,34 @@
       "when": 1785985003003,
       "tag": "0003_tenant_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786026000000,
+      "tag": "0004_quitar_rol_contador",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786026100000,
+      "tag": "0005_renombrar_rol_dueno",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786026200000,
+      "tag": "0006_renombrar_rol_administrativo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1786062257291,
+      "tag": "0007_crear_permisos_panel",
+      "breakpoints": true
     }
   ]
 }

@@ -24,7 +24,7 @@ const db = drizzle(pool, { schema, casing: "snake_case" });
  *
  * 1. Crea el primer admin de plataforma (el arranque en frío: con el registro
  *    público desactivado, alguien tiene que existir antes que nadie).
- * 2. Crea una organización de desarrollo con su dueño de prueba.
+ * 2. Crea una organización de desarrollo con su administrador de prueba.
  * 3. Reapunta los datos que quedaron con tenant_id = 'tenant-dev' a esa
  *    organización, para no perder lo cargado desde la UI.
  */
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
     rolPlataforma: ROL_PLATAFORMA_ADMIN,
   });
 
-  console.log("Dueño de la organización de prueba:");
+  console.log("Administrador de la organización de prueba:");
   const duenoId = await crearUsuario({
     email: DUENO_EMAIL,
     password: DUENO_PASSWORD,
@@ -151,10 +151,10 @@ async function main(): Promise<void> {
       id: randomUUID(),
       organizationId: org.id,
       userId: duenoId,
-      role: "dueno",
+      role: "administrador",
       createdAt: new Date(),
     });
-    console.log("  dueño agregado como miembro");
+    console.log("  administrador agregado como miembro");
   }
 
   console.log("Migrando datos de 'tenant-dev':");
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
 
   console.log("\nListo. Credenciales de desarrollo:");
   console.log(`  admin de plataforma → ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
-  console.log(`  dueño de PyME Demo → ${DUENO_EMAIL} / ${DUENO_PASSWORD}`);
+  console.log(`  administrador de PyME Demo → ${DUENO_EMAIL} / ${DUENO_PASSWORD}`);
 }
 
 main()

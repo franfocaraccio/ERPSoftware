@@ -35,6 +35,8 @@ export const tenantProcedure = protectedProcedure.use(({ ctx, next }) => {
       usuarioId: ctx.session.usuarioId,
       rol: ctx.session.rolOrganizacion,
       session: ctx.session,
+      // Necesarios para reenviar la sesión a `auth.api` (invitaciones).
+      headers: ctx.headers,
     },
   });
 });
@@ -52,11 +54,11 @@ function exigirRoles(permitidos: readonly RolOrganizacion[]) {
   });
 }
 
-/** Escritura de datos de negocio: dueño y administrativo. */
+/** Escritura de datos de negocio: administrador y escritura_lectura. */
 export const escrituraProcedure = exigirRoles(ROLES_ESCRITURA);
 
-/** Gestión de usuarios de la organización: solo el dueño. */
-export const duenoProcedure = exigirRoles(ROLES_GESTION_USUARIOS);
+/** Gestión de usuarios de la organización: solo el administrador. */
+export const administradorProcedure = exigirRoles(ROLES_GESTION_USUARIOS);
 
 /**
  * Procedures del panel de plataforma. Un admin gestiona organizaciones e

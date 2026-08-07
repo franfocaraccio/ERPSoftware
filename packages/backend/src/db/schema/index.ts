@@ -6,6 +6,7 @@ export * from "./compras.js";
 export * from "./facturacion.js";
 export * from "./impuestos.js";
 export * from "./parametros.js";
+export * from "./permisos.js";
 export * from "./proveedores.js";
 export * from "./stock.js";
 export * from "./tesoreria.js";

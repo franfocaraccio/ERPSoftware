@@ -24,7 +24,7 @@ El context se construye por request y contiene:
 1. `publicProcedure` — solo login/invitaciones/health.
 2. `protectedProcedure` — exige sesión válida.
 3. `tenantProcedure` — exige `activeOrganizationId` presente; inyecta `tenantId` y el `db` ya tenantizado.
-4. Sobre `tenantProcedure`, guards por rol: `dueno`, `administrativo`, `contador`, `soloLectura` (ver skill `betterauth`).
+4. Sobre `tenantProcedure`, guards por rol: `administrador`, `escritura_lectura`, `solo_lectura` (ver skill `betterauth`).
 
 Todo procedure de negocio parte de `tenantProcedure` o de un guard por rol. Si un procedure usa `protectedProcedure` a secas para tocar datos de negocio, está mal.
 

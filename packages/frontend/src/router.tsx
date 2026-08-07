@@ -1,6 +1,6 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
 import { Layout } from "./components/layout.js";
-import { Guardia } from "./components/sesion.js";
+import { Guardia, useRolOrganizacion } from "./components/sesion.js";
 import { PanelAdmin } from "./features/admin/panel.js";
 import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
 import { Login } from "./features/auth/login.js";
@@ -9,6 +9,7 @@ import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
 import { FormularioComprobante } from "./features/comprobantes/formulario.js";
 import { Comprobantes } from "./features/comprobantes/index.js";
+import { Equipo, EquipoSinPermiso } from "./features/equipo/lista.js";
 import { FormularioImpuesto } from "./features/impuestos/formulario.js";
 import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Landing } from "./features/landing/landing.js";
@@ -75,6 +76,19 @@ const rutaPanel = createRoute({
   getParentRoute: () => rutaApp,
   path: "/panel",
   component: Panel,
+});
+
+/**
+ * Gestión del equipo. El guard real está en el backend; esto solo evita
+ * mostrarle una pantalla rota a quien entra por URL sin ser Administrador.
+ */
+const rutaEquipo = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/equipo",
+  component: function GestionEquipo() {
+    const rol = useRolOrganizacion();
+    return rol === "administrador" ? <Equipo /> : <EquipoSinPermiso />;
+  },
 });
 
 const rutaClientes = createRoute({
@@ -195,6 +209,7 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaAdmin,
   rutaApp.addChildren([
     rutaPanel,
+    rutaEquipo,
     rutaClientes,
     rutaClienteNuevo,
     rutaClienteEditar,
