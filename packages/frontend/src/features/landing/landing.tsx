@@ -183,7 +183,7 @@ export function Landing() {
               Para PyMEs argentinas que ya no entran en una planilla
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-5xl">
-              Toda la plata de tu empresa, en una sola pantalla
+              Las cuentas de tu empresa, ordenadas y al día
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg">
               Clientes, proveedores, stock, tesorería e impuestos en un mismo lugar. Con los
