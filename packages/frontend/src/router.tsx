@@ -16,6 +16,7 @@ import { FormularioImpuesto } from "./features/impuestos/formulario.js";
 import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Landing } from "./features/landing/landing.js";
 import { Panel } from "./features/panel/panel.js";
+import { Parametros, ParametrosSinPermiso } from "./features/parametros/formulario.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
@@ -109,6 +110,15 @@ const rutaEquipo = createRoute({
   component: function GestionEquipo() {
     const rol = useRolOrganizacion();
     return rol === "administrador" ? <Equipo /> : <EquipoSinPermiso />;
+  },
+});
+
+const rutaParametros = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/parametros",
+  component: function ConfigurarParametros() {
+    const rol = useRolOrganizacion();
+    return rol === "administrador" ? <Parametros /> : <ParametrosSinPermiso />;
   },
 });
 
@@ -233,6 +243,7 @@ const arbolRutas = rutaRaiz.addChildren([
   rutaApp.addChildren([
     rutaPanel,
     rutaEquipo,
+    rutaParametros,
     rutaClientes,
     rutaClienteNuevo,
     rutaClienteEditar,

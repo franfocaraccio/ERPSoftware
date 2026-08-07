@@ -4,6 +4,7 @@ import { equipoRouter } from "../modules/equipo/router.js";
 import { financieroRouter } from "../modules/financiero/router.js";
 import { impuestosRouter } from "../modules/impuestos/router.js";
 import { invitacionesRouter } from "../modules/invitaciones/router.js";
+import { parametrosRouter } from "../modules/parametros/router.js";
 import { plataformaRouter } from "../modules/plataforma/router.js";
 import { proveedoresRouter } from "../modules/proveedores/router.js";
 import { stockRouter } from "../modules/stock/router.js";
@@ -17,6 +18,7 @@ export const appRouter = router({
   financiero: financieroRouter,
   impuestos: impuestosRouter,
   invitaciones: invitacionesRouter,
+  parametros: parametrosRouter,
   plataforma: plataformaRouter,
   proveedores: proveedoresRouter,
   stock: stockRouter,

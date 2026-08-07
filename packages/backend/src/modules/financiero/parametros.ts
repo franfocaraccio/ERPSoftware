@@ -1,25 +1,18 @@
 import { eq } from "drizzle-orm";
 import { parametros } from "../../db/schema/parametros.js";
 import type { TenantTx } from "../../db/tenant-db.js";
+import { type Parametros, POR_DEFECTO } from "../parametros/service.js";
 
-export interface ParametrosTenant {
-  umbralMoraDias: number;
-  margenObjetivo: string | null;
-  minimoOperativo: string | null;
-}
-
-/** Valores por defecto cuando la empresa todavía no configuró los suyos. */
-const POR_DEFECTO: ParametrosTenant = {
-  umbralMoraDias: 60,
-  margenObjetivo: null,
-  minimoOperativo: null,
-};
+export type { Parametros as ParametrosTenant };
 
 /**
- * Umbrales que la especificación define como "definidos por el cliente".
- * Los usan los semáforos de KPIs y de la proyección de caja.
+ * Lee los umbrales dentro de la transacción que ya abrió el resumen financiero.
+ *
+ * Existe además de `parametros/service.ts` porque ese abre su propia
+ * transacción y acá estamos dentro de una. Los valores por defecto se importan
+ * de allá para que no puedan divergir.
  */
-export async function obtenerParametros(tx: TenantTx, tenantId: string): Promise<ParametrosTenant> {
+export async function obtenerParametros(tx: TenantTx, tenantId: string): Promise<Parametros> {
   const [fila] = await tx
     .select()
     .from(parametros)
