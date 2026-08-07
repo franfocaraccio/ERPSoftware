@@ -38,13 +38,24 @@ function urlFrontend(): string {
   return process.env.FRONTEND_URL ?? "http://localhost:5173";
 }
 
+/**
+ * Link para aceptar una invitación. Además del mail, se devuelve a quien invita
+ * para que pueda pasárselo a mano.
+ *
+ * Es un enlace al portador: quien lo tenga puede crear la cuenta. Solo lo ve
+ * quien creó la invitación, que es la misma persona que eligió el destinatario.
+ */
+export function linkInvitacion(invitacionId: string): string {
+  return `${urlFrontend()}/aceptar-invitacion/${invitacionId}`;
+}
+
 export async function enviarInvitacion(datos: {
   email: string;
   organizacion: string;
   invitadoPor: string;
   invitacionId: string;
 }): Promise<void> {
-  const link = `${urlFrontend()}/aceptar-invitacion/${datos.invitacionId}`;
+  const link = linkInvitacion(datos.invitacionId);
   await enviar({
     para: datos.email,
     asunto: `Te invitaron a ${datos.organizacion} en ERP PyME`,

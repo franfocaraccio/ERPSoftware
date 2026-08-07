@@ -1,4 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
+import { linkInvitacion } from "../../auth/emails.js";
 import { esRolOrganizacion, type RolOrganizacion } from "../../auth/roles.js";
 import { db } from "../../db/client.js";
 import { auditLog } from "../../db/schema/auditoria.js";
@@ -27,6 +28,8 @@ export interface InvitacionPendiente {
   rol: RolOrganizacion;
   verPanel: boolean;
   expira: Date;
+  /** Para pasárselo a mano mientras no haya envío de mails. */
+  link: string;
 }
 
 /**
@@ -126,6 +129,7 @@ export async function listarEquipo(
       rol: f.rol as RolOrganizacion,
       verPanel: porInvitacion.get(f.id) ?? VER_PANEL_POR_DEFECTO,
       expira: f.expira,
+      link: linkInvitacion(f.id),
     }));
 
   return { miembros, invitaciones };

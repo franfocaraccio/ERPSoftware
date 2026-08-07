@@ -17,6 +17,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Building2, Mail, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { BotonCopiarLink, LinkInvitacion } from "../../components/link-invitacion.js";
 import { MenuUsuario } from "../../components/sesion.js";
 import { useSession } from "../../lib/auth.js";
 import { formatearFecha } from "../../lib/formato.js";
@@ -38,7 +39,12 @@ const orgSchema = z.object({
   emailAdministrador: z.email("Email inválido"),
 });
 
-function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
+function FormularioOrganizacion({
+  onListo,
+}: {
+  /** Recibe la invitación recién creada, o null si se canceló el formulario. */
+  onListo: (creada: { email: string; link: string } | null) => void;
+}) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const crear = useMutation(trpc.plataforma.crearOrganizacion.mutationOptions());
@@ -47,12 +53,13 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
     defaultValues: { nombre: "", emailAdministrador: "" },
     validators: { onBlur: orgSchema },
     onSubmit: async ({ value }) => {
-      await crear.mutateAsync({
+      const email = value.emailAdministrador.trim();
+      const creada = await crear.mutateAsync({
         nombre: value.nombre.trim(),
-        emailAdministrador: value.emailAdministrador.trim(),
+        emailAdministrador: email,
       });
       await queryClient.invalidateQueries({ queryKey: trpc.plataforma.pathKey() });
-      onListo();
+      onListo({ email, link: creada.link });
     },
   });
 
@@ -126,7 +133,7 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
         )}
 
         <div className="flex justify-end gap-2">
-          <Boton variante="secundario" tamano="sm" onClick={onListo}>
+          <Boton variante="secundario" tamano="sm" onClick={() => onListo(null)}>
             Cancelar
           </Boton>
           <form.Subscribe selector={(s) => s.isSubmitting}>
@@ -145,6 +152,7 @@ function FormularioOrganizacion({ onListo }: { onListo: () => void }) {
 function Organizaciones() {
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
+  const [reciente, setReciente] = useState<{ email: string; link: string } | null>(null);
   const { data, isPending, isError, refetch } = useQuery(
     trpc.plataforma.organizaciones.queryOptions(),
   );
@@ -158,14 +166,34 @@ function Organizaciones() {
           </p>
         )}
         {!creando && (
-          <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
+          <Boton
+            tamano="sm"
+            className="ml-auto"
+            onClick={() => {
+              setReciente(null);
+              setCreando(true);
+            }}
+          >
             <Plus className="size-4" aria-hidden="true" />
             Nueva empresa
           </Boton>
         )}
       </div>
 
-      {creando && <FormularioOrganizacion onListo={() => setCreando(false)} />}
+      {creando && (
+        <FormularioOrganizacion
+          onListo={(creada) => {
+            setCreando(false);
+            setReciente(creada);
+          }}
+        />
+      )}
+
+      {reciente && (
+        <div className="mb-4">
+          <LinkInvitacion link={reciente.link} email={reciente.email} />
+        </div>
+      )}
 
       <Tarjeta className="overflow-hidden">
         {isError ? (
@@ -291,15 +319,18 @@ function Invitaciones() {
                   <td className="px-4 py-3 tabular text-muted-foreground">
                     {formatearFecha(String(inv.expira).slice(0, 10))}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Boton
-                      variante="fantasma"
-                      tamano="sm"
-                      cargando={cancelar.isPending && cancelar.variables?.invitacionId === inv.id}
-                      onClick={() => cancelar.mutate({ invitacionId: inv.id })}
-                    >
-                      Cancelar
-                    </Boton>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <BotonCopiarLink link={inv.link} />
+                      <Boton
+                        variante="fantasma"
+                        tamano="sm"
+                        cargando={cancelar.isPending && cancelar.variables?.invitacionId === inv.id}
+                        onClick={() => cancelar.mutate({ invitacionId: inv.id })}
+                      >
+                        Cancelar
+                      </Boton>
+                    </div>
                   </td>
                 </tr>
               ))}

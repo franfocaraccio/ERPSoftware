@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { auth } from "../../auth/auth.js";
+import { linkInvitacion } from "../../auth/emails.js";
 import { ROL_PLATAFORMA_ADMIN, ROL_PLATAFORMA_USUARIO } from "../../auth/roles.js";
 import { db } from "../../db/client.js";
 import { invitation, member, organization, user } from "../../db/schema/auth.js";
@@ -103,8 +104,9 @@ export const plataformaRouter = router({
       // Los llamados a auth.api no comparten transacción con nosotros, así que
       // si la invitación falla hay que deshacer la organización a mano: si no,
       // queda una empresa huérfana que nadie puede reclamar.
+      let invitacionId: string;
       try {
-        await auth.api.createInvitation({
+        const invitacion = await auth.api.createInvitation({
           body: {
             email: input.emailAdministrador,
             role: "administrador",
@@ -112,6 +114,7 @@ export const plataformaRouter = router({
           },
           headers: ctx.headers,
         });
+        invitacionId = invitacion.id;
       } catch (error) {
         await db.delete(organization).where(eq(organization.id, creada.id));
         throw error;
@@ -119,12 +122,19 @@ export const plataformaRouter = router({
 
       await db.delete(member).where(eq(member.organizationId, creada.id));
 
-      return { id: creada.id, nombre: creada.name, slug: creada.slug };
+      // El link va en la respuesta además del mail: sin proveedor de correo
+      // configurado, es la única forma de hacérselo llegar al administrador.
+      return {
+        id: creada.id,
+        nombre: creada.name,
+        slug: creada.slug,
+        link: linkInvitacion(invitacionId),
+      };
     }),
 
   /** Invitaciones pendientes de todas las organizaciones. */
   invitacionesPendientes: adminPlataformaProcedure.query(async () => {
-    return db
+    const filas = await db
       .select({
         id: invitation.id,
         email: invitation.email,
@@ -136,6 +146,10 @@ export const plataformaRouter = router({
       .innerJoin(organization, eq(organization.id, invitation.organizationId))
       .where(eq(invitation.status, "pending"))
       .orderBy(desc(invitation.expiresAt));
+
+    // El link también acá: si se cierra el cartel de "recién creada", esta es
+    // la única forma de recuperarlo.
+    return filas.map((f) => ({ ...f, link: linkInvitacion(f.id) }));
   }),
 
   cancelarInvitacion: adminPlataformaProcedure

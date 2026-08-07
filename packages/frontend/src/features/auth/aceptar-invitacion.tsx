@@ -30,6 +30,7 @@ const schema = z
 export function AceptarInvitacion({ invitacionId }: { invitacionId: string }) {
   const trpc = useTRPC();
   const [error, setError] = useState<string | null>(null);
+  const [sumada, setSumada] = useState(false);
 
   const invitacion = useQuery({
     ...trpc.invitaciones.ver.queryOptions({ id: invitacionId }),
@@ -37,6 +38,21 @@ export function AceptarInvitacion({ invitacionId }: { invitacionId: string }) {
   });
 
   const aceptar = useMutation(trpc.invitaciones.aceptar.mutationOptions());
+
+  // Si el mail ya tiene cuenta no hay contraseña que definir: entra con la que
+  // ya usa. Pedírsela igual y después ignorarla dejaba el ingreso fallando sin
+  // explicación.
+  const yaTieneCuenta = invitacion.data?.yaTieneCuenta ?? false;
+
+  const sumarme = async () => {
+    setError(null);
+    try {
+      await aceptar.mutateAsync({ id: invitacionId });
+      setSumada(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo aceptar la invitación.");
+    }
+  };
 
   const form = useForm({
     defaultValues: { nombre: "", password: "", repetir: "" },
@@ -101,6 +117,45 @@ export function AceptarInvitacion({ invitacionId }: { invitacionId: string }) {
                 <Link to="/login" className={clasesBoton("secundario", "sm")}>
                   Ir al inicio de sesión
                 </Link>
+              </div>
+            ) : sumada ? (
+              <div className="space-y-4 text-center">
+                <p className="text-sm text-foreground">
+                  Listo, ya sos parte de{" "}
+                  <span className="font-medium">{invitacion.data.organizacion}</span>.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Ingresá con la contraseña que ya usás en ERP PyME.
+                </p>
+                <Link to="/login" className={clasesBoton()}>
+                  Ir al inicio de sesión
+                </Link>
+              </div>
+            ) : yaTieneCuenta ? (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Ya tenés una cuenta con{" "}
+                  <span className="font-medium text-foreground">{invitacion.data.email}</span>. Al
+                  aceptar, esta empresa se suma a tu cuenta y vas a poder cambiar entre las dos
+                  desde el selector de arriba. Tu contraseña no cambia.
+                </p>
+
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
+                  >
+                    {error}
+                  </p>
+                )}
+
+                <Boton
+                  cargando={aceptar.isPending}
+                  className="w-full justify-center"
+                  onClick={() => void sumarme()}
+                >
+                  Sumarme a {invitacion.data.organizacion}
+                </Boton>
               </div>
             ) : (
               <form

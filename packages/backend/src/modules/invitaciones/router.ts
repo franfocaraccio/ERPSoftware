@@ -37,6 +37,11 @@ async function buscarInvitacionVigente(id: string) {
   return fila;
 }
 
+async function existeUsuario(email: string): Promise<boolean> {
+  const [fila] = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
+  return Boolean(fila);
+}
+
 export const invitacionesRouter = router({
   /** Datos mínimos para pintar la pantalla, sin exponer nada sensible. */
   ver: publicProcedure.input(z.object({ id: z.string() })).query(async ({ input }) => {
@@ -47,19 +52,32 @@ export const invitacionesRouter = router({
         message: "La invitación no existe, ya fue usada o venció",
       });
     }
-    return { email: inv.email, organizacion: inv.organizacion, rol: inv.rol };
+    // Un mismo mail puede estar en varias empresas (el contador que atiende a
+    // varias). Si ya tiene cuenta no hay contraseña que definir: la pantalla
+    // tiene que pedir otra cosa. Decirlo no filtra nada nuevo, porque el link
+    // ya revela de qué mail se trata.
+    return {
+      email: inv.email,
+      organizacion: inv.organizacion,
+      rol: inv.rol,
+      yaTieneCuenta: await existeUsuario(inv.email),
+    };
   }),
 
   /**
-   * Crea la cuenta y la membresía. No devuelve sesión: el frontend hace login
-   * normal con las credenciales recién definidas.
+   * Crea la membresía y, si hace falta, la cuenta. No devuelve sesión: el
+   * frontend hace login normal después.
+   *
+   * Nombre y contraseña solo se piden cuando el mail no tiene cuenta todavía.
+   * A quien ya la tiene no se le puede —ni se le debe— cambiar la contraseña
+   * desde una invitación: entra con la que ya usa.
    */
   aceptar: publicProcedure
     .input(
       z.object({
         id: z.string(),
-        nombre: z.string().trim().min(1).max(120),
-        password: z.string().min(12, "Mínimo 12 caracteres"),
+        nombre: z.string().trim().min(1).max(120).optional(),
+        password: z.string().min(12, "Mínimo 12 caracteres").optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -84,6 +102,14 @@ export const invitacionesRouter = router({
       let usuarioId = existente?.id;
 
       if (!usuarioId) {
+        // La obligatoriedad se valida acá y no en el schema: depende de si el
+        // usuario existe, cosa que solo se sabe del lado servidor.
+        if (!input.nombre || !input.password) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Faltan tu nombre y una contraseña para crear la cuenta",
+          });
+        }
         usuarioId = randomUUID();
         await db.insert(user).values({
           id: usuarioId,

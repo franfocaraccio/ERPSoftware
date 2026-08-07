@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { auth } from "../../auth/auth.js";
+import { linkInvitacion } from "../../auth/emails.js";
 import { administradorProcedure, router } from "../../trpc/trpc.js";
 import { cambiarAccesoPanelSchema, cancelarInvitacionSchema, invitarSchema } from "./schema.js";
 import {
@@ -48,7 +49,9 @@ export const equipoRouter = router({
 
     await registrarPermisoInvitacion(ctx, invitacionId, input.verPanel);
 
-    return { id: invitacionId, email };
+    // El link se devuelve además de mandarse por mail: mientras no haya
+    // proveedor de correo configurado, es la única forma de hacérselo llegar.
+    return { id: invitacionId, email, link: linkInvitacion(invitacionId) };
   }),
 
   cancelarInvitacion: administradorProcedure

@@ -15,6 +15,7 @@ import { Mail, Plus, Users } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { BotonCopiarLink, LinkInvitacion } from "../../components/link-invitacion.js";
 import { ETIQUETA_ROL } from "../../lib/auth.js";
 import { formatearFecha } from "../../lib/formato.js";
 import { primerError } from "../../lib/formulario.js";
@@ -34,7 +35,12 @@ const invitarSchema = z.object({
   rol: z.enum(ROLES),
 });
 
-function FormularioInvitacion({ onListo }: { onListo: () => void }) {
+function FormularioInvitacion({
+  onListo,
+}: {
+  /** Recibe la invitación recién creada, o null si se canceló el formulario. */
+  onListo: (invitada: { email: string; link: string } | null) => void;
+}) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const invitar = useMutation(trpc.equipo.invitar.mutationOptions());
@@ -44,9 +50,13 @@ function FormularioInvitacion({ onListo }: { onListo: () => void }) {
     defaultValues: { email: "", rol: "escritura_lectura" as (typeof ROLES)[number] },
     validators: { onBlur: invitarSchema },
     onSubmit: async ({ value }) => {
-      await invitar.mutateAsync({ email: value.email.trim(), rol: value.rol, verPanel });
+      const creada = await invitar.mutateAsync({
+        email: value.email.trim(),
+        rol: value.rol,
+        verPanel,
+      });
       await queryClient.invalidateQueries({ queryKey: trpc.equipo.pathKey() });
-      onListo();
+      onListo({ email: creada.email, link: creada.link });
     },
   });
 
@@ -126,7 +136,7 @@ function FormularioInvitacion({ onListo }: { onListo: () => void }) {
         )}
 
         <div className="flex justify-end gap-2">
-          <Boton variante="secundario" tamano="sm" onClick={onListo}>
+          <Boton variante="secundario" tamano="sm" onClick={() => onListo(null)}>
             Cancelar
           </Boton>
           <form.Subscribe selector={(s) => s.isSubmitting}>
@@ -259,13 +269,16 @@ function Miembros() {
                     {!inv.verPanel && " · sin panel"} · vence {formatearFecha(inv.expira)}
                   </p>
                 </div>
-                <Boton
-                  variante="secundario"
-                  tamano="sm"
-                  onClick={() => setACancelar({ id: inv.id, email: inv.email })}
-                >
-                  Cancelar
-                </Boton>
+                <div className="flex shrink-0 items-center gap-2">
+                  <BotonCopiarLink link={inv.link} />
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => setACancelar({ id: inv.id, email: inv.email })}
+                  >
+                    Cancelar
+                  </Boton>
+                </div>
               </div>
             ))}
           </Tarjeta>
@@ -294,6 +307,7 @@ function Miembros() {
 
 export function Equipo() {
   const [invitando, setInvitando] = useState(false);
+  const [reciente, setReciente] = useState<{ email: string; link: string } | null>(null);
 
   return (
     <>
@@ -302,7 +316,13 @@ export function Equipo() {
         descripcion="Quién entra a la empresa, con qué rol y qué ve."
         acciones={
           !invitando && (
-            <Boton tamano="sm" onClick={() => setInvitando(true)}>
+            <Boton
+              tamano="sm"
+              onClick={() => {
+                setReciente(null);
+                setInvitando(true);
+              }}
+            >
               <Plus className="size-4" aria-hidden="true" />
               Invitar
             </Boton>
@@ -310,7 +330,20 @@ export function Equipo() {
         }
       />
 
-      {invitando && <FormularioInvitacion onListo={() => setInvitando(false)} />}
+      {invitando && (
+        <FormularioInvitacion
+          onListo={(invitada) => {
+            setInvitando(false);
+            setReciente(invitada);
+          }}
+        />
+      )}
+
+      {reciente && (
+        <div className="mb-4">
+          <LinkInvitacion link={reciente.link} email={reciente.email} />
+        </div>
+      )}
 
       <Miembros />
     </>
