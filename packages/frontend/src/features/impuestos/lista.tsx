@@ -4,6 +4,13 @@ import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { AlertTriangle, Plus, Receipt } from "lucide-react";
 import { useState } from "react";
+import {
+  ariaSort,
+  type Direccion,
+  EncabezadoOrdenable,
+  FiltroSelector,
+  RangoFechas,
+} from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
 import {
@@ -118,16 +125,46 @@ const SIN_DATOS: FilaImpuesto[] = [];
 
 const TIPOS = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
 
+/** Columna de la tabla → campo por el que ordena el servidor. */
+const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
+  tipo: "tipo",
+  periodo: "periodo",
+  baseImponible: "baseImponible",
+  fechaVencimiento: "fechaVencimiento",
+};
+
+const ETIQUETA_COLUMNA: Record<string, string> = {
+  tipo: "Tipo",
+  periodo: "Período",
+  baseImponible: "Base imponible",
+  fechaVencimiento: "Vencimiento",
+};
+
 export function ListaImpuestos() {
   const trpc = useTRPC();
   const soloLectura = useModoLectura();
   const [tipo, setTipo] = useState<(typeof TIPOS)[number] | "">("");
   const [soloImpagos, setSoloImpagos] = useState(false);
+  const [campoFecha, setCampoFecha] = useState<"fechaVencimiento" | "periodo">("fechaVencimiento");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const [orden, setOrden] = useState("fechaVencimiento");
+  const [direccion, setDireccion] = useState<Direccion>("desc");
+
+  const ordenar = (campo: string, dir: Direccion) => {
+    setOrden(campo);
+    setDireccion(dir);
+  };
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.impuestos.listar.queryOptions({
       tipo: tipo || undefined,
       soloImpagos,
+      campoFecha,
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
+      orden: orden as "fechaVencimiento",
+      direccion,
       pagina: 1,
       tamanoPagina: 50,
     }),
@@ -191,6 +228,15 @@ export function ListaImpuestos() {
           />
           Solo impagas
         </label>
+
+        <FiltroSelector
+          etiqueta="Filtrar fechas por"
+          valor={campoFecha}
+          textoTodos="Vencimiento"
+          opciones={[{ id: "periodo" as const, etiqueta: "Período" }]}
+          onCambio={(v) => setCampoFecha(v === "" ? "fechaVencimiento" : v)}
+        />
+        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
 
         {!isPending && data && (
           <p className="ml-auto text-xs text-muted-foreground">
@@ -264,15 +310,31 @@ export function ListaImpuestos() {
               <thead>
                 {table.getHeaderGroups().map((grupo) => (
                   <tr key={grupo.id} className="border-b border-border">
-                    {grupo.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                      >
-                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                      </th>
-                    ))}
+                    {grupo.headers.map((header) => {
+                      // Solo son ordenables las columnas que existen en la
+                      // base; importe determinado y saldo son derivados.
+                      const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
+                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                          {header.isPlaceholder ? null : ordenable ? (
+                            <EncabezadoOrdenable
+                              etiqueta={ETIQUETA_COLUMNA[header.column.id] ?? header.column.id}
+                              campo={ordenable}
+                              ordenActual={orden}
+                              direccion={direccion}
+                              onOrdenar={ordenar}
+                            />
+                          ) : (
+                            <table.FlexRender header={header} />
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 ))}
               </thead>

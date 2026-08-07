@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { rangoFechasSchema } from "../_comunes/fechas.js";
+import { ordenSchema } from "../_comunes/orden.js";
 
 export const tiposImpuesto = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
 
@@ -26,9 +28,31 @@ export const impuestoActualizarSchema = z.object({
   datos: impuestoInputSchema,
 });
 
+/**
+ * No incluye el importe determinado ni el saldo: son derivados (base ×
+ * alícuota, menos lo pagado) y no existen como columna. Ordenar por ellos
+ * exigiría recalcularlos en SQL, duplicando la fórmula que vive en `core`.
+ */
+export const CAMPOS_ORDEN_IMPUESTOS = [
+  "fechaVencimiento",
+  "periodo",
+  "tipo",
+  "baseImponible",
+] as const;
+
+/**
+ * Impuestos tiene dos fechas que sirven para distinto: el vencimiento manda
+ * para no comerse un recargo, el período para cerrar un ejercicio. El rango
+ * aplica sobre la que elija quien consulta.
+ */
+export const CAMPOS_FECHA_IMPUESTOS = ["fechaVencimiento", "periodo"] as const;
+
 export const impuestosListarSchema = z.object({
   tipo: z.enum(tiposImpuesto).optional(),
   soloImpagos: z.boolean().default(false),
+  campoFecha: z.enum(CAMPOS_FECHA_IMPUESTOS).default("fechaVencimiento"),
+  ...rangoFechasSchema,
+  ...ordenSchema(CAMPOS_ORDEN_IMPUESTOS, "fechaVencimiento", "desc"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(20),
 });

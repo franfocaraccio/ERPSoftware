@@ -6,7 +6,15 @@ import { actualizarImpuesto, crearImpuesto, listarImpuestos, obtenerImpuesto } f
 let tenantA: { tenantId: string; usuarioId: string };
 let tenantB: { tenantId: string; usuarioId: string };
 
-const listar = () => listarImpuestos(tenantA, { soloImpagos: false, pagina: 1, tamanoPagina: 50 });
+const listar = () =>
+  listarImpuestos(tenantA, {
+    soloImpagos: false,
+    campoFecha: "fechaVencimiento",
+    orden: "fechaVencimiento",
+    direccion: "desc",
+    pagina: 1,
+    tamanoPagina: 50,
+  });
 
 beforeAll(async () => {
   tenantA = await crearTenantDePrueba();
@@ -89,6 +97,9 @@ describe("impuestos service (integración, RLS activo)", () => {
   it("el filtro de impagos excluye los pagados y suma lo adeudado", async () => {
     const { items, totalAdeudado } = await listarImpuestos(tenantA, {
       soloImpagos: true,
+      campoFecha: "fechaVencimiento",
+      orden: "fechaVencimiento",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 50,
     });
@@ -101,6 +112,9 @@ describe("impuestos service (integración, RLS activo)", () => {
     const { items } = await listarImpuestos(tenantA, {
       tipo: "iva",
       soloImpagos: false,
+      campoFecha: "fechaVencimiento",
+      orden: "fechaVencimiento",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 50,
     });
@@ -112,6 +126,9 @@ describe("impuestos service (integración, RLS activo)", () => {
     const { items } = await listarImpuestos(tenantA, {
       tipo: "iva",
       soloImpagos: false,
+      campoFecha: "fechaVencimiento",
+      orden: "fechaVencimiento",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 1,
     });
@@ -121,6 +138,9 @@ describe("impuestos service (integración, RLS activo)", () => {
   it("el aislamiento RLS impide ver obligaciones de otro tenant", async () => {
     const { total } = await listarImpuestos(tenantB, {
       soloImpagos: false,
+      campoFecha: "fechaVencimiento",
+      orden: "fechaVencimiento",
+      direccion: "desc",
       pagina: 1,
       tamanoPagina: 50,
     });

@@ -6,10 +6,12 @@ import {
   importeDeterminado,
   saldoImpuesto,
 } from "@erp/core/tax";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { impuestos } from "../../db/schema/impuestos.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { filtroRango } from "../_comunes/fechas.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type { ImpuestoActualizar, ImpuestoInput, ImpuestosListar } from "./schema.js";
 
 export type Impuesto = typeof impuestos.$inferSelect;
@@ -48,13 +50,37 @@ export async function listarImpuestos(
   cantidadVencidos: number;
 }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = input.tipo ? eq(impuestos.tipo, input.tipo) : undefined;
+    const condiciones = [];
+    if (input.tipo) {
+      condiciones.push(eq(impuestos.tipo, input.tipo));
+    }
+    // El rango cae sobre la fecha que eligió quien consulta: vencimiento o
+    // período. Las dos son columnas `date`, así que se comparan igual.
+    const columnaFecha =
+      input.campoFecha === "periodo" ? impuestos.periodo : impuestos.fechaVencimiento;
+    const rango = filtroRango(columnaFecha, input);
+    if (rango) {
+      condiciones.push(rango);
+    }
+    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
       .select()
       .from(impuestos)
       .where(filtro)
-      .orderBy(desc(impuestos.fechaVencimiento))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            fechaVencimiento: impuestos.fechaVencimiento,
+            periodo: impuestos.periodo,
+            tipo: impuestos.tipo,
+            baseImponible: impuestos.baseImponible,
+          },
+          input.orden,
+          input.direccion,
+          impuestos.createdAt,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
