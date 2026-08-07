@@ -27,5 +27,14 @@ export const cancelarInvitacionSchema = z.object({
   invitacionId: z.string().min(1),
 });
 
+export const cambiarRolSchema = z.object({
+  usuarioId: z.string().min(1),
+  rol: rolAsignableSchema,
+});
+
+export const quitarMiembroSchema = z.object({
+  usuarioId: z.string().min(1),
+});
+
 export type Invitar = z.infer<typeof invitarSchema>;
 export type CambiarAccesoPanel = z.infer<typeof cambiarAccesoPanelSchema>;

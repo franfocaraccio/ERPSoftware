@@ -5,12 +5,16 @@ import { db, pool } from "../../db/client.js";
 import { member, user } from "../../db/schema/auth.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import {
+  administradoresRestantes,
   borrarPermisoInvitacion,
   cambiarAccesoPanel,
+  cambiarRolMiembro,
   esMiembro,
   listarEquipo,
   puedeVerPanel,
+  quitarMiembro,
   registrarPermisoInvitacion,
+  rolDeMiembro,
   traspasarPermisoDeInvitacion,
 } from "./service.js";
 
@@ -137,5 +141,62 @@ describe("equipo service (integración, RLS activo)", () => {
   it("reconoce si alguien pertenece o no a la organización", async () => {
     expect(await esMiembro(tenantA.tenantId, tenantA.usuarioId)).toBe(true);
     expect(await esMiembro(tenantA.tenantId, tenantB.usuarioId)).toBe(false);
+  });
+
+  it("cambia el rol de un miembro", async () => {
+    const empleado = await crearUsuario("Hugo Ascendido");
+    await agregarMiembro(tenantA.tenantId, empleado, "solo_lectura");
+
+    await cambiarRolMiembro(tenantA, empleado, "escritura_lectura");
+
+    expect(await rolDeMiembro(tenantA.tenantId, empleado)).toBe("escritura_lectura");
+  });
+
+  it("no toca la membresía de la misma persona en otra empresa", async () => {
+    const empleado = await crearUsuario("Ivo Dos Empresas");
+    await agregarMiembro(tenantA.tenantId, empleado, "solo_lectura");
+    await agregarMiembro(tenantB.tenantId, empleado, "administrador");
+
+    await cambiarRolMiembro(tenantA, empleado, "escritura_lectura");
+
+    expect(await rolDeMiembro(tenantA.tenantId, empleado)).toBe("escritura_lectura");
+    expect(await rolDeMiembro(tenantB.tenantId, empleado)).toBe("administrador");
+  });
+
+  it("al quitar a alguien se lleva su permiso de panel", async () => {
+    const empleado = await crearUsuario("Juli Que Se Va");
+    await agregarMiembro(tenantA.tenantId, empleado, "escritura_lectura");
+    await cambiarAccesoPanel(tenantA, empleado, false);
+
+    await quitarMiembro(tenantA, empleado);
+
+    expect(await esMiembro(tenantA.tenantId, empleado)).toBe(false);
+    // Sin fila guardada, si lo vuelven a invitar el permiso se decide de nuevo.
+    expect(await puedeVerPanel(tenantA.tenantId, empleado)).toBe(true);
+  });
+
+  it("quitar a alguien de una empresa no lo saca de la otra", async () => {
+    const empleado = await crearUsuario("Kari Compartida");
+    await agregarMiembro(tenantA.tenantId, empleado, "solo_lectura");
+    await agregarMiembro(tenantB.tenantId, empleado, "solo_lectura");
+
+    await quitarMiembro(tenantA, empleado);
+
+    expect(await esMiembro(tenantA.tenantId, empleado)).toBe(false);
+    expect(await esMiembro(tenantB.tenantId, empleado)).toBe(true);
+  });
+
+  it("cuenta los administradores que quedarían sin uno dado", async () => {
+    const otroAdmin = await crearUsuario("Lu Segunda Administradora");
+    await agregarMiembro(tenantA.tenantId, otroAdmin, "administrador");
+
+    // Sacando al segundo queda el original; sacando al original queda el segundo.
+    expect(await administradoresRestantes(tenantA.tenantId, otroAdmin)).toBe(1);
+    expect(await administradoresRestantes(tenantA.tenantId, tenantA.usuarioId)).toBe(1);
+
+    await quitarMiembro(tenantA, otroAdmin);
+
+    // Con uno solo, sacarlo dejaría la empresa sin nadie que gestione.
+    expect(await administradoresRestantes(tenantA.tenantId, tenantA.usuarioId)).toBe(0);
   });
 });

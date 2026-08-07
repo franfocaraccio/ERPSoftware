@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { authClient, ETIQUETA_ROL, useSession } from "../lib/auth.js";
 
 /** Rutas que se ven sin sesión iniciada. */
-const RUTAS_PUBLICAS = ["/login", "/aceptar-invitacion"];
+const RUTAS_PUBLICAS = ["/login", "/aceptar-invitacion", "/recuperar", "/restablecer"];
 
 function esRutaPublica(ruta: string): boolean {
   // La portada se compara exacta: con startsWith, "/" haría pública toda la app.

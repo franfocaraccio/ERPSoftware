@@ -241,6 +241,100 @@ export async function borrarPermisoInvitacion(
   });
 }
 
+/**
+ * Cambia el rol de un miembro.
+ *
+ * Se escribe la tabla de miembros con Drizzle en vez de pasar por la API del
+ * plugin: la fila es nuestra, el contexto de tRPC relee el rol en cada request
+ * y así el cambio y su registro en el audit log quedan en una sola operación.
+ */
+export async function cambiarRolMiembro(
+  actor: Actor,
+  usuarioId: string,
+  rol: RolOrganizacion,
+): Promise<void> {
+  const [antes] = await db
+    .select({ rol: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, actor.tenantId), eq(member.userId, usuarioId)))
+    .limit(1);
+
+  await db
+    .update(member)
+    .set({ role: rol })
+    .where(and(eq(member.organizationId, actor.tenantId), eq(member.userId, usuarioId)));
+
+  await withTenant(actor.tenantId, async (tx) => {
+    await tx.insert(auditLog).values({
+      tenantId: actor.tenantId,
+      usuarioId: actor.usuarioId,
+      tabla: "member",
+      accion: "modificacion",
+      detalle: { usuarioId, antes: antes?.rol ?? null, despues: rol },
+    });
+  });
+}
+
+/**
+ * Saca a alguien de la organización.
+ *
+ * Se lleva también su permiso de panel: si más adelante lo vuelven a invitar,
+ * quien invita decide de nuevo. Dejarlo guardado haría que un permiso que nadie
+ * recuerda haber dado reviva solo.
+ */
+export async function quitarMiembro(actor: Actor, usuarioId: string): Promise<void> {
+  const [antes] = await db
+    .select({ rol: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, actor.tenantId), eq(member.userId, usuarioId)))
+    .limit(1);
+
+  await db
+    .delete(member)
+    .where(and(eq(member.organizationId, actor.tenantId), eq(member.userId, usuarioId)));
+
+  await withTenant(actor.tenantId, async (tx) => {
+    await tx.delete(permisosPanel).where(eq(permisosPanel.userId, usuarioId));
+    await tx.insert(auditLog).values({
+      tenantId: actor.tenantId,
+      usuarioId: actor.usuarioId,
+      tabla: "member",
+      accion: "baja",
+      detalle: { usuarioId, rol: antes?.rol ?? null },
+    });
+  });
+}
+
+/**
+ * Administradores que quedarían si `usuarioId` dejara de serlo.
+ *
+ * Una organización sin Administrador no se puede recuperar desde adentro: nadie
+ * podría invitar ni cambiar roles.
+ */
+export async function administradoresRestantes(
+  tenantId: string,
+  usuarioId: string,
+): Promise<number> {
+  const filas = await db
+    .select({ userId: member.userId })
+    .from(member)
+    .where(and(eq(member.organizationId, tenantId), eq(member.role, "administrador")));
+  return filas.filter((f) => f.userId !== usuarioId).length;
+}
+
+/** Rol actual de un miembro, o null si no pertenece a la organización. */
+export async function rolDeMiembro(
+  tenantId: string,
+  usuarioId: string,
+): Promise<RolOrganizacion | null> {
+  const [fila] = await db
+    .select({ rol: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, tenantId), eq(member.userId, usuarioId)))
+    .limit(1);
+  return fila && esRolOrganizacion(fila.rol) ? fila.rol : null;
+}
+
 /** True si el usuario es miembro de la organización. Evita tocar otros tenants. */
 export async function esMiembro(tenantId: string, usuarioId: string): Promise<boolean> {
   const [fila] = await db

@@ -11,7 +11,7 @@ import {
 } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Mail, Plus, Users } from "lucide-react";
+import { Mail, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
@@ -157,8 +157,12 @@ function Miembros() {
   const queryClient = useQueryClient();
   const { data, isPending, isError, refetch } = useQuery(trpc.equipo.listar.queryOptions());
   const cambiarAcceso = useMutation(trpc.equipo.cambiarAccesoPanel.mutationOptions());
+  const cambiarRol = useMutation(trpc.equipo.cambiarRol.mutationOptions());
+  const quitar = useMutation(trpc.equipo.quitarMiembro.mutationOptions());
   const cancelar = useMutation(trpc.equipo.cancelarInvitacion.mutationOptions());
   const [aCancelar, setACancelar] = useState<{ id: string; email: string } | null>(null);
+  const [aQuitar, setAQuitar] = useState<{ usuarioId: string; nombre: string } | null>(null);
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
   const refrescar = () => queryClient.invalidateQueries({ queryKey: trpc.equipo.pathKey() });
 
@@ -189,13 +193,22 @@ function Miembros() {
 
   return (
     <div className="space-y-4">
+      {errorAccion && (
+        <p
+          role="alert"
+          className="rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
+        >
+          {errorAccion}
+        </p>
+      )}
+
       <Tarjeta className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <caption className="sr-only">Miembros del equipo</caption>
             <thead>
               <tr className="border-b border-border">
-                {["Persona", "Rol", "Panel", "Desde"].map((h) => (
+                {["Persona", "Rol", "Panel", "Desde", ""].map((h) => (
                   <th
                     key={h}
                     scope="col"
@@ -220,7 +233,39 @@ function Miembros() {
                     </p>
                     <p className="text-xs text-muted-foreground">{m.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{ETIQUETA_ROL[m.rol]}</td>
+                  <td className="px-4 py-3">
+                    {m.esUnoMismo ? (
+                      // El propio rol no se edita acá: quien lo cambia se queda
+                      // sin la pantalla y sin forma de volver.
+                      <span className="text-muted-foreground">{ETIQUETA_ROL[m.rol]}</span>
+                    ) : (
+                      <Selector
+                        aria-label={`Rol de ${m.nombre}`}
+                        value={m.rol}
+                        disabled={cambiarRol.isPending}
+                        onChange={async (e) => {
+                          setErrorAccion(null);
+                          try {
+                            await cambiarRol.mutateAsync({
+                              usuarioId: m.usuarioId,
+                              rol: e.target.value as (typeof ROLES)[number],
+                            });
+                            await refrescar();
+                          } catch (error) {
+                            setErrorAccion(
+                              error instanceof Error ? error.message : "No se pudo cambiar el rol.",
+                            );
+                          }
+                        }}
+                      >
+                        {ROLES.map((rol) => (
+                          <option key={rol} value={rol}>
+                            {ETIQUETA_ROL[rol]}
+                          </option>
+                        ))}
+                      </Selector>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <Casilla
                       etiqueta={m.verPanel ? "Habilitado" : "Sin acceso"}
@@ -239,6 +284,19 @@ function Miembros() {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground tabular">
                     {formatearFecha(m.desde)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {!m.esUnoMismo && (
+                      <Boton
+                        variante="fantasma"
+                        tamano="sm"
+                        aria-label={`Quitar a ${m.nombre} del equipo`}
+                        onClick={() => setAQuitar({ usuarioId: m.usuarioId, nombre: m.nombre })}
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                        Quitar
+                      </Boton>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -284,6 +342,30 @@ function Miembros() {
           </Tarjeta>
         </section>
       )}
+
+      <DialogoConfirmacion
+        abierto={aQuitar !== null}
+        onAbiertoChange={(abierto) => !abierto && setAQuitar(null)}
+        titulo="Sacar del equipo"
+        descripcion={`${aQuitar?.nombre ?? ""} pierde el acceso a esta empresa. Los datos que cargó quedan como están.`}
+        textoConfirmar="Sacar del equipo"
+        destructivo
+        cargando={quitar.isPending}
+        onConfirmar={async () => {
+          if (aQuitar) {
+            setErrorAccion(null);
+            try {
+              await quitar.mutateAsync({ usuarioId: aQuitar.usuarioId });
+              await refrescar();
+            } catch (error) {
+              setErrorAccion(
+                error instanceof Error ? error.message : "No se pudo sacar a esa persona.",
+              );
+            }
+          }
+          setAQuitar(null);
+        }}
+      />
 
       <DialogoConfirmacion
         abierto={aCancelar !== null}

@@ -4,6 +4,8 @@ import { Guardia, useRolOrganizacion } from "./components/sesion.js";
 import { PanelAdmin } from "./features/admin/panel.js";
 import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
 import { Login } from "./features/auth/login.js";
+import { Recuperar } from "./features/auth/recuperar.js";
+import { Restablecer } from "./features/auth/restablecer.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
@@ -42,6 +44,25 @@ const rutaLogin = createRoute({
   getParentRoute: () => rutaRaiz,
   path: "/login",
   component: Login,
+});
+
+const rutaRecuperar = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/recuperar",
+  component: Recuperar,
+});
+
+/** El token llega por query: es el link que se manda por mail. */
+const rutaRestablecer = createRoute({
+  getParentRoute: () => rutaRaiz,
+  path: "/restablecer",
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search.token === "string" ? search.token : undefined,
+  }),
+  component: function ElegirPassword() {
+    const { token } = rutaRestablecer.useSearch();
+    return <Restablecer token={token} />;
+  },
 });
 
 const rutaAceptarInvitacion = createRoute({
@@ -205,6 +226,8 @@ const rutaComprobanteDetalle = createRoute({
 const arbolRutas = rutaRaiz.addChildren([
   rutaLanding,
   rutaLogin,
+  rutaRecuperar,
+  rutaRestablecer,
   rutaAceptarInvitacion,
   rutaAdmin,
   rutaApp.addChildren([

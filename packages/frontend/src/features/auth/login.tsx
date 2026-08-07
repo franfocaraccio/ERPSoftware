@@ -1,5 +1,6 @@
 import { Boton, Campo, Entrada, Tarjeta, ToggleTema } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { authClient, useSession } from "../../lib/auth.js";
@@ -143,6 +144,15 @@ export function Login() {
                   </Boton>
                 )}
               </form.Subscribe>
+
+              <div className="text-center">
+                <Link
+                  to="/recuperar"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
             </form>
           </Tarjeta>
 
