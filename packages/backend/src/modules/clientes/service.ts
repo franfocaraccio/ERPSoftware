@@ -1,7 +1,8 @@
-import { and, asc, count, eq, ilike, or } from "drizzle-orm";
+import { and, count, eq, ilike, or } from "drizzle-orm";
 import { auditLog } from "../../db/schema/auditoria.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type { ClienteActualizar, ClienteInput, ClientesListar } from "./schema.js";
 
 export type Cliente = typeof clientes.$inferSelect;
@@ -27,7 +28,20 @@ export async function listarClientes(
       .select()
       .from(clientes)
       .where(filtro)
-      .orderBy(asc(clientes.razonSocial))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            razonSocial: clientes.razonSocial,
+            cuit: clientes.cuit,
+            condicionIva: clientes.condicionIva,
+            limiteCredito: clientes.limiteCredito,
+            estado: clientes.estado,
+          },
+          input.orden,
+          input.direccion,
+          clientes.razonSocial,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 

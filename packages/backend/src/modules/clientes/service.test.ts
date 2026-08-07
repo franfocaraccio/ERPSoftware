@@ -33,19 +33,34 @@ describe("clientes service (integración, RLS activo)", () => {
     expect(creado.id).toBeTruthy();
     expect(creado.estado).toBe("activo");
 
-    const { items, total } = await listarClientes(tenantA, { pagina: 1, tamanoPagina: 20 });
+    const { items, total } = await listarClientes(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(total).toBe(1);
     expect(items[0]?.razonSocial).toBe("ACME SA");
   });
 
   it("el aislamiento RLS impide ver clientes de otro tenant", async () => {
-    const { items, total } = await listarClientes(tenantB, { pagina: 1, tamanoPagina: 20 });
+    const { items, total } = await listarClientes(tenantB, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(total).toBe(0);
     expect(items).toHaveLength(0);
   });
 
   it("obtener desde otro tenant devuelve null, no error", async () => {
-    const { items } = await listarClientes(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarClientes(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     const id = items[0]?.id;
     expect(id).toBeTruthy();
     expect(await obtenerCliente(tenantB, id ?? "")).toBeNull();
@@ -58,6 +73,8 @@ describe("clientes service (integración, RLS activo)", () => {
     });
     const { items, total } = await listarClientes(tenantA, {
       busqueda: "sur",
+      orden: "razonSocial",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -68,6 +85,8 @@ describe("clientes service (integración, RLS activo)", () => {
   it("actualiza un cliente y registra auditoría de antes/después", async () => {
     const { items } = await listarClientes(tenantA, {
       busqueda: "ACME",
+      orden: "razonSocial",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 1,
     });
@@ -93,7 +112,12 @@ describe("clientes service (integración, RLS activo)", () => {
   });
 
   it("actualizar un cliente de otro tenant devuelve null", async () => {
-    const { items } = await listarClientes(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarClientes(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     const id = items[0]?.id ?? "";
     const resultado = await actualizarCliente(tenantB, {
       id,

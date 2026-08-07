@@ -1,11 +1,12 @@
 import { saldoCuentaCorriente } from "@erp/core/balances";
 import { Money } from "@erp/core/money";
-import { and, asc, count, eq, ilike, or, sql, sum } from "drizzle-orm";
+import { and, count, eq, ilike, or, sql, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type { ProveedorActualizar, ProveedoresListar, ProveedorInput } from "./schema.js";
 
 export type Proveedor = typeof proveedores.$inferSelect;
@@ -63,7 +64,20 @@ export async function listarProveedores(
       .leftJoin(comprado, eq(comprado.proveedorId, proveedores.id))
       .leftJoin(pagado, eq(pagado.proveedorId, proveedores.id))
       .where(filtro)
-      .orderBy(asc(proveedores.razonSocial))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            razonSocial: proveedores.razonSocial,
+            cuit: proveedores.cuit,
+            condicionIva: proveedores.condicionIva,
+            rubro: proveedores.rubro,
+            condicionPagoDias: proveedores.condicionPagoDias,
+          },
+          input.orden,
+          input.direccion,
+          proveedores.razonSocial,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 

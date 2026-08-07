@@ -32,6 +32,8 @@ describe("stock service (integración, RLS activo)", () => {
 
     const { items, valorizacionTotal } = await listarProductos(tenantA, {
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -53,6 +55,8 @@ describe("stock service (integración, RLS activo)", () => {
 
     const { items } = await listarProductos(tenantA, {
       soloReponer: true,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -64,11 +68,15 @@ describe("stock service (integración, RLS activo)", () => {
   it("el filtro SQL de reposición coincide con el criterio de core", async () => {
     const { items: todos } = await listarProductos(tenantA, {
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 50,
     });
     const { items: filtrados } = await listarProductos(tenantA, {
       soloReponer: true,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 50,
     });
@@ -87,6 +95,8 @@ describe("stock service (integración, RLS activo)", () => {
     const { items } = await listarProductos(tenantA, {
       busqueda: "SKU-003",
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -111,6 +121,8 @@ describe("stock service (integración, RLS activo)", () => {
     const { items } = await listarProductos(tenantA, {
       busqueda: "SKU-004",
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -120,6 +132,8 @@ describe("stock service (integración, RLS activo)", () => {
   it("el aislamiento RLS impide ver productos de otro tenant", async () => {
     const { total } = await listarProductos(tenantB, {
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
@@ -129,6 +143,8 @@ describe("stock service (integración, RLS activo)", () => {
   it("obtener y actualizar desde otro tenant devuelven null", async () => {
     const { items } = await listarProductos(tenantA, {
       soloReponer: false,
+      orden: "sku",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 1,
     });

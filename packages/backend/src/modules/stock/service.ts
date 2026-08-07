@@ -1,10 +1,11 @@
 import { Money } from "@erp/core/money";
 import { type EstadoStock, estadoStock, margenBruto, valorizacion } from "@erp/core/stock";
-import { and, asc, count, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { aplicarOrden } from "../_comunes/orden.js";
 import type { ProductoActualizar, ProductoInput, ProductosListar } from "./schema.js";
 
 export type Producto = typeof productos.$inferSelect;
@@ -50,6 +51,12 @@ export async function listarProductos(
       // el criterio canónico sigue siendo estadoStock() de core.
       condiciones.push(sql`${productos.stockActual} <= ${productos.stockMinimo}`);
     }
+    if (input.categoria) {
+      condiciones.push(eq(productos.categoria, input.categoria));
+    }
+    if (input.proveedorId) {
+      condiciones.push(eq(productos.proveedorPrincipalId, input.proveedorId));
+    }
     const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
@@ -57,7 +64,21 @@ export async function listarProductos(
       .from(productos)
       .leftJoin(proveedores, eq(proveedores.id, productos.proveedorPrincipalId))
       .where(filtro)
-      .orderBy(asc(productos.sku))
+      .orderBy(
+        ...aplicarOrden(
+          {
+            sku: productos.sku,
+            descripcion: productos.descripcion,
+            categoria: productos.categoria,
+            costoUnitario: productos.costoUnitario,
+            precioVenta: productos.precioVenta,
+            stockActual: productos.stockActual,
+          },
+          input.orden,
+          input.direccion,
+          productos.sku,
+        ),
+      )
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 

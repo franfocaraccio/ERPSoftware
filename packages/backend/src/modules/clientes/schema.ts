@@ -1,5 +1,6 @@
 import { normalizarCuit, validarCuit } from "@erp/core/tax";
 import { z } from "zod";
+import { ordenSchema } from "../_comunes/orden.js";
 
 export const condicionesIva = [
   "responsable_inscripto",
@@ -37,8 +38,19 @@ export const clienteActualizarSchema = z.object({
   }),
 });
 
+export const CAMPOS_ORDEN_CLIENTES = [
+  "razonSocial",
+  "cuit",
+  "condicionIva",
+  "limiteCredito",
+  "estado",
+] as const;
+
 export const clientesListarSchema = z.object({
   busqueda: z.string().trim().max(100).optional(),
+  condicionIva: z.enum(condicionesIva).optional(),
+  estado: z.enum(estadosCliente).optional(),
+  ...ordenSchema(CAMPOS_ORDEN_CLIENTES, "razonSocial"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(20),
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ordenSchema } from "../_comunes/orden.js";
 
 const importeSchema = z
   .string()
@@ -26,9 +27,21 @@ export const productoActualizarSchema = z.object({
   datos: productoInputSchema,
 });
 
+export const CAMPOS_ORDEN_STOCK = [
+  "sku",
+  "descripcion",
+  "categoria",
+  "costoUnitario",
+  "precioVenta",
+  "stockActual",
+] as const;
+
 export const productosListarSchema = z.object({
   busqueda: z.string().trim().max(100).optional(),
   soloReponer: z.boolean().default(false),
+  categoria: z.string().trim().max(100).optional(),
+  proveedorId: z.uuid().optional(),
+  ...ordenSchema(CAMPOS_ORDEN_STOCK, "sku"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(20),
 });

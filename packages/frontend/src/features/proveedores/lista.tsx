@@ -4,6 +4,12 @@ import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Building2, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import {
+  ariaSort,
+  type Direccion,
+  EncabezadoOrdenable,
+  FiltroSelector,
+} from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
 import {
@@ -89,15 +95,44 @@ const columnas = helper.columns([
 
 const SIN_DATOS: FilaProveedor[] = [];
 
+/** Columna de la tabla → campo por el que ordena el servidor. */
+const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
+  razonSocial: "razonSocial",
+  cuit: "cuit",
+  condicionIva: "condicionIva",
+  rubro: "rubro",
+  condicionPagoDias: "condicionPagoDias",
+};
+
+const ETIQUETA_COLUMNA: Record<string, string> = {
+  razonSocial: "Razón social",
+  cuit: "CUIT",
+  condicionIva: "Condición IVA",
+  rubro: "Rubro",
+  condicionPagoDias: "Plazo",
+};
+
 export function ListaProveedores() {
   const trpc = useTRPC();
   const soloLectura = useModoLectura();
+  const [condicionIva, setCondicionIva] = useState("");
+  const [orden, setOrden] = useState("razonSocial");
+  const [direccion, setDireccion] = useState<Direccion>("asc");
+  const ordenar = (campo: string, dir: Direccion) => {
+    setOrden(campo);
+    setDireccion(dir);
+  };
   const [busqueda, setBusqueda] = useState("");
   const busquedaDiferida = useDeferredValue(busqueda);
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.proveedores.listar.queryOptions({
       busqueda: busquedaDiferida || undefined,
+      ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+      orden: orden as "razonSocial",
+
+      direccion,
+
       pagina: 1,
       tamanoPagina: 50,
     }),
@@ -124,7 +159,18 @@ export function ListaProveedores() {
         }
       />
 
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <FiltroSelector
+          etiqueta="Condición IVA"
+          valor={condicionIva}
+          opciones={[
+            { id: "responsable_inscripto" as const, etiqueta: "Resp. inscripto" },
+            { id: "monotributo" as const, etiqueta: "Monotributo" },
+            { id: "exento" as const, etiqueta: "Exento" },
+            { id: "consumidor_final" as const, etiqueta: "Consumidor final" },
+          ]}
+          onCambio={setCondicionIva}
+        />
         <div className="relative w-full max-w-xs">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -196,15 +242,29 @@ export function ListaProveedores() {
               <thead>
                 {table.getHeaderGroups().map((grupo) => (
                   <tr key={grupo.id} className="border-b border-border">
-                    {grupo.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                      >
-                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                      </th>
-                    ))}
+                    {grupo.headers.map((header) => {
+                      const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
+                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                          {header.isPlaceholder ? null : ordenable ? (
+                            <EncabezadoOrdenable
+                              etiqueta={ETIQUETA_COLUMNA[header.column.id] ?? header.column.id}
+                              campo={ordenable}
+                              ordenActual={orden}
+                              direccion={direccion}
+                              onOrdenar={ordenar}
+                            />
+                          ) : (
+                            <table.FlexRender header={header} />
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 ))}
               </thead>

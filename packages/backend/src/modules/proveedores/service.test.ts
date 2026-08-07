@@ -35,14 +35,24 @@ describe("proveedores service (integración, RLS activo)", () => {
     });
     expect(creado.condicionPagoDias).toBe(30);
 
-    const { items, total } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 20 });
+    const { items, total } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(total).toBe(1);
     expect(items[0]?.saldoAPagar).toBe("0.00");
     expect(items[0]?.proximoVencimiento).toBeNull();
   });
 
   it("calcula el saldo a pagar como compras menos pagos", async () => {
-    const { items } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     const proveedorId = items[0]?.id ?? "";
 
     await withTenant(tenantA.tenantId, async (tx) => {
@@ -68,14 +78,24 @@ describe("proveedores service (integración, RLS activo)", () => {
       });
     });
 
-    const { items: conSaldo } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 20 });
+    const { items: conSaldo } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(conSaldo[0]?.saldoAPagar).toBe("100000.00");
     // Recepción 2026-08-01 + 30 días de plazo.
     expect(conSaldo[0]?.proximoVencimiento).toBe("2026-08-31");
   });
 
   it("los ingresos no descuentan del saldo a pagar", async () => {
-    const { items } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     const proveedorId = items[0]?.id ?? "";
 
     await withTenant(tenantA.tenantId, async (tx) => {
@@ -91,22 +111,42 @@ describe("proveedores service (integración, RLS activo)", () => {
       });
     });
 
-    const { items: despues } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 20 });
+    const { items: despues } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(despues[0]?.saldoAPagar).toBe("100000.00");
   });
 
   it("el aislamiento RLS impide ver proveedores de otro tenant", async () => {
-    const { total } = await listarProveedores(tenantB, { pagina: 1, tamanoPagina: 20 });
+    const { total } = await listarProveedores(tenantB, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
     expect(total).toBe(0);
   });
 
   it("obtener desde otro tenant devuelve null", async () => {
-    const { items } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     expect(await obtenerProveedor(tenantB, items[0]?.id ?? "")).toBeNull();
   });
 
   it("actualizar desde otro tenant devuelve null", async () => {
-    const { items } = await listarProveedores(tenantA, { pagina: 1, tamanoPagina: 1 });
+    const { items } = await listarProveedores(tenantA, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 1,
+    });
     const resultado = await actualizarProveedor(tenantB, {
       id: items[0]?.id ?? "",
       datos: {
@@ -121,6 +161,8 @@ describe("proveedores service (integración, RLS activo)", () => {
   it("busca por rubro no; busca por razón social sí", async () => {
     const { total } = await listarProveedores(tenantA, {
       busqueda: "norte",
+      orden: "razonSocial",
+      direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });

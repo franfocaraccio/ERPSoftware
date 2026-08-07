@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Boxes, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import { ariaSort, type Direccion, EncabezadoOrdenable } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
@@ -98,9 +99,34 @@ const columnas = helper.columns([
 
 const SIN_DATOS: FilaProducto[] = [];
 
+/** Columna de la tabla → campo por el que ordena el servidor. */
+const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
+  sku: "sku",
+  descripcion: "descripcion",
+  categoria: "categoria",
+  costoUnitario: "costoUnitario",
+  precioVenta: "precioVenta",
+  stockActual: "stockActual",
+};
+
+const ETIQUETA_COLUMNA: Record<string, string> = {
+  sku: "SKU",
+  descripcion: "Descripción",
+  categoria: "Categoría",
+  costoUnitario: "Costo",
+  precioVenta: "Precio",
+  stockActual: "Stock",
+};
+
 export function ListaStock() {
   const trpc = useTRPC();
   const soloLectura = useModoLectura();
+  const [orden, setOrden] = useState("sku");
+  const [direccion, setDireccion] = useState<Direccion>("asc");
+  const ordenar = (campo: string, dir: Direccion) => {
+    setOrden(campo);
+    setDireccion(dir);
+  };
   const [busqueda, setBusqueda] = useState("");
   const [soloReponer, setSoloReponer] = useState(false);
   const busquedaDiferida = useDeferredValue(busqueda);
@@ -109,6 +135,10 @@ export function ListaStock() {
     trpc.stock.listar.queryOptions({
       busqueda: busquedaDiferida || undefined,
       soloReponer,
+      orden: orden as "sku",
+
+      direccion,
+
       pagina: 1,
       tamanoPagina: 50,
     }),
@@ -234,15 +264,29 @@ export function ListaStock() {
               <thead>
                 {table.getHeaderGroups().map((grupo) => (
                   <tr key={grupo.id} className="border-b border-border">
-                    {grupo.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        scope="col"
-                        className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                      >
-                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                      </th>
-                    ))}
+                    {grupo.headers.map((header) => {
+                      const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      return (
+                        <th
+                          key={header.id}
+                          scope="col"
+                          aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
+                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        >
+                          {header.isPlaceholder ? null : ordenable ? (
+                            <EncabezadoOrdenable
+                              etiqueta={ETIQUETA_COLUMNA[header.column.id] ?? header.column.id}
+                              campo={ordenable}
+                              ordenActual={orden}
+                              direccion={direccion}
+                              onOrdenar={ordenar}
+                            />
+                          ) : (
+                            <table.FlexRender header={header} />
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 ))}
               </thead>
