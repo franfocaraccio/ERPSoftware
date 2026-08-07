@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/re
 import { Layout } from "./components/layout.js";
 import { Guardia, useRolOrganizacion } from "./components/sesion.js";
 import { PanelAdmin } from "./features/admin/panel.js";
+import { Auditoria, AuditoriaSinPermiso } from "./features/auditoria/lista.js";
 import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
 import { Login } from "./features/auth/login.js";
 import { Recuperar } from "./features/auth/recuperar.js";
@@ -110,6 +111,15 @@ const rutaEquipo = createRoute({
   component: function GestionEquipo() {
     const rol = useRolOrganizacion();
     return rol === "administrador" ? <Equipo /> : <EquipoSinPermiso />;
+  },
+});
+
+const rutaAuditoria = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/historial",
+  component: function HistorialEmpresa() {
+    const rol = useRolOrganizacion();
+    return rol === "administrador" ? <Auditoria /> : <AuditoriaSinPermiso />;
   },
 });
 
@@ -244,6 +254,7 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaPanel,
     rutaEquipo,
     rutaParametros,
+    rutaAuditoria,
     rutaClientes,
     rutaClienteNuevo,
     rutaClienteEditar,

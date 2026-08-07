@@ -17,11 +17,6 @@ hasta que se destraben.
     propósito —sería entregarle la cuenta a cualquiera que escriba un mail—;
     aparece solo en la consola del backend.
 
-## Fase 1 — huecos funcionales
-
-- **Visor del audit log.** Se registra todo lo que toca saldos, stock, impuestos
-  y permisos, pero no hay pantalla para consultarlo.
-
 ## Fase 2
 
 - **Vista Consolidada de solo lectura con magic link.** El plugin ya está
