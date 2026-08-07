@@ -77,14 +77,26 @@ export interface SelectorProps extends SelectHTMLAttributes<HTMLSelectElement> {
   invalido?: boolean;
 }
 
+/**
+ * Desplegable.
+ *
+ * Sin `appearance-none` a propósito, aunque eso signifique usar la flecha del
+ * sistema en lugar de una dibujada por nosotros: al sacarle la apariencia
+ * nativa, el desplegable que abre el sistema operativo se pinta claro mientras
+ * el texto de las opciones sigue heredando el color claro del control, y en
+ * modo oscuro las opciones quedan ilegibles.
+ *
+ * Ese menú lo dibuja el sistema operativo fuera del DOM: no se puede estilar
+ * ni verificar desde acá. La única forma segura de que se lea es dejarlo en
+ * manos del navegador.
+ */
 export function Selector({ invalido, className, children, ...props }: SelectorProps) {
   return (
     <select
       aria-invalid={invalido || undefined}
       className={cn(
         CONTROL_BASE,
-        "cursor-pointer appearance-none bg-[length:1rem] bg-[right_0.6rem_center] bg-no-repeat pr-9",
-        "bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2364748b%22 stroke-width=%222%22 stroke-linecap=%22round%22><path d=%22m6 9 6 6 6-6%22/></svg>')]",
+        "cursor-pointer",
         invalido ? "border-danger" : "border-border-strong",
         "focus:border-ring",
         className,
