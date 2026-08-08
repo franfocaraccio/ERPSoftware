@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
@@ -22,6 +23,7 @@
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "pg": "^8.22.0",
+    "tsx": "^4.23.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -30,7 +32,6 @@
     "@types/express": "^5.0.6",
     "@types/pg": "^8.20.4",
     "drizzle-kit": "^0.31.10",
-    "tsx": "^4.23.5",
     "vitest": "^4.1.10"
   }
 }

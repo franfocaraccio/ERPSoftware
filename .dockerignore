@@ -1,0 +1,19 @@
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/.vite
+
+.git
+.github
+.agents
+
+# Los secretos nunca entran a la imagen: en producción las variables las
+# inyecta Railway. Los .env.example sí viajan, son documentación.
+.env
+**/.env
+**/.env.local
+
+# packages/frontend y packages/design-system NO se excluyen: el Dockerfile
+# necesita sus package.json para que pnpm valide el lockfile completo. Su
+# código fuente nunca se copia, así que no llega a la imagen final.
