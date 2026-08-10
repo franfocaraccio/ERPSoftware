@@ -3,8 +3,10 @@
 Estado del deploy: qué plataformas usamos y por qué, qué está hecho, qué falta
 y qué problemas hay abiertos.
 
-> Última actualización: 8 de agosto de 2026. Todavía **no hay ningún entorno en
-> producción**: no se creó ninguna cuenta en Vercel, Railway ni Supabase.
+> Última actualización: 10 de agosto de 2026. **Supabase `erp-dev` está
+> creado, migrado y verificado.** Falta `erp-prod`, que se posterga a propósito
+> hasta que el circuito completo funcione con dev. No hay nada en Railway ni en
+> Vercel todavía.
 
 ---
 
@@ -53,7 +55,13 @@ Drizzle se versionan en el repo y se aplican a mano.
 ### Desarrollo local
 
 Postgres con `docker compose up -d` y el backend corriendo en la máquina. No
-hace falta deployar nada. Los tests de integración corren contra ese mismo
+hace falta deployar nada.
+
+Para probar contra `erp-dev` sin deployar, alcanza con exportar `DATABASE_URL`
+apuntando a Supabase antes de levantar el backend: la variable del entorno le
+gana al `.env`, así que no hay que tocar el archivo. Es el paso que conviene
+hacer antes de Railway, porque separa los problemas de la base de los del
+contenedor. Los tests de integración corren contra ese mismo
 Postgres con el rol `erp_app`, así que RLS está activo durante los tests; en CI
 la base es un service container efímero. No usamos Testcontainers: el
 aislamiento entre tests lo da RLS, porque cada uno crea su propia organización.
@@ -92,34 +100,60 @@ Middleware **temporal** `[ip-debug]` en `packages/backend/src/index.ts`, que
 loguea los headers de IP de las primeras 20 requests. El porqué está en el
 problema 1, más abajo.
 
+### Supabase `erp-dev`, el 10 de agosto de 2026
+
+Hecho en este orden, que es el que importa:
+
+1. Proyecto `erp-dev` creado en **us-west-2**, con **Enable Data API
+   destildado en el formulario de creación**. Resultó más simple que el paso
+   de Settings → API que decía el plan: nace apagada y no hay ventana en la
+   que las tablas estén expuestas.
+2. Rol `erp_app` creado a mano en el SQL Editor, con contraseña fuerte,
+   **antes** de migrar.
+3. Migraciones aplicadas con `DATABASE_URL_MIGRATIONS` apuntando a `postgres`
+   por el pooler en 5432.
+4. Verificado.
+
+Lo que dejó verificado la corrida, y no conviene volver a asumir:
+
+- **El pooler acepta roles custom.** Era la duda abierta: `erp_app.<ref>`
+  funciona igual que `postgres.<ref>`. Sin esto, el rol sin BYPASSRLS no habría
+  podido conectarse y todo el diseño de aislamiento se caía.
+- **La migración no pisó la contraseña.** La app conecta con la contraseña
+  generada a mano, así que el `IF NOT EXISTS` del problema 2 hizo su trabajo.
+- **RLS filtra en Supabase, no solo en local.** Con `erp_app` y sin declarar
+  `app.tenant_id`, una tabla de negocio devuelve cero filas.
+- 14 de 22 tablas en `public` con `relrowsecurity` y `relforcerowsecurity`; las
+  8 restantes son las de BetterAuth. Coincide con la base migrada desde cero en
+  el CI.
+
+`packages/backend/verificar-supabase.mjs` corre esas comprobaciones. Se usa con
+`DATABASE_URL` apuntando al rol de la aplicación, y hay que volver a correrlo
+cuando exista `erp-prod`.
+
+**No hacer:** el `Enable automatic RLS` del formulario de creación. Habilita
+RLS en toda tabla nueva pero no crea políticas, así que las tablas de
+BetterAuth quedarían con RLS y cero políticas, y `erp_app` —que no es su
+dueña— no podría leerlas ni escribirlas. Nadie podría iniciar sesión.
+
 ---
 
 ## 3. Lo que sigue
 
-### Ahora: Supabase
-
-En este orden, que importa:
-
-1. Crear los proyectos `erp-dev` y `erp-prod`. Guardar la contraseña de
-   `postgres` de cada uno.
-2. **Desactivar la Data API** en ambos (Settings → API, sacar `public` de los
-   schemas expuestos). Ver problema 3.
-3. **Crear el rol `erp_app` a mano**, con contraseña fuerte y distinta por
-   entorno. **Antes de correr las migraciones.** Ver problema 2.
-4. Correr las migraciones con `DATABASE_URL_MIGRATIONS` apuntando al rol
-   `postgres`: `pnpm --filter @erp/backend db:migrate`.
-5. Verificar que RLS quedó activo.
-6. Armar el `DATABASE_URL` con `erp_app` y el pooler en el **puerto 5432**
-   (session mode). Ver problema 4.
-
-### Después
-
-7. **Railway**: crear el servicio apuntando a `packages/backend/Dockerfile` con
+1. **Railway**: crear el servicio apuntando a `packages/backend/Dockerfile` con
    contexto en la raíz, cargar variables, **desactivar scale-to-zero**,
-   healthcheck a `/health`.
-8. **Vercel**: crear el proyecto sobre `packages/frontend`, cargar
-   `VITE_API_URL` con la URL de Railway.
-9. **Sentry**: proyectos de frontend y backend, DSNs por entorno.
+   healthcheck a `/health`. Región en **US West**, para que quede en la misma
+   costa que la base.
+2. **Vercel**: crear el proyecto sobre `packages/frontend`, cargar
+   `VITE_API_URL` con la URL de Railway. Ojo con el huevo y la gallina:
+   `FRONTEND_URL` en Railway necesita la URL de Vercel y `VITE_API_URL` en
+   Vercel necesita la de Railway, así que Railway se configura en dos pasadas.
+   Si falta la segunda, el síntoma es CORS bloqueando todo.
+3. **Leer `[ip-debug]`** en los logs del primer deploy, resolver el problema 1
+   y borrar el middleware.
+4. **`erp-prod`**: repetir todo lo de la sección anterior, con otra contraseña
+   en cada rol.
+5. **Sentry**: proyectos de frontend y backend, DSNs por entorno.
 
 ---
 
@@ -172,7 +206,7 @@ En los tres casos, borrar el middleware después.
 
 ### Problema 2 — El rol de la aplicación tiene la contraseña en el repo
 
-**Estado: se resuelve con procedimiento, antes de migrar.**
+**Estado: resuelto en `erp-dev`. Vuelve a estar abierto para `erp-prod`.**
 
 `packages/backend/drizzle/0001_rls_policies.sql:7`:
 
@@ -189,9 +223,13 @@ La migración usa `IF NOT EXISTS` justamente para permitir el caso de
 producción, pero eso solo sirve si el rol **se crea a mano antes** de migrar.
 Si se migra primero, ya quedó con la contraseña débil.
 
+En `erp-dev` se hizo en ese orden y quedó verificado: la aplicación conecta con
+la contraseña generada a mano, y un rol tiene una sola. El procedimiento hay
+que repetirlo tal cual en `erp-prod`.
+
 ### Problema 3 — Las tablas de auth no tienen RLS y Supabase expone la Data API
 
-**Estado: abierto. Conviene arreglarlo en código.**
+**Estado: mitigado en `erp-dev`. Sigue abierto como riesgo estructural.**
 
 Las migraciones habilitan RLS en las 14 tablas de negocio. Las de BetterAuth
 (`user`, `session`, `account`, `verification`, `organization`, `member`,
@@ -206,15 +244,24 @@ roles `anon`/`authenticated` reciben grants por default privileges. Con la anon
 key —que es pública por diseño— eso implicaría **tokens de sesión y hashes de
 contraseña legibles por HTTPS**.
 
-Hay que verificarlo contra el proyecto real, pero la mitigación es la misma en
-cualquier caso: desactivar la Data API entera, ya que el frontend nunca usa
-`supabase-js`. Conviene además agregar una migración que habilite RLS en esas
-tablas, para que la protección no dependa de acordarse de un checkbox en el
+La mitigación es desactivar la Data API entera, ya que el frontend nunca usa
+`supabase-js`. En `erp-dev` se hizo **desde el formulario de creación**, que es
+mejor que apagarla después: nunca existió una ventana con las tablas expuestas.
+
+Sigue siendo un riesgo estructural, porque la protección depende de un checkbox
+del dashboard y no del repositorio. Alcanza con que alguien encienda la Data
+API en un proyecto futuro para exponer tokens de sesión y hashes de
+contraseña.
+
+La solución de fondo **no es** RLS sobre esas tablas: el backend legítimamente
+necesita leerlas y escribirlas con `erp_app`, y RLS sin políticas lo dejaría
+afuera. Sería un `REVOKE` explícito de `anon` y `authenticated` sobre las
+tablas de auth, en una migración, para que no dependa de la configuración del
 dashboard.
 
 ### Problema 4 — El puerto de Supabase afecta la numeración fiscal
 
-**Estado: conocido, se aplica al armar el `DATABASE_URL`.**
+**Estado: aplicado en `erp-dev`. Repetirlo en `erp-prod`.**
 
 La numeración sin huecos usa `pg_advisory_xact_lock` y requiere session mode.
 En Supabase, **session mode es el puerto 5432** del pooler; el 6543 quedó solo
@@ -222,16 +269,23 @@ como transaction mode desde que deprecaron session mode ahí, en febrero de
 2025. La conexión directa además es IPv6-only salvo que se pague el add-on de
 IPv4, así que el pooler en 5432 es la opción correcta.
 
-### Problema 5 — `pnpm typecheck` falla localmente
+### Problema 5 — `pnpm` no se encuentra en algunas terminales
 
-**Estado: resuelto para el CI; en local depende de cada máquina.**
+**Estado: resuelto. Era el PATH, no la herramienta.**
 
-Turbo puede fallar con `Unable to find package manager binary` cuando `pnpm` no
-está en el PATH y solo se resuelve vía `corepack pnpm`. No es un problema de
-código y no se reproduce en todas las shells: el 8 de agosto de 2026,
-`pnpm typecheck` corrió limpio (5/5) en la máquina de desarrollo sin corepack.
+El síntoma era `pnpm: The term 'pnpm' is not recognized` en PowerShell, o
+`Unable to find package manager binary` desde turbo, en una máquina donde pnpm
+está instalado y funciona.
 
-Para el CI está cubierto: el workflow usa `pnpm/action-setup`, que instala el
+La causa es que **Windows no actualiza el PATH de las terminales ya abiertas**.
+Cualquier ventana anterior a la instalación de pnpm no lo ve, por más que el
+binario esté en `%APPDATA%\npm`. Se arregla cerrando la ventana y abriendo otra.
+
+No es un problema de turbo ni de corepack: verificado el 10 de agosto de 2026,
+en una PowerShell nueva `pnpm --version` y `corepack pnpm --version` devuelven
+las dos `11.20.0`.
+
+En el CI no puede pasar: el workflow usa `pnpm/action-setup`, que instala el
 binario y lo deja en el PATH antes de que turbo arranque.
 
 ---
