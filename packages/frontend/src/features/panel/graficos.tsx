@@ -216,10 +216,24 @@ export function GraficoFlujoSemanal({ datos }: { datos: FilaProyeccion[] }) {
             iconSize={8}
             wrapperStyle={{ fontSize: 12, color: "var(--color-muted-foreground)" }}
           />
-          {/* radius superior de 4 y separación entre barras: el fondo se ve
-              entre ellas, que es lo que las mantiene distinguibles. */}
-          <Bar dataKey="cobros" name="Cobros" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="pagos" name="Pagos" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
+          {/* Punta redondeada arriba y base apoyada en el eje: la altura es el
+              dato, así que el arranque no se redondea. La separación deja ver
+              el fondo entre barras vecinas, que es lo que las distingue.
+              maxBarSize acota el ancho para que el radio no se coma la barra. */}
+          <Bar
+            dataKey="cobros"
+            name="Cobros"
+            fill="var(--color-chart-1)"
+            radius={[6, 6, 0, 0]}
+            maxBarSize={24}
+          />
+          <Bar
+            dataKey="pagos"
+            name="Pagos"
+            fill="var(--color-chart-2)"
+            radius={[6, 6, 0, 0]}
+            maxBarSize={24}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Tarjeta>
@@ -261,7 +275,13 @@ export function GraficoVentas({ datos }: { datos: { mes: string; total: string }
           <XAxis dataKey="mes" {...EJE} />
           <YAxis tickFormatter={ejeY} width={52} {...EJE} />
           <Tooltip content={<Tooltipe />} cursor={{ fill: "var(--color-surface-muted)" }} />
-          <Bar dataKey="total" name="Ventas" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} />
+          <Bar
+            dataKey="total"
+            name="Ventas"
+            fill="var(--color-chart-1)"
+            radius={[6, 6, 0, 0]}
+            maxBarSize={40}
+          />
         </BarChart>
       </ResponsiveContainer>
     </Tarjeta>

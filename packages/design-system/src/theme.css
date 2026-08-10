@@ -50,8 +50,8 @@
    * validado sobre estas superficies (separación para daltonismo y contraste
    * ≥ 3:1 en ambos modos).
    */
-  --color-chart-1: #2a78d6;
-  --color-chart-2: #eb6834;
+  --color-chart-1: #5658c8;
+  --color-chart-2: #009c96;
   --color-chart-grid: #e1e0d9;
   --color-chart-axis: #898781;
 
@@ -93,8 +93,8 @@
   --color-danger-foreground: oklch(17% 0.02 258);
 
   /* Mismos hues, re-escalonados para la superficie oscura: no es un invertido. */
-  --color-chart-1: #3987e5;
-  --color-chart-2: #d95926;
+  --color-chart-1: #757be7;
+  --color-chart-2: #1faaa4;
   --color-chart-grid: #2c2c2a;
   --color-chart-axis: #898781;
 
