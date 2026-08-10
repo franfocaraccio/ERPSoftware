@@ -33,10 +33,9 @@ Fase 1 y Fase 2 no tienen nada pendiente.
 
 ## Infraestructura
 
-- Sin CI (no existe `.github/workflows`).
-- Sin deploy: ni frontend en CDN, ni backend en contenedor, ni Postgres
-  administrado.
+- Sin deploy: no hay ningún entorno levantado todavía. El backend ya está
+  containerizado; falta crear las cuentas y configurar Supabase, Railway y
+  Vercel. El estado detallado y los problemas abiertos están en `DEPLOY.md`.
 - Sin Sentry ni monitoreo.
-- Los tests corren contra la base de desarrollo, no contra Testcontainers.
 - **Antes de cualquier deploy:** `BETTER_AUTH_SECRET` sigue siendo el placeholder
   de desarrollo y las credenciales del seed son las de ejemplo.

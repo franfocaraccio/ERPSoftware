@@ -22,6 +22,9 @@ Cada módulo en `modules/<nombre>/` contiene `router.ts`, `service.ts`, `schema.
 - Todo `.input()` de tRPC con Zod. Las respuestas de ARCA también se parsean con Zod antes de tocar el dominio.
 - Entidades con estado: transiciones solo vía la función pura de transición; las respuestas incluyen `availableEvents`.
 - Supabase Storage se accede solo desde acá con la service key. El frontend jamás ve esa key.
-- Tests de services contra Postgres real (Testcontainers), no mocks de Drizzle.
+- Tests de services contra Postgres real, no mocks de Drizzle. La base sale de
+  `DATABASE_URL`: en local es la de `docker compose`, en CI un service container.
+  El aislamiento entre tests lo da RLS, no la base: cada uno crea su propia
+  organización con `crearTenantDePrueba()`.
 
 Ver skills: `trpc`, `drizzle`, `betterauth`, `arca`.

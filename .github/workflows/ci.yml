@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Un push nuevo sobre la misma rama cancela la corrida anterior: no tiene
+# sentido pagar minutos por verificar un commit que ya quedó atrás.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+
+    # Postgres efímero al lado del job. Los tests de integración corren contra
+    # una base real con RLS activo; no usamos Testcontainers porque el
+    # aislamiento entre tests ya lo da RLS (ver packages/backend/src/test/).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp -d erp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm antes que setup-node: `cache: pnpm` necesita el binario para
+      # ubicar el store. La versión sale de "packageManager" en package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Con el rol OWNER, igual que en local. Además de preparar la base para
+      # los tests, esto verifica que la cadena de migraciones aplica desde cero
+      # —incluidas las políticas de RLS y la creación del rol erp_app—, que es
+      # exactamente lo que va a pasar contra Supabase.
+      - name: Migraciones
+        run: pnpm --filter @erp/backend db:migrate
+        env:
+          DATABASE_URL_MIGRATIONS: postgresql://erp:erp@localhost:5432/erp
+
+      # Con el rol de la app (sin BYPASSRLS): si una query se escapara del
+      # wrapper withTenant, acá se cae.
+      - name: Tests
+        run: pnpm test
+        env:
+          DATABASE_URL: postgresql://erp_app:erp_app@localhost:5432/erp
+          # Hoy ningún test importa auth.ts, que aborta el proceso si falta.
+          # Está puesto para que agregar uno no falle solo en CI.
+          BETTER_AUTH_SECRET: ci-no-es-un-secreto-real
+
+      - name: Build
+        run: pnpm build
