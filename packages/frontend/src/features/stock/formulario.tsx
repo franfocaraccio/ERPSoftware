@@ -13,6 +13,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { mensajeDeError } from "../../lib/errores.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -391,7 +392,7 @@ export function FormularioProducto({ productoId }: { productoId?: string }) {
               role="alert"
               className="rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
             >
-              No se pudo guardar: {mutacion.error.message}
+              No se pudo guardar: {mensajeDeError(mutacion.error)}
             </div>
           )}
 

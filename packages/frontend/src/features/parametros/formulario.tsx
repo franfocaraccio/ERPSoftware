@@ -5,6 +5,7 @@ import { CircleCheck, SlidersHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { mensajeDeError } from "../../lib/errores.js";
 import { primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -201,7 +202,7 @@ export function Parametros() {
 
           {guardar.isError && (
             <p role="alert" className="text-sm text-danger">
-              No se pudo guardar: {guardar.error.message}
+              No se pudo guardar: {mensajeDeError(guardar.error)}
             </p>
           )}
 

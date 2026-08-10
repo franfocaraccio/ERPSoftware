@@ -1,3 +1,4 @@
+import { validarCuit } from "@erp/core/tax";
 import {
   Boton,
   Campo,
@@ -13,6 +14,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { mensajeDeError } from "../../lib/errores.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -20,13 +22,12 @@ import { useTRPC } from "../../lib/trpc.js";
 // (incluido el dígito verificador del CUIT).
 const formularioSchema = z.object({
   razonSocial: z.string().trim().min(1, "La razón social es obligatoria"),
+  // Ver el comentario en clientes/formulario.tsx: la regla vive en @erp/core
+  // para que el formulario y el backend no puedan discrepar.
   cuit: z
     .string()
     .trim()
-    .refine(
-      (v) => v === "" || /^\d{11}$/.test(v.replaceAll(/[\s-]/g, "")),
-      "El CUIT debe tener 11 dígitos",
-    ),
+    .refine((v) => v === "" || validarCuit(v), "CUIT inválido (revisá el dígito verificador)"),
   condicionIva: z.enum(["responsable_inscripto", "monotributo", "exento", "consumidor_final"]),
   rubro: z.string().trim(),
   condicionPagoDias: z
@@ -193,7 +194,7 @@ export function FormularioProveedor({ proveedorId }: { proveedorId?: string }) {
                 {(field) => (
                   <Campo
                     etiqueta="CUIT"
-                    ayuda="11 dígitos, con o sin guiones"
+                    ayuda="11 dígitos, con o sin guiones. El último es verificador."
                     error={
                       field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
                     }
@@ -387,7 +388,7 @@ export function FormularioProveedor({ proveedorId }: { proveedorId?: string }) {
               role="alert"
               className="rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
             >
-              No se pudo guardar: {mutacion.error.message}
+              No se pudo guardar: {mensajeDeError(mutacion.error)}
             </div>
           )}
 

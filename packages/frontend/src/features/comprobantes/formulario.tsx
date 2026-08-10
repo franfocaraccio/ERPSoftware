@@ -7,6 +7,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { mensajeDeError } from "../../lib/errores.js";
 import { formatearImporte } from "../../lib/formato.js";
 import { primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -451,7 +452,7 @@ export function FormularioComprobante() {
               role="alert"
               className="rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
             >
-              No se pudo guardar: {crear.error.message}
+              No se pudo guardar: {mensajeDeError(crear.error)}
             </div>
           )}
 
