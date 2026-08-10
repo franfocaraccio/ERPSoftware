@@ -1,0 +1,4 @@
+# Fallback de SPA para Cloudflare Pages y Netlify, el equivalente al rewrite
+# de vercel.json. Vite copia esta carpeta tal cual a dist/, y cada CDN ignora
+# la configuración del otro: el mismo build sirve para los tres.
+/*  /index.html  200
