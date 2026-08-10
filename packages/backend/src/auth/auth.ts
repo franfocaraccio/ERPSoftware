@@ -88,6 +88,36 @@ export const auth = betterAuth({
 
     twoFactor(),
   ],
+
+  /**
+   * De dónde sale la IP del cliente, que es la clave del rate limiting.
+   *
+   * Detrás del proxy de Railway, `x-forwarded-for` llega con dos saltos
+   * (`<cliente>, <proxy interno>`), y BetterAuth descarta toda cadena de más
+   * de un valor salvo que se declaren `trustedProxies`: sin resolver la IP,
+   * mete a TODOS los clientes en un único bucket compartido por ruta. Con los
+   * límites por defecto eso es la cuarta persona que intenta entrar en diez
+   * segundos recibiendo un 429 — de cualquier empresa, no solo de la suya.
+   *
+   * Medido contra el deploy el 10 de agosto de 2026: Railway pisa tanto
+   * `x-forwarded-for` como `x-real-ip`, así que un cliente no puede mentir
+   * sobre su IP por ninguno de los dos. `x-real-ip` viene con un único valor,
+   * que es lo que BetterAuth sabe usar sin más configuración. Se prefiere a
+   * `trustedProxies` porque no obliga a mantener el rango de IPs de Railway,
+   * que cambia sin avisar.
+   *
+   * `cf-connecting-ip` NO se usa: en la misma medición, un valor inventado por
+   * el cliente llegó intacto al backend.
+   *
+   * Si Railway dejara de mandar `x-real-ip` —por ejemplo al activar su CDN—,
+   * la IP vuelve a ser irresoluble y BetterAuth lo avisa por log con un
+   * warning explícito. Ese warning es la señal para volver a medir.
+   */
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ["x-real-ip"],
+    },
+  },
 });
 
 export type Auth = typeof auth;

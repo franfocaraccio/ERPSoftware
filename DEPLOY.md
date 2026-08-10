@@ -3,10 +3,10 @@
 Estado del deploy: qué plataformas usamos y por qué, qué está hecho, qué falta
 y qué problemas hay abiertos.
 
-> Última actualización: 10 de agosto de 2026. **Supabase `erp-dev` está
-> creado, migrado y verificado.** Falta `erp-prod`, que se posterga a propósito
-> hasta que el circuito completo funcione con dev. No hay nada en Railway ni en
-> Vercel todavía.
+> Última actualización: 10 de agosto de 2026. **Supabase `erp-dev` y el backend
+> en Railway están andando**, con la base verificada y el rate limiting
+> resuelto. Falta Vercel. `erp-prod` se posterga a propósito hasta que el
+> circuito completo funcione con dev.
 
 ---
 
@@ -97,8 +97,8 @@ devuelve 200.
 ### `5c2214d` — Log forwarded IP headers to settle Railway proxy behaviour
 
 Middleware **temporal** `[ip-debug]` en `packages/backend/src/index.ts`, que
-loguea los headers de IP de las primeras 20 requests. El porqué está en el
-problema 1, más abajo.
+loguea los headers de IP de las primeras 20 requests. Ya cumplió su función y
+fue borrado: la medición y su conclusión están en el problema 1, más abajo.
 
 ### Supabase `erp-dev`, el 10 de agosto de 2026
 
@@ -136,6 +136,25 @@ RLS en toda tabla nueva pero no crea políticas, así que las tablas de
 BetterAuth quedarían con RLS y cero políticas, y `erp_app` —que no es su
 dueña— no podría leerlas ni escribirlas. Nadie podría iniciar sesión.
 
+### Railway, el 10 de agosto de 2026
+
+Servicio único desde `packages/backend/Dockerfile`, con Root Directory en la
+raíz del monorepo. **Railway propone un servicio por cada package del
+workspace: hay que borrar los otros cuatro antes de aplicar.** `core`,
+`design-system` y `arca` son librerías sin nada que correr, y el frontend va a
+un CDN.
+
+Configuración que importa: builder **Dockerfile** (el default, Railpack, ignora
+el Dockerfile y adivina mal en un monorepo), región **US West** para quedar en
+la misma costa que Supabase, healthcheck en `/health`, **Serverless apagado**
+—es la restricción de arquitectura por pg-boss—, *Wait for CI* encendido, y
+watch paths sobre `packages/backend/**` y `packages/core/**`, porque `@erp/core`
+viaja adentro de la imagen.
+
+Verificado contra el deploy: `/health` responde `{"ok":true}`, y
+`/api/auth/get-session` devuelve `200 null` — que es la prueba de que llega a
+Postgres, porque una base inalcanzable daría 500.
+
 ---
 
 ## 3. Lo que sigue
@@ -149,11 +168,9 @@ dueña— no podría leerlas ni escribirlas. Nadie podría iniciar sesión.
    `FRONTEND_URL` en Railway necesita la URL de Vercel y `VITE_API_URL` en
    Vercel necesita la de Railway, así que Railway se configura en dos pasadas.
    Si falta la segunda, el síntoma es CORS bloqueando todo.
-3. **Leer `[ip-debug]`** en los logs del primer deploy, resolver el problema 1
-   y borrar el middleware.
-4. **`erp-prod`**: repetir todo lo de la sección anterior, con otra contraseña
+3. **`erp-prod`**: repetir todo lo de la sección anterior, con otra contraseña
    en cada rol.
-5. **Sentry**: proyectos de frontend y backend, DSNs por entorno.
+4. **Sentry**: proyectos de frontend y backend, DSNs por entorno.
 
 ---
 
@@ -161,7 +178,7 @@ dueña— no podría leerlas ni escribirlas. Nadie podría iniciar sesión.
 
 ### Problema 1 — Rate limiting por IP detrás del proxy de Railway
 
-**Estado: pendiente de medición en el primer deploy.**
+**Estado: resuelto el 10 de agosto de 2026, con medición contra el deploy.**
 
 BetterAuth resuelve la IP del cliente leyendo `x-forwarded-for` por su cuenta;
 no usa `req.ip` de Express, así que `app.set("trust proxy")` **no sirve para
@@ -187,22 +204,41 @@ Dos agravantes: el rate limiting **solo se activa en producción**
 (`enabled ?? isProduction`), así que es imposible de reproducir en local; y el
 storage por defecto es `memory`, o sea que el bucket vive en el contenedor.
 
-Que ocurra o no depende de si Railway reemplaza el header o le appendea. **La
-documentación de Railway se contradice a sí misma**: en el mismo hilo un
-empleado dice que lo strippean en el edge y otra respuesta dice que appendean
-sin strippear. La guía oficial llega a afirmar que el cliente puede spoofear el
-header pero que la IP real siempre queda a la izquierda "porque nuestro proxy
-appendea a la cadena", lo cual es incoherente: si appendea, la IP real queda a
-la derecha. `X-Real-IP` está reconocido como roto cuando el CDN está activo.
+Como la documentación de Railway se contradecía sobre si su proxy reemplaza el
+header o le appendea, se midió con el middleware `[ip-debug]` en vez de
+asumirlo.
 
-Por eso se midió en vez de asumirse. En el primer deploy, mirar `ip-debug` en
-los logs de Railway y el campo `saltosXff`:
+**Lo que se midió.** Con dos requests: uno normal, y otro con
+`X-Forwarded-For`, `X-Real-IP` y `CF-Connecting-IP` inventados por el cliente.
 
-- **1** → el default de BetterAuth funciona, no hay nada que hacer.
-- **2 o más** → configurar `advanced.ipAddress.trustedProxies`.
-- **0** → no llega ningún header; evaluar `x-real-ip` si viene poblado.
+| Header | Request normal | Con valor falsificado |
+| --- | --- | --- |
+| `x-forwarded-for` | `<cliente>, <proxy>` — 2 saltos | el valor falso desaparece |
+| `x-real-ip` | `<cliente>` — 1 solo valor | el valor falso desaparece |
+| `cf-connecting-ip` | ausente | **el valor falso llega intacto** |
 
-En los tres casos, borrar el middleware después.
+Y BetterAuth confirmó el diagnóstico por su cuenta, con este warning en los
+logs del primer deploy: *"Rate limiting could not determine a client IP and is
+falling back to a single shared per-path bucket."*
+
+**El arreglo.** `advanced.ipAddress.ipAddressHeaders: ["x-real-ip"]` en
+`auth.ts`. Railway pisa ese header, así que no es falsificable, y trae un único
+valor, que es lo que BetterAuth resuelve sin configuración extra.
+
+Se prefirió a `trustedProxies` —la otra opción válida— porque esa obliga a
+declarar el rango de IPs del proxy de Railway, que puede cambiar sin aviso: si
+cambia, la resolución falla cerrada y se vuelve al bucket compartido sin que
+nadie se entere.
+
+**`cf-connecting-ip` queda descartado para siempre**: es el único de los tres
+que el cliente puede fijar a lo que quiera.
+
+**Cuándo volver a medir.** Si Railway dejara de mandar `x-real-ip` —por ejemplo
+al activar su CDN, caso en el que su documentación reconoce que ese header se
+rompe—, la IP vuelve a ser irresoluble. No es silencioso: BetterAuth loguea el
+warning de arriba. Ese warning es la señal.
+
+El middleware `[ip-debug]` ya se borró.
 
 ### Problema 2 — El rol de la aplicación tiene la contraseña en el repo
 
