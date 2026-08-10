@@ -1,4 +1,4 @@
-import { Boton, clasesBoton, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import { Boton, clasesBoton, cn, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -18,6 +18,7 @@ import {
   formatearFecha,
   formatearImporte,
 } from "../../lib/formato.js";
+import { alineadoDerecha } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaProveedor {
@@ -64,7 +65,8 @@ const columnas = helper.columns([
     cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("condicionPagoDias", {
-    header: () => <span className="block text-right">Plazo</span>,
+    header: "Plazo",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {info.getValue()} {info.getValue() === 1 ? "día" : "días"}
@@ -78,7 +80,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("saldoAPagar", {
-    header: () => <span className="block text-right">Saldo a pagar</span>,
+    header: "Saldo a pagar",
+    meta: { alineado: "derecha" },
     cell: (info) => {
       const valor = info.getValue();
       const hayDeuda = valor !== "0.00" && !valor.startsWith("-");
@@ -244,12 +247,16 @@ export function ListaProveedores() {
                   <tr key={grupo.id} className="border-b border-border">
                     {grupo.headers.map((header) => {
                       const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      const derecha = alineadoDerecha(header.column.columnDef.meta);
                       return (
                         <th
                           key={header.id}
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
-                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                          className={cn(
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            derecha ? "text-right" : "text-left",
+                          )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
                             <EncabezadoOrdenable
@@ -258,6 +265,7 @@ export function ListaProveedores() {
                               ordenActual={orden}
                               direccion={direccion}
                               onOrdenar={ordenar}
+                              alineado={derecha ? "derecha" : "izquierda"}
                             />
                           ) : (
                             <table.FlexRender header={header} />

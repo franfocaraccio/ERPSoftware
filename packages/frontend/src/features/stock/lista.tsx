@@ -1,4 +1,12 @@
-import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  clasesBoton,
+  cn,
+  Esqueleto,
+  EstadoVacio,
+  Insignia,
+  Tarjeta,
+} from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -8,6 +16,7 @@ import { ariaSort, type Direccion, EncabezadoOrdenable } from "../../components/
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
+import { alineadoDerecha } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaProducto {
@@ -52,7 +61,8 @@ const columnas = helper.columns([
     cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("stockActual", {
-    header: () => <span className="block text-right">Stock</span>,
+    header: "Stock",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-foreground">
         {formatearCantidad(info.getValue())}
@@ -60,7 +70,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("stockMinimo", {
-    header: () => <span className="block text-right">Mínimo</span>,
+    header: "Mínimo",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearCantidad(info.getValue())}
@@ -77,7 +88,8 @@ const columnas = helper.columns([
       ),
   }),
   helper.accessor("margenBruto", {
-    header: () => <span className="block text-right">Margen</span>,
+    header: "Margen",
+    meta: { alineado: "derecha" },
     cell: (info) => {
       const valor = info.getValue();
       return (
@@ -88,7 +100,8 @@ const columnas = helper.columns([
     },
   }),
   helper.accessor("valorizacion", {
-    header: () => <span className="block text-right">Valorización</span>,
+    header: "Valorización",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-foreground">
         {formatearImporte(info.getValue())}
@@ -266,12 +279,16 @@ export function ListaStock() {
                   <tr key={grupo.id} className="border-b border-border">
                     {grupo.headers.map((header) => {
                       const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      const derecha = alineadoDerecha(header.column.columnDef.meta);
                       return (
                         <th
                           key={header.id}
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
-                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                          className={cn(
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            derecha ? "text-right" : "text-left",
+                          )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
                             <EncabezadoOrdenable
@@ -280,6 +297,7 @@ export function ListaStock() {
                               ordenActual={orden}
                               direccion={direccion}
                               onOrdenar={ordenar}
+                              alineado={derecha ? "derecha" : "izquierda"}
                             />
                           ) : (
                             <table.FlexRender header={header} />

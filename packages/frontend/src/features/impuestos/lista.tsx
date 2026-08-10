@@ -1,4 +1,12 @@
-import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  clasesBoton,
+  cn,
+  Esqueleto,
+  EstadoVacio,
+  Insignia,
+  Tarjeta,
+} from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -19,6 +27,7 @@ import {
   formatearPeriodo,
   formatearPorcentaje,
 } from "../../lib/formato.js";
+import { alineadoDerecha } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 type EstadoImpuesto = "pagado" | "vencido" | "pendiente";
@@ -70,7 +79,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("baseImponible", {
-    header: () => <span className="block text-right">Base imponible</span>,
+    header: "Base imponible",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearImporte(info.getValue())}
@@ -78,7 +88,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("alicuota", {
-    header: () => <span className="block text-right">Alícuota</span>,
+    header: "Alícuota",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearPorcentaje(info.getValue())}
@@ -86,7 +97,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("importeDeterminado", {
-    header: () => <span className="block text-right">Determinado</span>,
+    header: "Determinado",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-foreground">
         {formatearImporte(info.getValue())}
@@ -94,7 +106,8 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("saldo", {
-    header: () => <span className="block text-right">Saldo</span>,
+    header: "Saldo",
+    meta: { alineado: "derecha" },
     cell: (info) => {
       const impago = info.getValue() !== "0.00";
       return (
@@ -314,12 +327,16 @@ export function ListaImpuestos() {
                       // Solo son ordenables las columnas que existen en la
                       // base; importe determinado y saldo son derivados.
                       const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      const derecha = alineadoDerecha(header.column.columnDef.meta);
                       return (
                         <th
                           key={header.id}
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
-                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                          className={cn(
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            derecha ? "text-right" : "text-left",
+                          )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
                             <EncabezadoOrdenable
@@ -328,6 +345,7 @@ export function ListaImpuestos() {
                               ordenActual={orden}
                               direccion={direccion}
                               onOrdenar={ordenar}
+                              alineado={derecha ? "derecha" : "izquierda"}
                             />
                           ) : (
                             <table.FlexRender header={header} />

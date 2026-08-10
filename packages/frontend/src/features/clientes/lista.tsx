@@ -1,4 +1,12 @@
-import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  clasesBoton,
+  cn,
+  Esqueleto,
+  EstadoVacio,
+  Insignia,
+  Tarjeta,
+} from "@erp/design-system";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
@@ -18,6 +26,7 @@ import {
   formatearCuit,
   formatearImporte,
 } from "../../lib/formato.js";
+import { alineadoDerecha } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaCliente {
@@ -69,7 +78,8 @@ const columnas = helper.columns([
     cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("limiteCredito", {
-    header: () => <span className="block text-right">Límite de crédito</span>,
+    header: "Límite de crédito",
+    meta: { alineado: "derecha" },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearImporte(info.getValue())}
@@ -241,12 +251,16 @@ export function ListaClientes() {
                   <tr key={grupo.id} className="border-b border-border">
                     {grupo.headers.map((header) => {
                       const ordenable = CAMPOS_ORDENABLES[header.column.id];
+                      const derecha = alineadoDerecha(header.column.columnDef.meta);
                       return (
                         <th
                           key={header.id}
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
-                          className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                          className={cn(
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            derecha ? "text-right" : "text-left",
+                          )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
                             <EncabezadoOrdenable
@@ -255,6 +269,7 @@ export function ListaClientes() {
                               ordenActual={orden}
                               direccion={direccion}
                               onOrdenar={ordenar}
+                              alineado={derecha ? "derecha" : "izquierda"}
                             />
                           ) : (
                             <table.FlexRender header={header} />
