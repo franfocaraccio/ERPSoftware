@@ -336,11 +336,11 @@ que repetirlo tal cual en `erp-prod`.
 
 ### Problema 3 — Las tablas de auth no tienen RLS y Supabase expone la Data API
 
-**Estado: mitigado en `erp-dev`. Sigue abierto como riesgo estructural.**
+**Estado: resuelto el 11 de agosto de 2026, en el repositorio.**
 
 Las migraciones habilitan RLS en las 14 tablas de negocio. Las de BetterAuth
 (`user`, `session`, `account`, `verification`, `organization`, `member`,
-`invitation`, `twoFactor`) son `pgTable` en el schema `public` y quedan afuera.
+`invitation`, `two_factor`) son `pgTable` en el schema `public` y quedan afuera.
 
 Medido sobre una base migrada desde cero el 8 de agosto de 2026: de 22 tablas en
 `public`, 14 tienen `relrowsecurity` y `relforcerowsecurity`; las 8 restantes son
@@ -351,20 +351,32 @@ roles `anon`/`authenticated` reciben grants por default privileges. Con la anon
 key —que es pública por diseño— eso implicaría **tokens de sesión y hashes de
 contraseña legibles por HTTPS**.
 
-La mitigación es desactivar la Data API entera, ya que el frontend nunca usa
-`supabase-js`. En `erp-dev` se hizo **desde el formulario de creación**, que es
-mejor que apagarla después: nunca existió una ventana con las tablas expuestas.
+La primera mitigación fue desactivar la Data API entera, ya que el frontend
+nunca usa `supabase-js`. En `erp-dev` se hizo **desde el formulario de
+creación**, que es mejor que apagarla después: nunca existió una ventana con
+las tablas expuestas.
 
-Sigue siendo un riesgo estructural, porque la protección depende de un checkbox
-del dashboard y no del repositorio. Alcanza con que alguien encienda la Data
-API en un proyecto futuro para exponer tokens de sesión y hashes de
-contraseña.
+Pero eso dejaba la protección en un checkbox del dashboard. La solución
+definitiva es la migración **`0009_revocar_data_api_en_auth.sql`**, que le quita
+a `anon` y `authenticated` todo permiso sobre las ocho tablas de auth y, con un
+`ALTER DEFAULT PRIVILEGES`, hace que las tablas futuras nazcan igual. Ahora la
+protección vive en el repositorio y viaja sola a cada entorno nuevo: aunque
+alguien encienda la Data API, PostgREST recibe un permiso denegado.
 
-La solución de fondo **no es** RLS sobre esas tablas: el backend legítimamente
-necesita leerlas y escribirlas con `erp_app`, y RLS sin políticas lo dejaría
-afuera. Sería un `REVOKE` explícito de `anon` y `authenticated` sobre las
-tablas de auth, en una migración, para que no dependa de la configuración del
-dashboard.
+No se usa RLS sobre esas tablas a propósito: el backend legítimamente necesita
+leerlas y escribirlas con `erp_app`, y RLS sin políticas lo dejaría afuera —
+nadie podría iniciar sesión. El `REVOKE` dice exactamente lo que se quiere
+decir.
+
+Los roles `anon` y `authenticated` los crea la plataforma y no existen en el
+Postgres local ni en el del CI, así que la migración va envuelta en un chequeo
+de existencia. Verificado en los dos escenarios: con los roles presentes, las
+ocho tablas quedan sin `SELECT` para ambos y una tabla creada después tampoco
+lo recibe, mientras `erp_app` conserva lectura y escritura; sin los roles, la
+migración aplica igual y los 83 tests pasan contra esa base.
+
+**Pendiente de aplicar en `erp-dev`**: la migración está en el repo, pero las
+migraciones se aplican a mano.
 
 ### Problema 4 — El puerto de Supabase afecta la numeración fiscal
 

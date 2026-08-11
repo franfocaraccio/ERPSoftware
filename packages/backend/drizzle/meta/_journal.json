@@ -64,6 +64,13 @@
       "when": 1786115082738,
       "tag": "0008_crear_accesos_consolidado",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1786455191533,
+      "tag": "0009_revocar_data_api_en_auth",
+      "breakpoints": true
     }
   ]
 }

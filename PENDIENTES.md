@@ -29,8 +29,6 @@ Fase 1 y Fase 2 no tienen nada pendiente.
 - **`packages/arca` es un stub** (`export {}`): falta WSAA, WSFEv1, CAE, QR, PDF
   y la suite contra homologación. **Bloqueado por decisión de Fran** — es la
   Fase 3 entera y no se arranca todavía.
-- **Guardia de MFA obligatorio** para los roles que emiten comprobantes
-  (`ROLES_CON_MFA_OBLIGATORIO` ya está declarado, sin aplicar).
 
 ## Infraestructura
 
