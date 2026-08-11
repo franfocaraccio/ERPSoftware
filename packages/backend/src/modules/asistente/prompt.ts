@@ -7,8 +7,8 @@
  *
  * Está partido en dos a propósito. El bloque grande (reglas + manual) es
  * **idéntico para todos los usuarios de todas las empresas**, que es la
- * condición para que el cache de Anthropic sirva: el cache matchea por prefijo,
- * así que meter el nombre del usuario arriba le daría a cada persona un prefijo
+ * condición para que el cache sirva: se reutiliza el prefijo común, así que
+ * meter el nombre del usuario arriba le daría a cada persona un prefijo
  * distinto y no se reutilizaría nunca. Lo variable va después, y es corto.
  */
 

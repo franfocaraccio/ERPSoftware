@@ -1,4 +1,4 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { pipeUIMessageStreamToResponse, streamText, toUIMessageStream } from "ai";
 import { fromNodeHeaders } from "better-auth/node";
 import express, { type Request, type Response } from "express";
@@ -9,17 +9,32 @@ import { bloqueDelUsuario, bloqueInvariante } from "./prompt.js";
 import { aMensajesDelModelo, chatSchema } from "./schema.js";
 
 /**
- * Haiku alcanza de sobra para responder sobre un manual que ya está en el
- * prompt: no hay razonamiento que hacer, hay que leer y resumir. Cuando en la
+ * Un modelo mini alcanza de sobra para responder sobre un manual que ya está en
+ * el prompt: no hay razonamiento que hacer, hay que leer y resumir. Cuando en la
  * Fase B haya herramientas y preguntas de varios saltos, conviene medir si hace
- * falta subir a Sonnet.
+ * falta subir de gama.
  */
-const MODELO = process.env.ASISTENTE_MODELO ?? "claude-haiku-4-5";
+const MODELO = process.env.ASISTENTE_MODELO ?? "gpt-5.4-mini";
+
+/**
+ * Etiqueta de ruteo del cache de OpenAI.
+ *
+ * A diferencia de Anthropic, acá el cache es automático: no se marca el bloque,
+ * OpenAI reutiliza solo el prefijo repetido de prompts largos. Esta clave le
+ * dice que todos estos pedidos comparten prefijo, para que caigan en la misma
+ * máquina y el prefijo se encuentre cacheado. Es una pista de ruteo, no una
+ * orden: sin ella igual cachea, pero pega menos.
+ *
+ * Lleva la longitud del manual adentro para que al editar `docs/ayuda` cambie
+ * la clave: el prefijo viejo ya no existe y seguir apuntando ahí sería mandar
+ * a todos a buscar un cache que no va a estar.
+ */
+let claveDeCache = "erp-ayuda";
 
 let instrucciones: string | null = null;
 
 export function asistenteHabilitado(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY);
+  return Boolean(process.env.OPENAI_API_KEY);
 }
 
 /**
@@ -29,10 +44,11 @@ export function asistenteHabilitado(): boolean {
  */
 export function inicializarAsistente(): void {
   if (!asistenteHabilitado()) {
-    console.warn("[asistente] Sin ANTHROPIC_API_KEY: el chat queda deshabilitado.");
+    console.warn("[asistente] Sin OPENAI_API_KEY: el chat queda deshabilitado.");
     return;
   }
   instrucciones = bloqueInvariante(cargarManual());
+  claveDeCache = `erp-ayuda-${instrucciones.length}`;
   console.log(`[asistente] Manual cargado (${instrucciones.length} caracteres), modelo ${MODELO}.`);
 }
 
@@ -79,15 +95,11 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
   }
 
   const resultado = streamText({
-    model: anthropic(MODELO),
+    model: openai(MODELO),
+    // El bloque grande va primero y es idéntico para todos: OpenAI cachea el
+    // prefijo repetido por su cuenta, así que el orden no es cosmético.
     instructions: [
-      {
-        role: "system",
-        content: instrucciones,
-        // El manual es el 99% del prompt y no cambia nunca: cacheado cuesta
-        // una décima parte a partir del segundo mensaje.
-        providerOptions: { anthropic: { cacheControl: { type: "ephemeral" } } },
-      },
+      { role: "system", content: instrucciones },
       {
         role: "system",
         content: bloqueDelUsuario({
@@ -97,6 +109,7 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
         }),
       },
     ],
+    providerOptions: { openai: { promptCacheKey: claveDeCache } },
     messages: mensajes,
     onFinish({ usage }) {
       // Sin esto no hay forma de saber qué cuesta el asistente ni si el cache

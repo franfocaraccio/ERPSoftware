@@ -34,10 +34,12 @@ Fase 1 y Fase 2 no tienen nada pendiente.
 
 La **Fase A está hecha**: burbuja abajo a la derecha, panel de chat, y un
 asistente que responde sobre cómo usar el sistema a partir de `docs/ayuda`, que
-viaja entero en el prompt (19k caracteres) con cache de Anthropic. No tiene
-acceso a los datos de la empresa y el prompt le exige decirlo en vez de inventar.
+viaja entero en el prompt (19k caracteres) y se cachea porque no cambia nunca.
+No tiene acceso a los datos de la empresa y el prompt le exige decirlo en vez de
+inventar. Corre sobre OpenAI a través del AI SDK; cambiar de proveedor es
+cambiar el import en `modules/asistente/ruta.ts`.
 
-- **Falta la `ANTHROPIC_API_KEY`.** Sin ella el chat queda deshabilitado a
+- **Falta la `OPENAI_API_KEY`.** Sin ella el chat queda deshabilitado a
   propósito: la burbuja igual aparece pero la ruta contesta 503. Es lo único que
   separa a la Fase A de estar andando en dev. **La llamada real al modelo no
   está probada todavía** — sí lo está todo lo demás (sesión, validación, tope

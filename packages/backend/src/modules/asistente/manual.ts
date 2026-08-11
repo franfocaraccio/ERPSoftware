@@ -15,10 +15,10 @@ const DIRECTORIO = join(RAIZ, "docs", "ayuda");
  * Manual de uso de la aplicación, concatenado desde `docs/ayuda`.
  *
  * Va entero en el prompt en vez de trocearse en una base vectorial: son unas
- * pocas decenas de miles de caracteres, entran de sobra en la ventana, y el
- * bloque viaja con cache de Anthropic, así que a partir del segundo mensaje
- * cuesta una fracción. Un RAG acá agregaría un modo de falla nuevo —que el
- * retriever no traiga el fragmento correcto— sin resolver ningún problema real.
+ * pocas decenas de miles de caracteres, entran de sobra en la ventana, y como
+ * el bloque no cambia nunca el proveedor lo cachea y a partir del segundo
+ * mensaje cuesta una fracción. Un RAG acá agregaría un modo de falla nuevo —que
+ * el retriever no traiga el fragmento correcto— sin resolver ningún problema.
  *
  * Se lee una vez al arrancar. Editar un .md exige reiniciar el backend.
  */

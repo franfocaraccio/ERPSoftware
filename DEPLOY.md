@@ -102,7 +102,7 @@ aislamiento entre tests lo da RLS, porque cada uno crea su propia organización.
 ### Todavía sin configurar
 
 - **Monitoreo**: Sentry en frontend y backend.
-- **Asistente de ayuda**: falta la `ANTHROPIC_API_KEY` en Railway. El chat está
+- **Asistente de ayuda**: falta la `OPENAI_API_KEY` en Railway. El chat está
   implementado y probado en todo lo que no requiere la key; sin ella la burbuja
   aparece pero la ruta `/api/chat` contesta 503.
   El manual que alimenta al asistente vive en `docs/ayuda/*.md` y **el
@@ -463,8 +463,8 @@ error más habitual.
 | `BETTER_AUTH_URL` | URL pública de Railway |
 | `FRONTEND_URL` | URL de Vercel. Gobierna CORS y los links de los mails |
 | `RESEND_API_KEY`, `RESEND_FROM` | Sin esto nadie acepta invitaciones ni recupera contraseña |
-| `ANTHROPIC_API_KEY` | Sin ella el asistente queda deshabilitado y la ruta contesta 503 |
-| `ASISTENTE_MODELO` | Opcional. Default `claude-haiku-4-5` |
+| `OPENAI_API_KEY` | Sin ella el asistente queda deshabilitado y la ruta contesta 503 |
+| `ASISTENTE_MODELO` | Opcional. Default `gpt-5.4-mini` |
 | `ASISTENTE_LIMITE_DIARIO` | Opcional. Consultas por empresa y por día, default 100 |
 | `PORT` | La inyecta Railway, no hace falta setearla |
 
