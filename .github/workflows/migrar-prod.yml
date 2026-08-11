@@ -1,0 +1,47 @@
+name: Migrar producción
+
+# Solo a mano. No se dispara por push a propósito: contra una base con
+# comprobantes fiscales reales, una migración no se deshace revirtiendo el
+# commit, y este proyecto no tiene migraciones de vuelta atrás.
+#
+# Va en un workflow aparte y no como un job condicional del CI porque Railway
+# espera a que TODAS las GitHub Actions terminen antes de deployar: un job
+# esperando aprobación dejaría los deploys de dev colgados.
+#
+# El entorno `erp-prod` de GitHub es el que guarda la credencial. Si querés
+# además una aprobación de otra persona, agregale "Required reviewers" en
+# Settings -> Environments.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmacion:
+        description: 'Escribí MIGRAR PRODUCCION para confirmar'
+        required: true
+        type: string
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    environment: erp-prod
+
+    steps:
+      # La fricción es intencional: que ejecutar esto cueste un poco más que
+      # un click distraído en la lista de workflows.
+      - name: Verificar la confirmación
+        if: inputs.confirmacion != 'MIGRAR PRODUCCION'
+        run: |
+          echo "Confirmación incorrecta. Hay que escribir exactamente: MIGRAR PRODUCCION"
+          exit 1
+
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrar erp-prod
+        run: pnpm --filter @erp/backend db:migrate
+        env:
+          DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}

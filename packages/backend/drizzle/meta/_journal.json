@@ -71,6 +71,13 @@
       "when": 1786455191533,
       "tag": "0009_revocar_data_api_en_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1786455817560,
+      "tag": "0010_permitir_leer_estado_migraciones",
+      "breakpoints": true
     }
   ]
 }

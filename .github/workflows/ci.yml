@@ -74,3 +74,31 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # Aplica las migraciones al entorno de desarrollo real, después de que todo
+  # lo anterior pasó. Va acá y no en el contenedor de Railway a propósito: las
+  # migraciones necesitan el rol dueño, que puede saltear RLS, y esa credencial
+  # no tiene por qué vivir en un proceso expuesto a internet 24/7. Acá vive en
+  # los secrets de GitHub y solo existe durante este job.
+  #
+  # Railway tiene "Wait for CI" activado, así que el orden queda garantizado:
+  # tests -> migraciones -> deploy. Si esto falla, el código nuevo no sube.
+  migrar-dev:
+    needs: verificar
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: erp-dev
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migrar erp-dev
+        run: pnpm --filter @erp/backend db:migrate
+        env:
+          DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}

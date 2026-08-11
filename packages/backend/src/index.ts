@@ -4,6 +4,7 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import { auth } from "./auth/auth.js";
+import { verificarMigraciones } from "./db/migraciones.js";
 import { createContext } from "./trpc/context.js";
 import { appRouter } from "./trpc/router.js";
 
@@ -25,6 +26,11 @@ app.get("/health", (_req, res) => {
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
+
+// Antes de escuchar, no después: si la base está atrasada conviene que el
+// deploy falle y Railway conserve la versión anterior, en vez de dejar arriba
+// un backend que va a contestar 500 cada vez que toque una columna nueva.
+await verificarMigraciones();
 
 const puerto = Number(process.env.PORT ?? 3001);
 app.listen(puerto, () => {

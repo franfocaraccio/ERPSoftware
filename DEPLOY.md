@@ -16,7 +16,7 @@ y qué problemas hay abiertos.
 | --- | --- | --- | --- |
 | Frontend (SPA Vite) | Vercel | Hobby | Automático en push a `main` |
 | Backend (Express) | Railway | Hobby, USD 5/mes | Automático en push a `main` |
-| Base de datos + Storage | Supabase | — | Migraciones a mano |
+| Base de datos + Storage | Supabase | — | Migraciones desde el CI |
 
 ### Frontend — Vercel
 
@@ -49,8 +49,37 @@ Postgres administrado y Storage, accedidos **solo desde el backend**. Nunca
 `supabase-js` desde el navegador.
 
 Van **dos proyectos separados**, `erp-dev` y `erp-prod`, para no probar
-migraciones destructivas contra datos fiscales reales. Las migraciones de
-Drizzle se versionan en el repo y se aplican a mano.
+migraciones destructivas contra datos fiscales reales.
+
+### Cómo se aplican las migraciones
+
+Desde GitHub Actions, **nunca desde el contenedor de Railway**. Migrar requiere
+el rol dueño, que puede saltear RLS y leer los datos de todos los tenants; esa
+credencial no tiene por qué vivir en un proceso expuesto a internet 24/7. En el
+CI existe solo durante el job. Por eso además el `Dockerfile` instala con
+`--prod` y deja `drizzle-kit` fuera de la imagen.
+
+- **`erp-dev`**: automático. El job `migrar-dev` de `ci.yml` corre después de
+  lint, typecheck, tests y build, solo en push a `main`. Como Railway tiene
+  *Wait for CI* activado, el orden queda garantizado: **tests → migraciones →
+  deploy**. Si la migración falla, el código nuevo no sube.
+- **`erp-prod`**: a mano, con el workflow aparte `migrar-prod.yml`, que solo se
+  dispara con *Run workflow* y pide escribir `MIGRAR PRODUCCION` para
+  confirmar. Va separado del CI porque Railway espera a que **todas** las
+  Actions terminen: un job esperando aprobación dejaría los deploys colgados.
+
+Hace falta configurar, en Settings → Environments del repo, un entorno
+**`erp-dev`** y otro **`erp-prod`**, cada uno con su secret
+`DATABASE_URL_MIGRATIONS` apuntando al rol `postgres` del proyecto que
+corresponda, por el pooler en 5432. Si querés que producción además necesite el
+visto bueno de otra persona, agregale *Required reviewers* a `erp-prod`.
+
+**El backend chequea al arrancar** que la base tenga aplicadas todas las
+migraciones que el código conoce, y se niega a levantar si le faltan, nombrando
+cuáles (`src/db/migraciones.ts`). Sin eso, el desfasaje entre el deploy del
+código y el de la base se manifiesta como errores 500 salteados en la primera
+consulta que toque una columna nueva. Si la base está *adelante* —un rollback
+del código— avisa pero deja arrancar, porque volver atrás es legítimo.
 
 ### Desarrollo local
 
@@ -375,8 +404,8 @@ ocho tablas quedan sin `SELECT` para ambos y una tabla creada después tampoco
 lo recibe, mientras `erp_app` conserva lectura y escritura; sin los roles, la
 migración aplica igual y los 83 tests pasan contra esa base.
 
-**Pendiente de aplicar en `erp-dev`**: la migración está en el repo, pero las
-migraciones se aplican a mano.
+**Pendiente de aplicar en `erp-dev`**, junto con la `0010`: se aplican solas en
+el primer push a `main` posterior a configurar el entorno `erp-dev` en GitHub.
 
 ### Problema 4 — El puerto de Supabase afecta la numeración fiscal
 
