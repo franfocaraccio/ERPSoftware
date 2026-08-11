@@ -6,7 +6,6 @@ import { comprobantesCompra } from "../../db/schema/compras.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
-import { filtroRangoInstante } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import type { ProveedorActualizar, ProveedoresListar, ProveedorInput } from "./schema.js";
 
@@ -36,21 +35,26 @@ export async function listarProveedores(
     if (input.condicionIva) {
       condiciones.push(eq(proveedores.condicionIva, input.condicionIva));
     }
-    // Fecha de alta: es la única fecha que tiene un padrón de proveedores.
-    const rango = filtroRangoInstante(proveedores.createdAt, input);
-    if (rango) {
-      condiciones.push(rango);
-    }
-    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
-
     // Las sumas se agregan en SQL; la resta que define el saldo vive en core.
     const comprado = tx
       .select({
         proveedorId: comprobantesCompra.proveedorId,
         total: sum(comprobantesCompra.total).as("total_comprado"),
-        // Vencimiento = recepción + condición de pago pactada en el comprobante.
+        /**
+         * Vencimiento de cada comprobante = recepción + su condición de pago.
+         * El `filter` es lo que hace que esto sea el PRÓXIMO vencimiento: sin
+         * él, `min` devuelve el más viejo de todos, que siempre está vencido en
+         * cuanto el proveedor tiene alguna compra con historia.
+         *
+         * Limitación conocida: no distingue comprobantes ya pagados, porque los
+         * pagos se registran contra el proveedor y no contra el comprobante. El
+         * saldo a pagar de la fila dice si queda algo por pagar.
+         */
         proximo: sql<string | null>`min(
           ${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day'
+        ) filter (where
+          ${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day'
+          >= current_date
         )`.as("proximo_vencimiento"),
       })
       .from(comprobantesCompra)
@@ -66,6 +70,18 @@ export async function listarProveedores(
       .where(eq(movimientos.tipo, "egreso"))
       .groupBy(movimientos.proveedorId)
       .as("pagado");
+
+    // El rango filtra por próximo vencimiento, que es una columna calculada del
+    // subquery, no del proveedor: por eso el filtro se arma acá, ya con el join
+    // hecho. Un proveedor sin vencimientos futuros queda afuera, que es lo
+    // correcto para "los que me vencen entre estas dos fechas".
+    if (input.desde) {
+      condiciones.push(sql`${comprado.proximo} >= ${input.desde}::date`);
+    }
+    if (input.hasta) {
+      condiciones.push(sql`${comprado.proximo} <= ${input.hasta}::date`);
+    }
+    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
       .select({
@@ -104,7 +120,13 @@ export async function listarProveedores(
       proximoVencimiento: proximo ? String(proximo).slice(0, 10) : null,
     }));
 
-    const [fila] = await tx.select({ total: count() }).from(proveedores).where(filtro);
+    // El mismo join que el listado: el filtro puede referirse a `comprado`, y
+    // sin la unión el conteo no compilaría — y si compilara, mentiría.
+    const [fila] = await tx
+      .select({ total: count() })
+      .from(proveedores)
+      .leftJoin(comprado, eq(comprado.proveedorId, proveedores.id))
+      .where(filtro);
     return { items, total: fila?.total ?? 0 };
   });
 }

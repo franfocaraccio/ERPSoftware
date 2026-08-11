@@ -49,8 +49,9 @@ export const CAMPOS_ORDEN_PROVEEDORES = [
 export const proveedoresListarSchema = z.object({
   busqueda: z.string().trim().max(100).optional(),
   condicionIva: z.enum(condicionesIva).optional(),
-  // Un proveedor no tiene fecha de negocio: el rango filtra por fecha de alta,
-  // que es lo único fechado del padrón. Por eso la pantalla la nombra así.
+  // El rango filtra por próximo vencimiento, que es el dato fechado que la
+  // tabla muestra. No es una columna del proveedor: se calcula sobre sus
+  // comprobantes de compra.
   ...rangoFechasSchema,
   ...ordenSchema(CAMPOS_ORDEN_PROVEEDORES, "razonSocial"),
   pagina: z.number().int().min(1).default(1),

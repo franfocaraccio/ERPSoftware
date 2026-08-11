@@ -11,6 +11,15 @@ import {
   obtenerProveedor,
 } from "./service.js";
 
+/** Fechas relativas a hoy, en el formato YYYY-MM-DD que usan las columnas date. */
+function corrido(dias: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+const hace = (dias: number) => corrido(-dias);
+const enDias = (dias: number) => corrido(dias);
+
 let tenantA: { tenantId: string; usuarioId: string };
 let tenantB: { tenantId: string; usuarioId: string };
 
@@ -203,33 +212,85 @@ describe("proveedores service (integración, RLS activo)", () => {
     expect(soloMono.items[0]?.razonSocial).toBe("Monotributista");
   });
 
-  it("filtra por fecha de alta, con las dos puntas inclusive", async () => {
+  it("el próximo vencimiento ignora los que ya vencieron", async () => {
     const tenant = await crearTenantDePrueba();
-    await crearProveedor(tenant, {
-      razonSocial: "Alta de hoy",
+    const prov = await crearProveedor(tenant, {
+      razonSocial: "Con historia",
+      condicionIva: "responsable_inscripto",
+      condicionPagoDias: 30,
+    });
+
+    // Una compra vieja, ya vencida, y una reciente que vence en el futuro.
+    await withTenant(tenant.tenantId, async (tx) => {
+      await tx.insert(comprobantesCompra).values([
+        {
+          tenantId: tenant.tenantId,
+          proveedorId: prov.id,
+          fechaRecepcion: hace(120),
+          condicionPagoDias: 30,
+          total: "100000.00",
+        },
+        {
+          tenantId: tenant.tenantId,
+          proveedorId: prov.id,
+          fechaRecepcion: hace(10),
+          condicionPagoDias: 30,
+          total: "50000.00",
+        },
+      ]);
+    });
+
+    const { items } = await listarProveedores(tenant, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    // El mínimo absoluto sería el de hace 90 días; se espera el futuro.
+    expect(items[0]?.proximoVencimiento).toBe(enDias(20));
+  });
+
+  it("filtra por rango de próximo vencimiento", async () => {
+    const tenant = await crearTenantDePrueba();
+    const cerca = await crearProveedor(tenant, {
+      razonSocial: "Vence pronto",
+      condicionIva: "exento",
+      condicionPagoDias: 0,
+    });
+    const lejos = await crearProveedor(tenant, {
+      razonSocial: "Vence lejos",
       condicionIva: "exento",
       condicionPagoDias: 0,
     });
 
-    const hoy = new Date().toISOString().slice(0, 10);
+    await withTenant(tenant.tenantId, async (tx) => {
+      await tx.insert(comprobantesCompra).values([
+        {
+          tenantId: tenant.tenantId,
+          proveedorId: cerca.id,
+          fechaRecepcion: hace(0),
+          condicionPagoDias: 5,
+          total: "1000.00",
+        },
+        {
+          tenantId: tenant.tenantId,
+          proveedorId: lejos.id,
+          fechaRecepcion: hace(0),
+          condicionPagoDias: 90,
+          total: "1000.00",
+        },
+      ]);
+    });
 
-    const dentro = await listarProveedores(tenant, {
-      desde: hoy,
-      hasta: hoy,
+    const { items, total } = await listarProveedores(tenant, {
+      desde: enDias(1),
+      hasta: enDias(30),
       orden: "razonSocial",
       direccion: "asc",
       pagina: 1,
       tamanoPagina: 20,
     });
-    expect(dentro.total).toBe(1);
-
-    const antes = await listarProveedores(tenant, {
-      hasta: "2020-01-01",
-      orden: "razonSocial",
-      direccion: "asc",
-      pagina: 1,
-      tamanoPagina: 20,
-    });
-    expect(antes.total).toBe(0);
+    expect(total).toBe(1);
+    expect(items[0]?.razonSocial).toBe("Vence pronto");
   });
 });

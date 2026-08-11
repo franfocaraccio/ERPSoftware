@@ -179,15 +179,15 @@ export function ListaProveedores() {
           ]}
           onCambio={setCondicionIva}
         />
-        {/* Un padrón de proveedores no tiene fecha de negocio: lo único
-            fechado es cuándo se dio de alta. Por eso la etiqueta lo dice. */}
+        {/* Filtra por el próximo vencimiento, que es la columna fechada de la
+            tabla. No es un dato del proveedor: sale de sus compras. */}
         <RangoFechas
           desde={desde}
           hasta={hasta}
           onDesde={setDesde}
           onHasta={setHasta}
-          etiquetaDesde="Alta desde"
-          etiquetaHasta="Alta hasta"
+          etiquetaDesde="Vence desde"
+          etiquetaHasta="Vence hasta"
         />
         <div className="relative w-full max-w-xs">
           <Search
