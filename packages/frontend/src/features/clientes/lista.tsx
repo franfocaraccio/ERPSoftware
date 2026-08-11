@@ -26,7 +26,7 @@ import {
   formatearCuit,
   formatearImporte,
 } from "../../lib/formato.js";
-import { alineadoDerecha } from "../../lib/tabla.js";
+import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaCliente {
@@ -62,24 +62,27 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("cuit", {
+    meta: { secundaria: true },
     header: "CUIT",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearCuit(info.getValue())}</span>
     ),
   }),
   helper.accessor("condicionIva", {
+    meta: { secundaria: true },
     header: "Condición IVA",
     cell: (info) => (
       <span className="text-muted-foreground">{etiquetaCondicionIva(info.getValue())}</span>
     ),
   }),
   helper.accessor("email", {
+    meta: { secundaria: true },
     header: "Email",
     cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("limiteCredito", {
     header: "Límite de crédito",
-    meta: { alineado: "derecha" },
+    meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearImporte(info.getValue())}
@@ -258,8 +261,9 @@ export function ListaClientes() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
                             derecha ? "text-right" : "text-left",
+                            clasesColumna(header.column.columnDef.meta),
                           )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
@@ -287,7 +291,13 @@ export function ListaClientes() {
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
                     {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-middle">
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesColumna(cell.column.columnDef.meta),
+                        )}
+                      >
                         <table.FlexRender cell={cell} />
                       </td>
                     ))}

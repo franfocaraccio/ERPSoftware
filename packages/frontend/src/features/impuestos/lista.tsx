@@ -27,7 +27,7 @@ import {
   formatearPeriodo,
   formatearPorcentaje,
 } from "../../lib/formato.js";
-import { alineadoDerecha } from "../../lib/tabla.js";
+import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 type EstadoImpuesto = "pagado" | "vencido" | "pendiente";
@@ -73,6 +73,7 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("periodo", {
+    meta: { secundaria: true },
     header: "Período",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearPeriodo(info.getValue())}</span>
@@ -80,7 +81,7 @@ const columnas = helper.columns([
   }),
   helper.accessor("baseImponible", {
     header: "Base imponible",
-    meta: { alineado: "derecha" },
+    meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearImporte(info.getValue())}
@@ -89,7 +90,7 @@ const columnas = helper.columns([
   }),
   helper.accessor("alicuota", {
     header: "Alícuota",
-    meta: { alineado: "derecha" },
+    meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {formatearPorcentaje(info.getValue())}
@@ -98,7 +99,7 @@ const columnas = helper.columns([
   }),
   helper.accessor("importeDeterminado", {
     header: "Determinado",
-    meta: { alineado: "derecha" },
+    meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-foreground">
         {formatearImporte(info.getValue())}
@@ -120,6 +121,7 @@ const columnas = helper.columns([
     },
   }),
   helper.accessor("fechaVencimiento", {
+    meta: { secundaria: true },
     header: "Vencimiento",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearFecha(info.getValue())}</span>
@@ -330,8 +332,9 @@ export function ListaImpuestos() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
                             derecha ? "text-right" : "text-left",
+                            clasesColumna(header.column.columnDef.meta),
                           )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
@@ -359,7 +362,13 @@ export function ListaImpuestos() {
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
                     {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-middle">
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesColumna(cell.column.columnDef.meta),
+                        )}
+                      >
                         <table.FlexRender cell={cell} />
                       </td>
                     ))}

@@ -21,7 +21,22 @@ declare module "@tanstack/react-table" {
     TValue extends CellData = CellData,
   > {
     alineado?: "derecha";
+    /**
+     * Columnas que se esconden en pantalla chica. En un teléfono no entran
+     * siete columnas: la tabla envuelve el texto Y scrollea, que es lo peor de
+     * los dos mundos. El dato no se pierde, se ve al abrir el registro.
+     *
+     * Se marca lo secundario y no lo principal a propósito: una columna nueva
+     * aparece por defecto, que es el error visible, en vez de desaparecer en
+     * silencio del teléfono.
+     */
+    secundaria?: boolean;
   }
+}
+
+/** Clases para esconder una columna secundaria abajo del breakpoint `sm`. */
+export function clasesColumna(meta: { secundaria?: boolean } | undefined): string {
+  return meta?.secundaria ? "hidden sm:table-cell" : "";
 }
 
 // Recibe el `meta` y no el header entero: los genéricos de Header no unifican

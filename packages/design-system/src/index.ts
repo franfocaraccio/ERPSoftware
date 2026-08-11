@@ -1,4 +1,5 @@
 export { Boton, type BotonProps, clasesBoton } from "./components/button.js";
+export { Cajon } from "./components/cajon.js";
 export {
   Campo,
   Entrada,

@@ -18,7 +18,7 @@ import {
   formatearFecha,
   formatearImporte,
 } from "../../lib/formato.js";
-import { alineadoDerecha } from "../../lib/tabla.js";
+import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 interface FilaProveedor {
@@ -49,24 +49,27 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("cuit", {
+    meta: { secundaria: true },
     header: "CUIT",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearCuit(info.getValue())}</span>
     ),
   }),
   helper.accessor("condicionIva", {
+    meta: { secundaria: true },
     header: "Condición IVA",
     cell: (info) => (
       <span className="text-muted-foreground">{etiquetaCondicionIva(info.getValue())}</span>
     ),
   }),
   helper.accessor("rubro", {
+    meta: { secundaria: true },
     header: "Rubro",
     cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("condicionPagoDias", {
     header: "Plazo",
-    meta: { alineado: "derecha" },
+    meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
         {info.getValue()} {info.getValue() === 1 ? "día" : "días"}
@@ -74,6 +77,7 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("proximoVencimiento", {
+    meta: { secundaria: true },
     header: "Próx. vencimiento",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearFecha(info.getValue())}</span>
@@ -254,8 +258,9 @@ export function ListaProveedores() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
                             derecha ? "text-right" : "text-left",
+                            clasesColumna(header.column.columnDef.meta),
                           )}
                         >
                           {header.isPlaceholder ? null : ordenable ? (
@@ -283,7 +288,13 @@ export function ListaProveedores() {
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
                     {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-middle">
+                      <td
+                        key={cell.id}
+                        className={cn(
+                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesColumna(cell.column.columnDef.meta),
+                        )}
+                      >
                         <table.FlexRender cell={cell} />
                       </td>
                     ))}

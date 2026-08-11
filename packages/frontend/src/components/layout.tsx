@@ -1,4 +1,4 @@
-import { cn, ToggleTema } from "@erp/design-system";
+import { Cajon, cn, ToggleTema } from "@erp/design-system";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
@@ -7,6 +7,7 @@ import {
   Eye,
   FileText,
   LayoutDashboard,
+  Menu,
   Receipt,
   ScrollText,
   Settings,
@@ -69,10 +70,14 @@ function ItemNavegacion({
   item,
   activo,
   sangria = false,
+  onNavegar,
 }: {
   item: ItemNav;
   activo: boolean;
   sangria?: boolean;
+  // En el cajón hay que cerrarlo al elegir: si no, la pantalla nueva queda
+  // tapada por el menú que la abrió.
+  onNavegar?: () => void;
 }) {
   const { a, etiqueta, Icono, habilitado } = item;
 
@@ -93,6 +98,7 @@ function ItemNavegacion({
     <Link
       to={a}
       aria-current={activo ? "page" : undefined}
+      onClick={onNavegar}
       className={cn(
         CLASES_ITEM,
         sangria && "ml-3",
@@ -107,7 +113,7 @@ function ItemNavegacion({
   );
 }
 
-function Navegacion() {
+function Navegacion({ onNavegar }: { onNavegar?: () => void }) {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
   const rol = useRolOrganizacion();
   const idSubmenu = useId();
@@ -120,7 +126,12 @@ function Navegacion() {
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
       {NAVEGACION.map((item) => (
-        <ItemNavegacion key={item.a} item={item} activo={ruta.startsWith(item.a)} />
+        <ItemNavegacion
+          key={item.a}
+          item={item}
+          activo={ruta.startsWith(item.a)}
+          {...(onNavegar ? { onNavegar } : {})}
+        />
       ))}
 
       {rol === ROL_CONFIGURACION && (
@@ -154,7 +165,13 @@ function Navegacion() {
           {abierto && (
             <div id={idSubmenu} className="flex flex-col gap-0.5">
               {CONFIGURACION.map((item) => (
-                <ItemNavegacion key={item.a} item={item} activo={ruta.startsWith(item.a)} sangria />
+                <ItemNavegacion
+                  key={item.a}
+                  item={item}
+                  activo={ruta.startsWith(item.a)}
+                  sangria
+                  {...(onNavegar ? { onNavegar } : {})}
+                />
               ))}
             </div>
           )}
@@ -166,6 +183,7 @@ function Navegacion() {
 
 export function Layout({ children }: { children: ReactNode }) {
   const porLink = hayAccesoPorLink();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
@@ -180,7 +198,20 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-col">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border bg-canvas/85 px-4 backdrop-blur-sm sm:px-6">
-          <p className="text-sm font-semibold tracking-tight text-foreground lg:hidden">ERP PyME</p>
+          {/* En pantallas chicas el menú vive en un cajón: fuera del flujo de
+              la página, para no empujar el contenido abajo del fold. */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              type="button"
+              aria-label="Abrir el menú"
+              aria-expanded={menuAbierto}
+              onClick={() => setMenuAbierto(true)}
+              className="-ml-1 cursor-pointer rounded-lg p-2 text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              <Menu className="size-5" aria-hidden="true" />
+            </button>
+            <p className="text-sm font-semibold tracking-tight text-foreground">ERP PyME</p>
+          </div>
           <div className="hidden lg:block" />
           <div className="flex items-center gap-2">
             {porLink ? (
@@ -198,10 +229,9 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Navegación horizontal en pantallas chicas (el sidebar se oculta). */}
-        <div className="overflow-x-auto border-b border-border bg-surface py-2 lg:hidden">
-          <Navegacion />
-        </div>
+        <Cajon abierto={menuAbierto} onAbiertoChange={setMenuAbierto} titulo="ERP PyME">
+          <Navegacion onNavegar={() => setMenuAbierto(false)} />
+        </Cajon>
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
