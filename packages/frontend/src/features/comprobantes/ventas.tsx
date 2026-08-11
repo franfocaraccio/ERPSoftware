@@ -15,6 +15,7 @@ import {
   ariaSort,
   type Direccion,
   EncabezadoOrdenable,
+  FiltroSelector,
   RangoFechas,
 } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
@@ -104,19 +105,13 @@ export function Ventas() {
     <>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
-        <select
-          value={estado}
-          onChange={(e) => setEstado(e.target.value as Estado | "")}
-          aria-label="Filtrar por estado"
-          className="h-10 cursor-pointer rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground focus:border-ring"
-        >
-          <option value="">Todos los estados</option>
-          {ESTADOS.map((e) => (
-            <option key={e} value={e}>
-              {ETIQUETA_ESTADO[e]}
-            </option>
-          ))}
-        </select>
+        <FiltroSelector
+          etiqueta="Estado"
+          valor={estado}
+          textoTodos="Todos los estados"
+          opciones={ESTADOS.map((e) => ({ id: e, etiqueta: ETIQUETA_ESTADO[e] }))}
+          onCambio={setEstado}
+        />
 
         {!isPending && data && (
           <p className="text-xs text-muted-foreground tabular">

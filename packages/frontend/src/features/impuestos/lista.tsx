@@ -217,22 +217,18 @@ export function ListaImpuestos() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value as (typeof TIPOS)[number] | "")}
-          aria-label="Filtrar por tipo de impuesto"
-          className="h-10 cursor-pointer rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground focus:border-ring"
-        >
-          <option value="">Todos los impuestos</option>
-          {TIPOS.map((t) => (
-            <option key={t} value={t}>
-              {ETIQUETAS_TIPO[t]}
-            </option>
-          ))}
-        </select>
+      {/* items-end: los filtros con etiqueta arriba se alinean por el control,
+          no por el bloque entero. */}
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <FiltroSelector
+          etiqueta="Tipo"
+          valor={tipo}
+          textoTodos="Todos los impuestos"
+          opciones={TIPOS.map((t) => ({ id: t, etiqueta: ETIQUETAS_TIPO[t] ?? t }))}
+          onCambio={setTipo}
+        />
 
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+        <label className="flex h-10 cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             checked={soloImpagos}

@@ -27,19 +27,22 @@ Fase 1 y Fase 2 no tienen nada pendiente.
     propósito —sería entregarle la cuenta a cualquiera que escriba un mail—;
     aparece solo en la consola del backend.
 - **`packages/arca` es un stub** (`export {}`): falta WSAA, WSFEv1, CAE, QR, PDF
-  y la suite contra homologación.
+  y la suite contra homologación. **Bloqueado por decisión de Fran** — es la
+  Fase 3 entera y no se arranca todavía.
 - **Guardia de MFA obligatorio** para los roles que emiten comprobantes
   (`ROLES_CON_MFA_OBLIGATORIO` ya está declarado, sin aplicar).
 
 ## Infraestructura
 
 - El entorno de desarrollo está deployado y andando: Vercel → Railway →
-  Supabase `erp-dev`. Falta el **dominio propio** —bloqueado hasta definir el
-  nombre— y el entorno `erp-prod`. Todo el detalle, con las variables exactas y
-  los problemas abiertos, está en `DEPLOY.md`.
-- **Sin dominio propio, el login puede no funcionar en iPhone ni en Mac**:
-  Safari bloquea las cookies de terceros por defecto y hoy el frontend y el
-  backend están en dominios sin relación. Es lo primero de `DEPLOY.md`.
-- Sin Sentry ni monitoreo.
-- El plan Hobby de Vercel no permite uso comercial: hay que pasar a Pro o mudar
-  a Cloudflare Pages antes de tener clientes pagos.
+  Supabase `erp-dev`. El detalle completo, con las variables exactas y los
+  problemas abiertos, está en `DEPLOY.md`.
+- **Dominio propio.** Bloqueado hasta definir el nombre, pero es lo más urgente
+  de la lista: **sin él, el login puede no funcionar en iPhone ni en Mac**,
+  porque Safari bloquea las cookies de terceros por defecto y hoy el frontend y
+  el backend están en dominios sin relación. Todo decidido en `DEPLOY.md`.
+- **Entorno `erp-prod`. Bloqueado por decisión de Fran.**
+- **Sentry y monitoreo. Bloqueado por decisión de Fran.**
+- **Plan de hosting. Bloqueado por decisión de Fran.** El Hobby de Vercel no
+  permite uso comercial: antes del primer cliente pago hay que pasar a Pro o
+  mudar a Cloudflare Pages, que sí lo permite gratis.

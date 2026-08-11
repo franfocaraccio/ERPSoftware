@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { FiltroSelector, RangoFechas } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -298,10 +299,14 @@ export function Cheques() {
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
   const [estado, setEstado] = useState<ValoresCheque["estado"] | "">("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.tesoreria.cheques.listar.queryOptions({
       estado: estado || undefined,
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
       pagina: 1,
       tamanoPagina: 100,
     }),
@@ -309,20 +314,17 @@ export function Cheques() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select
-          value={estado}
-          onChange={(e) => setEstado(e.target.value as ValoresCheque["estado"] | "")}
-          aria-label="Filtrar por estado"
-          className="h-10 cursor-pointer rounded-lg border border-border-strong bg-surface px-3 text-sm text-foreground focus:border-ring"
-        >
-          <option value="">Todos los estados</option>
-          {ESTADOS.map((e) => (
-            <option key={e.valor} value={e.valor}>
-              {e.etiqueta}
-            </option>
-          ))}
-        </select>
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <FiltroSelector
+          etiqueta="Estado"
+          valor={estado}
+          textoTodos="Todos los estados"
+          opciones={ESTADOS.map((e) => ({ id: e.valor, etiqueta: e.etiqueta }))}
+          onCambio={setEstado}
+        />
+        {/* Sobre la fecha de pago: es la que dice cuándo entra la plata, que es
+            para lo que se mira la cartera. */}
+        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
 
         {!isPending && data && (
           <p className="text-xs text-muted-foreground">
