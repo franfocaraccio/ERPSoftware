@@ -17,6 +17,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
+import { Asistente } from "../features/asistente/chat.js";
 import { hayAccesoPorLink } from "../lib/acceso-consolidado.js";
 import {
   AvisoAccesoPorLink,
@@ -235,6 +236,8 @@ export function Layout({ children }: { children: ReactNode }) {
 
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
+
+      <Asistente />
     </div>
   );
 }

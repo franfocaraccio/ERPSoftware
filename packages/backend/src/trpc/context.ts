@@ -82,20 +82,23 @@ async function sesionPorLink(headers: Headers): Promise<Sesion | null> {
  * Resuelve la sesión del lado servidor a partir de las cookies. El tenantId
  * nunca sale de un parámetro del cliente: se deriva de la organización activa
  * de la sesión, y el rol se lee de la tabla de miembros.
+ *
+ * Vive separado de `createContext` porque no solo lo usa tRPC: el endpoint de
+ * chat, que es una ruta Express común, resuelve la sesión con esta misma
+ * función. Duplicar esta lógica sería tener dos implementaciones de "quién sos
+ * y de qué empresa", que es exactamente lo que no puede divergir.
  */
-export async function createContext({ req }: CreateExpressContextOptions): Promise<Context> {
-  const headers = fromNodeHeaders(req.headers);
-
+export async function resolverSesion(headers: Headers): Promise<Sesion | null> {
   // El link de solo lectura tiene prioridad sobre la cookie: si alguien abre un
   // link estando logueado con su cuenta, lo que quiso es ver eso.
   const porLink = await sesionPorLink(headers);
   if (porLink) {
-    return { session: porLink, headers };
+    return porLink;
   }
 
   const resultado = await auth.api.getSession({ headers });
   if (!resultado) {
-    return { session: null, headers };
+    return null;
   }
 
   const { user, session } = resultado;
@@ -117,18 +120,20 @@ export async function createContext({ req }: CreateExpressContextOptions): Promi
   }
 
   return {
-    headers,
-    session: {
-      usuarioId: user.id,
-      email: user.email,
-      nombre: user.name,
-      // Sin membresía vigente no hay organización activa válida, aunque la
-      // sesión la traiga: evita que un usuario removido siga operando.
-      activeOrganizationId: rolOrganizacion ? activeOrganizationId : null,
-      rolOrganizacion,
-      esAdminPlataforma: user.role === ROL_PLATAFORMA_ADMIN,
-      dosFactoresVerificado: Boolean(user.twoFactorEnabled),
-      esAccesoPorLink: false,
-    },
+    usuarioId: user.id,
+    email: user.email,
+    nombre: user.name,
+    // Sin membresía vigente no hay organización activa válida, aunque la
+    // sesión la traiga: evita que un usuario removido siga operando.
+    activeOrganizationId: rolOrganizacion ? activeOrganizationId : null,
+    rolOrganizacion,
+    esAdminPlataforma: user.role === ROL_PLATAFORMA_ADMIN,
+    dosFactoresVerificado: Boolean(user.twoFactorEnabled),
+    esAccesoPorLink: false,
   };
+}
+
+export async function createContext({ req }: CreateExpressContextOptions): Promise<Context> {
+  const headers = fromNodeHeaders(req.headers);
+  return { headers, session: await resolverSesion(headers) };
 }

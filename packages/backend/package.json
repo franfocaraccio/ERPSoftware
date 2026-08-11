@@ -16,8 +16,10 @@
     "db:seed": "tsx src/scripts/seed.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.36",
     "@erp/core": "workspace:*",
     "@trpc/server": "^11.18.0",
+    "ai": "^7.0.58",
     "better-auth": "^1.6.26",
     "cors": "^2.8.6",
     "drizzle-orm": "^0.45.2",

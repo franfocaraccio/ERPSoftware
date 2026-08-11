@@ -5,6 +5,7 @@ import cors from "cors";
 import express from "express";
 import { auth } from "./auth/auth.js";
 import { verificarMigraciones } from "./db/migraciones.js";
+import { asistenteRouter, inicializarAsistente } from "./modules/asistente/ruta.js";
 import { createContext } from "./trpc/context.js";
 import { appRouter } from "./trpc/router.js";
 
@@ -27,10 +28,19 @@ app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
+// El chat va por una ruta Express común y no por tRPC: el streaming de tokens
+// es un POST que devuelve un stream, que es justo lo que espera el SDK.
+app.use(asistenteRouter);
+
 // Antes de escuchar, no después: si la base está atrasada conviene que el
 // deploy falle y Railway conserve la versión anterior, en vez de dejar arriba
 // un backend que va a contestar 500 cada vez que toque una columna nueva.
 await verificarMigraciones();
+
+// Después de las migraciones y antes de escuchar: si el manual no está donde
+// tiene que estar, conviene enterarse en el deploy y no cuando un usuario
+// abra el chat y reciba una respuesta inventada.
+inicializarAsistente();
 
 const puerto = Number(process.env.PORT ?? 3001);
 app.listen(puerto, () => {

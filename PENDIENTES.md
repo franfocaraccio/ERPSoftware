@@ -30,6 +30,31 @@ Fase 1 y Fase 2 no tienen nada pendiente.
   y la suite contra homologación. **Bloqueado por decisión de Fran** — es la
   Fase 3 entera y no se arranca todavía.
 
+## Asistente (chatbot)
+
+La **Fase A está hecha**: burbuja abajo a la derecha, panel de chat, y un
+asistente que responde sobre cómo usar el sistema a partir de `docs/ayuda`, que
+viaja entero en el prompt (19k caracteres) con cache de Anthropic. No tiene
+acceso a los datos de la empresa y el prompt le exige decirlo en vez de inventar.
+
+- **Falta la `ANTHROPIC_API_KEY`.** Sin ella el chat queda deshabilitado a
+  propósito: la burbuja igual aparece pero la ruta contesta 503. Es lo único que
+  separa a la Fase A de estar andando en dev. **La llamada real al modelo no
+  está probada todavía** — sí lo está todo lo demás (sesión, validación, tope
+  diario, streaming y render).
+- **Fase B — responder sobre los datos del usuario.** El diseño está decidido:
+  herramientas de solo lectura sobre los services que ya existen, ejecutadas con
+  el `Actor` que arma el servidor, nunca SQL generado por el modelo y nunca
+  aritmética hecha por el modelo (los totales los devuelve `@erp/core`). No se
+  fijan preguntas posibles: el modelo razona y elige la herramienta.
+- **El tope diario vive en memoria** (`modules/asistente/limite.ts`): se
+  reinicia en cada deploy y no se comparte entre instancias. Alcanza con un solo
+  contenedor; si el backend escala, hay que moverlo a Postgres.
+- **Las conversaciones no se guardan.** Para mejorar el asistente hay que poder
+  leer qué le preguntan. Tabla con `tenant_id` y RLS como todo el resto.
+- El manual se lee del disco al arrancar: **editar un `.md` exige reiniciar el
+  backend**, y el `Dockerfile` tiene que seguir copiando `docs/`.
+
 ## Infraestructura
 
 - El entorno de desarrollo está deployado y andando: Vercel → Railway →

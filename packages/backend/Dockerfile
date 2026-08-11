@@ -32,6 +32,11 @@ RUN pnpm install --frozen-lockfile --prod --filter @erp/backend...
 COPY packages/core packages/core
 COPY packages/backend packages/backend
 
+# El manual del asistente se lee del disco al arrancar. Sin esta copia el
+# contenedor levanta con el manual vacío y el chat contesta inventando: por eso
+# `manual.ts` aborta el arranque si no encuentra los archivos.
+COPY docs docs
+
 ENV NODE_ENV=production
 
 # Informativo: Railway inyecta su propio PORT y src/index.ts lo respeta.
