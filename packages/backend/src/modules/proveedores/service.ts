@@ -71,16 +71,6 @@ export async function listarProveedores(
       .groupBy(movimientos.proveedorId)
       .as("pagado");
 
-    // El rango filtra por próximo vencimiento, que es una columna calculada del
-    // subquery, no del proveedor: por eso el filtro se arma acá, ya con el join
-    // hecho. Un proveedor sin vencimientos futuros queda afuera, que es lo
-    // correcto para "los que me vencen entre estas dos fechas".
-    if (input.desde) {
-      condiciones.push(sql`${comprado.proximo} >= ${input.desde}::date`);
-    }
-    if (input.hasta) {
-      condiciones.push(sql`${comprado.proximo} <= ${input.hasta}::date`);
-    }
     const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const filas = await tx
@@ -120,13 +110,7 @@ export async function listarProveedores(
       proximoVencimiento: proximo ? String(proximo).slice(0, 10) : null,
     }));
 
-    // El mismo join que el listado: el filtro puede referirse a `comprado`, y
-    // sin la unión el conteo no compilaría — y si compilara, mentiría.
-    const [fila] = await tx
-      .select({ total: count() })
-      .from(proveedores)
-      .leftJoin(comprado, eq(comprado.proveedorId, proveedores.id))
-      .where(filtro);
+    const [fila] = await tx.select({ total: count() }).from(proveedores).where(filtro);
     return { items, total: fila?.total ?? 0 };
   });
 }

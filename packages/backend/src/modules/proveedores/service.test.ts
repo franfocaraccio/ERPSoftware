@@ -249,48 +249,4 @@ describe("proveedores service (integración, RLS activo)", () => {
     // El mínimo absoluto sería el de hace 90 días; se espera el futuro.
     expect(items[0]?.proximoVencimiento).toBe(enDias(20));
   });
-
-  it("filtra por rango de próximo vencimiento", async () => {
-    const tenant = await crearTenantDePrueba();
-    const cerca = await crearProveedor(tenant, {
-      razonSocial: "Vence pronto",
-      condicionIva: "exento",
-      condicionPagoDias: 0,
-    });
-    const lejos = await crearProveedor(tenant, {
-      razonSocial: "Vence lejos",
-      condicionIva: "exento",
-      condicionPagoDias: 0,
-    });
-
-    await withTenant(tenant.tenantId, async (tx) => {
-      await tx.insert(comprobantesCompra).values([
-        {
-          tenantId: tenant.tenantId,
-          proveedorId: cerca.id,
-          fechaRecepcion: hace(0),
-          condicionPagoDias: 5,
-          total: "1000.00",
-        },
-        {
-          tenantId: tenant.tenantId,
-          proveedorId: lejos.id,
-          fechaRecepcion: hace(0),
-          condicionPagoDias: 90,
-          total: "1000.00",
-        },
-      ]);
-    });
-
-    const { items, total } = await listarProveedores(tenant, {
-      desde: enDias(1),
-      hasta: enDias(30),
-      orden: "razonSocial",
-      direccion: "asc",
-      pagina: 1,
-      tamanoPagina: 20,
-    });
-    expect(total).toBe(1);
-    expect(items[0]?.razonSocial).toBe("Vence pronto");
-  });
 });

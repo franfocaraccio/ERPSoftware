@@ -9,7 +9,6 @@ import {
   type Direccion,
   EncabezadoOrdenable,
   FiltroSelector,
-  RangoFechas,
 } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
@@ -127,16 +126,12 @@ export function ListaProveedores() {
     setDireccion(dir);
   };
   const [busqueda, setBusqueda] = useState("");
-  const [desde, setDesde] = useState("");
-  const [hasta, setHasta] = useState("");
   const busquedaDiferida = useDeferredValue(busqueda);
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.proveedores.listar.queryOptions({
       busqueda: busquedaDiferida || undefined,
       ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
-      ...(desde ? { desde } : {}),
-      ...(hasta ? { hasta } : {}),
       orden: orden as "razonSocial",
 
       direccion,
@@ -178,16 +173,6 @@ export function ListaProveedores() {
             { id: "consumidor_final" as const, etiqueta: "Consumidor final" },
           ]}
           onCambio={setCondicionIva}
-        />
-        {/* Filtra por el próximo vencimiento, que es la columna fechada de la
-            tabla. No es un dato del proveedor: sale de sus compras. */}
-        <RangoFechas
-          desde={desde}
-          hasta={hasta}
-          onDesde={setDesde}
-          onHasta={setHasta}
-          etiquetaDesde="Vence desde"
-          etiquetaHasta="Vence hasta"
         />
         <div className="relative w-full max-w-xs">
           <Search
