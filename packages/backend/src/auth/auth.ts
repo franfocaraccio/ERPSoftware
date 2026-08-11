@@ -13,10 +13,25 @@ if (!secret) {
   throw new Error("Falta la variable de entorno BETTER_AUTH_SECRET");
 }
 
+const urlFrontend = process.env.FRONTEND_URL ?? "http://localhost:5173";
+const urlBackend = process.env.BETTER_AUTH_URL ?? "http://localhost:3001";
+
+/**
+ * Si el frontend y el backend viven en hosts distintos, la cookie de sesión es
+ * cross-site y el navegador no la manda con el `SameSite=Lax` que BetterAuth
+ * usa por defecto: el login responde 200, la cookie se descarta y la siguiente
+ * request vuelve sin sesión. Desde afuera se ve como "recarga y vuelve al
+ * login", sin ningún error.
+ *
+ * En local no aplica: frontend y backend comparten `localhost` —el puerto no
+ * cuenta para las cookies— y ahí `Lax` es lo correcto y más seguro.
+ */
+const sitiosDistintos = new URL(urlFrontend).hostname !== new URL(urlBackend).hostname;
+
 export const auth = betterAuth({
   secret,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
-  trustedOrigins: [process.env.FRONTEND_URL ?? "http://localhost:5173"],
+  baseURL: urlBackend,
+  trustedOrigins: [urlFrontend],
   database: drizzleAdapter(db, { provider: "pg", schema: authSchema }),
 
   emailAndPassword: {
@@ -117,6 +132,28 @@ export const auth = betterAuth({
     ipAddress: {
       ipAddressHeaders: ["x-real-ip"],
     },
+
+    /**
+     * Cookie de sesión entre sitios distintos. `Secure` es obligatorio para
+     * que el navegador acepte `SameSite=None`, y `Partitioned` (CHIPS) la
+     * mantiene viva bajo el bloqueo de cookies de terceros de Chrome.
+     *
+     * Esto es un parche, no la solución: Safari bloquea las cookies de
+     * terceros por defecto, así que mientras el frontend y el backend estén en
+     * dominios sin relación (`vercel.app` y `railway.app`) el login puede
+     * fallar en iPhone y en Mac. Lo que lo resuelve de verdad es un dominio
+     * propio con ambos colgando de él —`app.` y `api.`—, que vuelve la cookie
+     * de primera parte. Hay que hacerlo antes de que entre gente real.
+     */
+    ...(sitiosDistintos
+      ? {
+          defaultCookieAttributes: {
+            sameSite: "none" as const,
+            secure: true,
+            partitioned: true,
+          },
+        }
+      : {}),
   },
 });
 
