@@ -68,11 +68,15 @@ CI existe solo durante el job. Por eso además el `Dockerfile` instala con
   confirmar. Va separado del CI porque Railway espera a que **todas** las
   Actions terminen: un job esperando aprobación dejaría los deploys colgados.
 
-Hace falta configurar, en Settings → Environments del repo, un entorno
-**`erp-dev`** y otro **`erp-prod`**, cada uno con su secret
-`DATABASE_URL_MIGRATIONS` apuntando al rol `postgres` del proyecto que
-corresponda, por el pooler en 5432. Si querés que producción además necesite el
-visto bueno de otra persona, agregale *Required reviewers* a `erp-prod`.
+La credencial vive en Settings → Environments del repo. El entorno **`erp-dev`**
+ya está creado, con su secret `DATABASE_URL_MIGRATIONS` apuntando al rol
+`postgres` por el pooler en 5432. Falta el entorno **`erp-prod`**, que se crea
+igual cuando exista ese proyecto; si querés que producción además necesite el
+visto bueno de otra persona, agregale *Required reviewers*.
+
+Mientras el secret de un entorno no exista, el paso se saltea con una
+advertencia en vez de fallar: si fallara, con *Wait for CI* activado dejaría
+todos los deploys bloqueados.
 
 **El backend chequea al arrancar** que la base tenga aplicadas todas las
 migraciones que el código conoce, y se niega a levantar si le faltan, nombrando
@@ -404,8 +408,7 @@ ocho tablas quedan sin `SELECT` para ambos y una tabla creada después tampoco
 lo recibe, mientras `erp_app` conserva lectura y escritura; sin los roles, la
 migración aplica igual y los 83 tests pasan contra esa base.
 
-**Pendiente de aplicar en `erp-dev`**, junto con la `0010`: se aplican solas en
-el primer push a `main` posterior a configurar el entorno `erp-dev` en GitHub.
+Aplicada en `erp-dev` el 11 de agosto de 2026, junto con la `0010`.
 
 ### Problema 4 — El puerto de Supabase afecta la numeración fiscal
 
