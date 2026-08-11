@@ -98,7 +98,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Mientras el secret no esté cargado, este paso se saltea en vez de
+      # fallar. Si fallara, el CI quedaría en rojo y —por "Wait for CI"—
+      # bloquearía todos los deploys hasta terminar de configurar GitHub.
       - name: Migrar erp-dev
-        run: pnpm --filter @erp/backend db:migrate
         env:
           DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
+        run: |
+          if [ -z "$DATABASE_URL_MIGRATIONS" ]; then
+            echo "::warning::Falta el secret DATABASE_URL_MIGRATIONS en el entorno erp-dev. Las migraciones NO se aplicaron."
+            exit 0
+          fi
+          pnpm --filter @erp/backend db:migrate
