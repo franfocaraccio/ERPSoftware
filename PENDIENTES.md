@@ -44,9 +44,6 @@ responde sobre el manual, se niega a inventar datos de la empresa y deriva al
 contador cuando le piden criterio impositivo. El cache pega: 4864 de 5260 tokens
 de entrada se leen cacheados a partir del segundo mensaje.
 
-- **La burbuja aparece aunque el asistente esté apagado.** El endpoint
-  `/api/chat/estado` está hecho para poder esconderla, pero no está enganchado
-  en el frontend.
 - **Fase B — responder sobre los datos del usuario.** El diseño está decidido:
   herramientas de solo lectura sobre los services que ya existen, ejecutadas con
   el `Actor` que arma el servidor, nunca SQL generado por el modelo y nunca
@@ -55,18 +52,23 @@ de entrada se leen cacheados a partir del segundo mensaje.
 - **El tope diario vive en memoria** (`modules/asistente/limite.ts`): se
   reinicia en cada deploy y no se comparte entre instancias. Alcanza con un solo
   contenedor; si el backend escala, hay que moverlo a Postgres.
-- **Las conversaciones no se guardan.** Tabla con `tenant_id` y RLS como todo el
-  resto. Conviene hacerlo **antes** de la Fase B, no después: lo que la gente
-  pregunta es lo que dice qué herramientas hay que construir y qué partes del
-  manual están flojas. Sin eso, la lista de herramientas de la Fase B se elige
-  adivinando.
+- **Falta decidir la retención de las conversaciones.** Hoy se guardan sin
+  vencimiento y contienen texto que escribieron los usuarios. Las tablas tienen
+  DELETE para poder purgar, pero no hay nada que lo haga: falta definir cuánto
+  se conservan y agregar el job.
 - El manual se lee del disco al arrancar: **editar un `.md` exige reiniciar el
   backend**, y el `Dockerfile` tiene que seguir copiando `docs/`.
-- Lo que **sí** está cubierto: `schema.ts`, `limite.ts` y `manual.ts` tienen
-  tests, y `features/asistente/rutas.test.ts` compara la lista blanca de links
-  y el manual contra el árbol de rutas real. Ese último es el que evita que
-  agregar una pantalla deje al asistente contestando cosas viejas. Corren con
-  `pnpm test`, sin API key y sin base de datos.
+- Lo que **sí** está cubierto: `schema.ts`, `limite.ts`, `manual.ts` y
+  `service.ts` tienen tests, y `features/asistente/rutas.test.ts` compara la
+  lista blanca de links y el manual contra el árbol de rutas real. Ese último es
+  el que evita que agregar una pantalla deje al asistente contestando cosas
+  viejas. Todos corren con `pnpm test` y sin API key.
+- Las conversaciones **se guardan** (`asistente_conversaciones` y
+  `asistente_mensajes`, con RLS). Para leerlas:
+  `psql "$DATABASE_URL_MIGRATIONS" -f packages/backend/scripts/leer-conversaciones.sql`,
+  que saca las últimas preguntas, las que el asistente no supo contestar y el
+  consumo de tokens por día. **No hay pantalla para verlas**: si mirarlas por
+  SQL se vuelve incómodo, ahí conviene hacerla.
 
 ## Infraestructura
 

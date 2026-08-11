@@ -1,5 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { Boton, cn } from "@erp/design-system";
+import { useQuery } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
 import { MessageCircle, Send, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +22,37 @@ const SUGERENCIAS = [
  * empresa —eso es una fase posterior—, y el prompt del servidor le exige
  * decirlo en vez de improvisar una cifra.
  */
+/**
+ * Si el backend no tiene API key, el asistente está apagado y la burbuja no se
+ * muestra: mostrarla sería ofrecer algo que falla al primer mensaje.
+ *
+ * Depende del backend y no de una variable del frontend a propósito. La key
+ * vive en Railway, así que el único que sabe si el chat funciona es el
+ * servidor; una variable de build acá se desincronizaría el día que se saque
+ * la key y nadie rebuildee.
+ */
+function useAsistenteHabilitado(): boolean {
+  const { data } = useQuery({
+    queryKey: ["asistente", "estado"],
+    queryFn: async ({ signal }) => {
+      const r = await fetch(`${API}/api/chat/estado`, { signal, credentials: "include" });
+      if (!r.ok) {
+        return { habilitado: false };
+      }
+      return (await r.json()) as { habilitado: boolean };
+    },
+    // No cambia salvo redeploy, y si el backend está caído no tiene sentido
+    // reintentar: la burbuja simplemente no aparece.
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
+
+  // Mientras no se sabe, no se muestra. Es preferible a que aparezca y se vaya.
+  return data?.habilitado ?? false;
+}
+
 export function Asistente() {
+  const habilitado = useAsistenteHabilitado();
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState("");
   const entradaRef = useRef<HTMLInputElement>(null);
@@ -38,6 +69,11 @@ export function Asistente() {
           const acceso = cabeceraAcceso();
           return acceso ? { "x-acceso-consolidado": acceso } : {};
         },
+        // Agrupa los turnos de esta charla del lado del servidor. Se genera una
+        // vez por montaje: el historial viaja entero en cada request y sin este
+        // id el backend no puede distinguir una conversación nueva de la
+        // continuación de otra.
+        body: { conversacionId: crypto.randomUUID() },
       }),
     [],
   );
@@ -85,6 +121,12 @@ export function Asistente() {
     }
     sendMessage({ text: limpio });
     setTexto("");
+  }
+
+  // Después de los hooks, nunca antes: React exige que la cantidad de hooks no
+  // cambie entre renders, y el estado llega en una segunda vuelta.
+  if (!habilitado) {
+    return null;
   }
 
   return (

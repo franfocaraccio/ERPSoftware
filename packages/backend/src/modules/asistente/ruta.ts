@@ -7,6 +7,22 @@ import { consumirCupo } from "./limite.js";
 import { cargarManual } from "./manual.js";
 import { bloqueDelUsuario, bloqueInvariante } from "./prompt.js";
 import { aMensajesDelModelo, chatSchema } from "./schema.js";
+import { guardarPregunta, guardarRespuesta } from "./service.js";
+
+/**
+ * Corre algo cuyo resultado no le importa a quien preguntó.
+ *
+ * Guardar la conversación es para nosotros, no para el usuario: si la base
+ * falla, la respuesta ya está escrita o escribiéndose y sería absurdo cortarla
+ * por eso. Queda en el log y sigue.
+ */
+async function registrar(tarea: () => Promise<void>): Promise<void> {
+  try {
+    await tarea();
+  } catch (error) {
+    console.error("[asistente] No se pudo guardar la conversación:", error);
+  }
+}
 
 /**
  * Un modelo mini alcanza de sobra para responder sobre un manual que ya está en
@@ -94,6 +110,16 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  const actor = { tenantId: sesion.activeOrganizationId, usuarioId: sesion.usuarioId };
+  const conversacionId = parseo.data.conversacionId;
+
+  // La última del usuario es la pregunta nueva; las anteriores ya se guardaron
+  // en sus propios turnos.
+  const ultimaPregunta = mensajes.filter((m) => m.role === "user").at(-1)?.content;
+  if (conversacionId && ultimaPregunta) {
+    await registrar(() => guardarPregunta(actor, conversacionId, ultimaPregunta));
+  }
+
   const resultado = streamText({
     model: openai(MODELO),
     // El bloque grande va primero y es idéntico para todos: OpenAI cachea el
@@ -111,7 +137,7 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
     ],
     providerOptions: { openai: { promptCacheKey: claveDeCache } },
     messages: mensajes,
-    onFinish({ usage }) {
+    async onFinish({ usage, text }) {
       // Sin esto no hay forma de saber qué cuesta el asistente ni si el cache
       // está funcionando de verdad.
       console.log(
@@ -121,6 +147,17 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
           `cache_escritura=${usage.inputTokenDetails.cacheWriteTokens ?? 0} ` +
           `restantes_hoy=${cupo.restantes}`,
       );
+
+      if (conversacionId && text) {
+        await registrar(() =>
+          guardarRespuesta(actor, conversacionId, text, {
+            modelo: MODELO,
+            entrada: usage.inputTokens,
+            salida: usage.outputTokens,
+            cache: usage.inputTokenDetails.cacheReadTokens,
+          }),
+        );
+      }
     },
     onError({ error }) {
       console.error("[asistente] Error generando la respuesta:", error);

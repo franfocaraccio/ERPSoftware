@@ -29,6 +29,14 @@ const mensajeSchema = z.object({
 export const chatSchema = z
   .object({
     messages: z.array(mensajeSchema).min(1).max(MAX_MENSAJES),
+    /**
+     * Id de la charla, generado por el navegador al abrir el panel. Es lo único
+     * que permite agrupar los turnos, porque el historial llega entero en cada
+     * request y el servidor no distingue una conversación nueva de la
+     * continuación de otra. Opcional: si no viene, la conversación no se guarda
+     * y el chat funciona igual.
+     */
+    conversacionId: z.uuid().optional(),
   })
   .refine(
     (body) => textoTotal(body.messages) <= MAX_CARACTERES_TOTAL,

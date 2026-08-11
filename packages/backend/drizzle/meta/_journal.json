@@ -78,6 +78,13 @@
       "when": 1786455817560,
       "tag": "0010_permitir_leer_estado_migraciones",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1786520000000,
+      "tag": "0011_crear_conversaciones_asistente",
+      "breakpoints": true
     }
   ]
 }
