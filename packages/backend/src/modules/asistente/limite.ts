@@ -11,44 +11,57 @@
  * entonces, una tabla sería complejidad sin beneficio.
  */
 
-const LIMITE_DIARIO_POR_TENANT = Number(process.env.ASISTENTE_LIMITE_DIARIO ?? 100);
-
-interface Contador {
-  dia: string;
-  usados: number;
-}
-
-const contadores = new Map<string, Contador>();
-
-/** Día en Argentina: el tope se renueva a la medianoche del usuario, no en UTC. */
-function diaActual(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
-}
-
 export interface ResultadoLimite {
   permitido: boolean;
   restantes: number;
   limite: number;
 }
 
-/** Consume una consulta del cupo del tenant. Llamar una vez por mensaje aceptado. */
-export function consumirCupo(tenantId: string): ResultadoLimite {
-  const hoy = diaActual();
-  const actual = contadores.get(tenantId);
+interface Contador {
+  dia: string;
+  usados: number;
+}
 
-  const contador = actual && actual.dia === hoy ? actual : { dia: hoy, usados: 0 };
+/**
+ * Día en Argentina: el tope se renueva a la medianoche del usuario, no en UTC.
+ * `en-CA` da el formato AAAA-MM-DD, que ordena y compara como string.
+ */
+export function diaEnArgentina(momento: Date): string {
+  return momento.toLocaleDateString("en-CA", { timeZone: "America/Argentina/Buenos_Aires" });
+}
 
-  if (contador.usados >= LIMITE_DIARIO_POR_TENANT) {
+/**
+ * Crea un contador aislado.
+ *
+ * El límite y el reloj entran por parámetro en vez de leerse acá adentro
+ * para que los tests puedan adelantar el día y usar un tope chico sin tocar
+ * variables de entorno globales ni esperar a mañana.
+ */
+export function crearContador(opciones: { limite: number; reloj?: () => Date }) {
+  const { limite, reloj = () => new Date() } = opciones;
+  const contadores = new Map<string, Contador>();
+
+  /** Consume una consulta del cupo del tenant. Llamar una vez por mensaje aceptado. */
+  return function consumir(tenantId: string): ResultadoLimite {
+    const hoy = diaEnArgentina(reloj());
+    const actual = contadores.get(tenantId);
+
+    // Si el contador guardado es de otro día, arranca de cero: así el cupo se
+    // renueva sin necesidad de barrer el mapa con una tarea periódica.
+    const contador = actual && actual.dia === hoy ? actual : { dia: hoy, usados: 0 };
+
+    if (contador.usados >= limite) {
+      contadores.set(tenantId, contador);
+      return { permitido: false, restantes: 0, limite };
+    }
+
+    contador.usados += 1;
     contadores.set(tenantId, contador);
-    return { permitido: false, restantes: 0, limite: LIMITE_DIARIO_POR_TENANT };
-  }
 
-  contador.usados += 1;
-  contadores.set(tenantId, contador);
-
-  return {
-    permitido: true,
-    restantes: LIMITE_DIARIO_POR_TENANT - contador.usados,
-    limite: LIMITE_DIARIO_POR_TENANT,
+    return { permitido: true, restantes: limite - contador.usados, limite };
   };
 }
+
+export const consumirCupo = crearContador({
+  limite: Number(process.env.ASISTENTE_LIMITE_DIARIO ?? 100),
+});

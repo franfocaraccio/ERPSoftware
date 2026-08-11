@@ -44,18 +44,6 @@ responde sobre el manual, se niega a inventar datos de la empresa y deriva al
 contador cuando le piden criterio impositivo. El cache pega: 4864 de 5260 tokens
 de entrada se leen cacheados a partir del segundo mensaje.
 
-- **El módulo no tiene tests.** Es la única parte del backend sin ninguno, y
-  hay tres cosas testeables sin API key: los topes y el rechazo del rol
-  `system` en `schema.ts`, el corte de día del contador en `limite.ts`, y que
-  `manual.ts` cargue y falle fuerte cuando no encuentra los archivos.
-- **Dos listas se pueden desincronizar en silencio**, que es la peor forma de
-  fallar acá:
-  - La lista blanca de rutas de `features/asistente/markdown.tsx` duplica el
-    árbol de rutas del router. Si se agrega una pantalla, el asistente la
-    nombra pero el link queda como texto muerto.
-  - `docs/ayuda` describe campos y pantallas. Si alguien agrega un campo
-    obligatorio y no toca el manual, el asistente sigue explicando el
-    formulario viejo con total seguridad.
 - **La burbuja aparece aunque el asistente esté apagado.** El endpoint
   `/api/chat/estado` está hecho para poder esconderla, pero no está enganchado
   en el frontend.
@@ -74,6 +62,11 @@ de entrada se leen cacheados a partir del segundo mensaje.
   adivinando.
 - El manual se lee del disco al arrancar: **editar un `.md` exige reiniciar el
   backend**, y el `Dockerfile` tiene que seguir copiando `docs/`.
+- Lo que **sí** está cubierto: `schema.ts`, `limite.ts` y `manual.ts` tienen
+  tests, y `features/asistente/rutas.test.ts` compara la lista blanca de links
+  y el manual contra el árbol de rutas real. Ese último es el que evita que
+  agregar una pantalla deje al asistente contestando cosas viejas. Corren con
+  `pnpm test`, sin API key y sin base de datos.
 
 ## Infraestructura
 

@@ -22,25 +22,25 @@ const DIRECTORIO = join(RAIZ, "docs", "ayuda");
  *
  * Se lee una vez al arrancar. Editar un .md exige reiniciar el backend.
  */
-export function cargarManual(): string {
+export function cargarManual(directorio: string = DIRECTORIO): string {
   let archivos: string[];
   try {
-    archivos = readdirSync(DIRECTORIO)
+    archivos = readdirSync(directorio)
       .filter((n) => n.endsWith(".md"))
       .sort();
   } catch (error) {
     throw new Error(
-      `No se pudo leer el manual del asistente en ${DIRECTORIO}. ` +
+      `No se pudo leer el manual del asistente en ${directorio}. ` +
         `Si esto pasa en un contenedor, revisá que el Dockerfile copie la carpeta docs. ` +
         `Causa: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
   if (archivos.length === 0) {
-    throw new Error(`El manual del asistente está vacío: no hay .md en ${DIRECTORIO}`);
+    throw new Error(`El manual del asistente está vacío: no hay .md en ${directorio}`);
   }
 
   return archivos
-    .map((nombre) => readFileSync(join(DIRECTORIO, nombre), "utf8").trim())
+    .map((nombre) => readFileSync(join(directorio, nombre), "utf8").trim())
     .join("\n\n---\n\n");
 }

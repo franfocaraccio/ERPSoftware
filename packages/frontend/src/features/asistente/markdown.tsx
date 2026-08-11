@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { esRutaConocida } from "./rutas.js";
 
 /**
  * Render mínimo de la respuesta del asistente: links internos, negrita y
@@ -10,44 +11,6 @@ import type { ReactNode } from "react";
  * React: no hay `dangerouslySetInnerHTML` en ningún lado, así que el texto que
  * devuelve el modelo no puede inyectar HTML aunque lo intente.
  */
-
-/**
- * Rutas que el asistente puede linkear.
- *
- * Es una lista blanca, no una validación de formato: el modelo escribe el
- * destino y podría inventar una ruta que no existe, o escribirla con una
- * variante que el router no matchea. Un link roto es peor que texto plano
- * —promete algo y no cumple—, así que lo que no está acá se muestra como
- * texto y listo.
- *
- * Quedan afuera a propósito las rutas con parámetro (`/clientes/$clienteId`):
- * sin el id no hay nada a dónde ir.
- */
-const RUTAS = [
-  "/panel",
-  "/clientes",
-  "/clientes/nuevo",
-  "/proveedores",
-  "/proveedores/nuevo",
-  "/stock",
-  "/stock/nuevo",
-  "/tesoreria",
-  "/impuestos",
-  "/impuestos/nueva",
-  "/comprobantes",
-  "/comprobantes/nuevo",
-  "/equipo",
-  "/parametros",
-  "/historial",
-  "/accesos",
-  "/recuperar",
-] as const;
-
-type RutaConocida = (typeof RUTAS)[number];
-
-function esRutaConocida(ruta: string): ruta is RutaConocida {
-  return (RUTAS as readonly string[]).includes(ruta);
-}
 
 /** `[texto](/ruta)` — solo rutas internas: cualquier otra cosa queda como texto. */
 const LINK = /\[([^\]]+)\]\((\/[^)\s]*)\)/g;
