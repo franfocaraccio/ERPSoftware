@@ -104,7 +104,14 @@ export function Ventas() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+        <RangoFechas
+          desde={desde}
+          hasta={hasta}
+          onDesde={setDesde}
+          onHasta={setHasta}
+          etiquetaDesde="Emisión desde"
+          etiquetaHasta="Emisión hasta"
+        />
         <FiltroSelector
           etiqueta="Estado"
           valor={estado}

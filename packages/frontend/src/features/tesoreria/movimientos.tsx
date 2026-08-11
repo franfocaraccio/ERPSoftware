@@ -416,7 +416,14 @@ export function Movimientos() {
           opciones={TIPOS_MOVIMIENTO}
           onCambio={setTipo}
         />
-        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+        <RangoFechas
+          desde={desde}
+          hasta={hasta}
+          onDesde={setDesde}
+          onHasta={setHasta}
+          etiquetaDesde="Fecha desde"
+          etiquetaHasta="Fecha hasta"
+        />
       </BarraFiltros>
 
       <div className="mb-4 flex items-center justify-between gap-3">

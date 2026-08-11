@@ -324,7 +324,14 @@ export function Cheques() {
         />
         {/* Sobre la fecha de pago: es la que dice cuándo entra la plata, que es
             para lo que se mira la cartera. */}
-        <RangoFechas desde={desde} hasta={hasta} onDesde={setDesde} onHasta={setHasta} />
+        <RangoFechas
+          desde={desde}
+          hasta={hasta}
+          onDesde={setDesde}
+          onHasta={setHasta}
+          etiquetaDesde="Pago desde"
+          etiquetaHasta="Pago hasta"
+        />
 
         {!isPending && data && (
           <p className="text-xs text-muted-foreground">

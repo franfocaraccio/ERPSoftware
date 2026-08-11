@@ -1,5 +1,6 @@
 import { normalizarCuit, validarCuit } from "@erp/core/tax";
 import { z } from "zod";
+import { rangoFechasSchema } from "../_comunes/fechas.js";
 import { ordenSchema } from "../_comunes/orden.js";
 
 export const condicionesIva = [
@@ -48,6 +49,9 @@ export const CAMPOS_ORDEN_PROVEEDORES = [
 export const proveedoresListarSchema = z.object({
   busqueda: z.string().trim().max(100).optional(),
   condicionIva: z.enum(condicionesIva).optional(),
+  // Un proveedor no tiene fecha de negocio: el rango filtra por fecha de alta,
+  // que es lo único fechado del padrón. Por eso la pantalla la nombra así.
+  ...rangoFechasSchema,
   ...ordenSchema(CAMPOS_ORDEN_PROVEEDORES, "razonSocial"),
   pagina: z.number().int().min(1).default(1),
   tamanoPagina: z.number().int().min(1).max(100).default(20),

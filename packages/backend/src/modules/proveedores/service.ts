@@ -1,11 +1,12 @@
 import { saldoCuentaCorriente } from "@erp/core/balances";
 import { Money } from "@erp/core/money";
-import { and, count, eq, ilike, or, sql, sum } from "drizzle-orm";
+import { and, count, eq, ilike, or, type SQL, sql, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { filtroRangoInstante } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import type { ProveedorActualizar, ProveedoresListar, ProveedorInput } from "./schema.js";
 
@@ -22,12 +23,25 @@ export async function listarProveedores(
   input: ProveedoresListar,
 ): Promise<{ items: ProveedorConSaldo[]; total: number }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = input.busqueda
-      ? or(
-          ilike(proveedores.razonSocial, `%${input.busqueda}%`),
-          ilike(proveedores.cuit, `%${input.busqueda}%`),
-        )
-      : undefined;
+    const condiciones: SQL[] = [];
+    if (input.busqueda) {
+      const busqueda = or(
+        ilike(proveedores.razonSocial, `%${input.busqueda}%`),
+        ilike(proveedores.cuit, `%${input.busqueda}%`),
+      );
+      if (busqueda) {
+        condiciones.push(busqueda);
+      }
+    }
+    if (input.condicionIva) {
+      condiciones.push(eq(proveedores.condicionIva, input.condicionIva));
+    }
+    // Fecha de alta: es la única fecha que tiene un padrón de proveedores.
+    const rango = filtroRangoInstante(proveedores.createdAt, input);
+    if (rango) {
+      condiciones.push(rango);
+    }
+    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     // Las sumas se agregan en SQL; la resta que define el saldo vive en core.
     const comprado = tx

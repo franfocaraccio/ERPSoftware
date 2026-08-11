@@ -1,7 +1,8 @@
-import { and, count, desc, eq, gte, inArray, lt, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { auditLog } from "../../db/schema/auditoria.js";
 import { user } from "../../db/schema/auth.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { filtroRangoInstante } from "../_comunes/fechas.js";
 import { type AuditoriaListar, MODULOS_AUDITABLES, type ModuloAuditable } from "./schema.js";
 
 interface Actor {
@@ -28,27 +29,6 @@ const MODULO_DE_TABLA = new Map<string, ModuloAuditable>(
   ),
 );
 
-/**
- * Los filtros son fechas de calendario argentino, no instantes: quien pone
- * "hasta el 7" espera ver lo del 7 a la tarde. Por eso el corte va contra la
- * medianoche del día siguiente.
- *
- * El offset va fijo porque Argentina no tiene horario de verano; si algún día
- * lo tuviera, esto pasa a `core/dates`.
- */
-const OFFSET_ARGENTINA = "-03:00";
-
-function inicioDelDia(fecha: string): Date {
-  return new Date(`${fecha}T00:00:00${OFFSET_ARGENTINA}`);
-}
-
-function inicioDelDiaSiguiente(fecha: string): Date {
-  const [anio, mes, dia] = fecha.split("-").map(Number);
-  // Date.UTC normaliza el desborde de día, mes y año.
-  const siguiente = new Date(Date.UTC(anio ?? 0, (mes ?? 1) - 1, (dia ?? 0) + 1));
-  return inicioDelDia(siguiente.toISOString().slice(0, 10));
-}
-
 export async function listarAuditoria(
   actor: Actor,
   input: AuditoriaListar,
@@ -56,11 +36,9 @@ export async function listarAuditoria(
   return withTenant(actor.tenantId, async (tx) => {
     const condiciones: SQL[] = [];
 
-    if (input.desde) {
-      condiciones.push(gte(auditLog.fecha, inicioDelDia(input.desde)));
-    }
-    if (input.hasta) {
-      condiciones.push(lt(auditLog.fecha, inicioDelDiaSiguiente(input.hasta)));
+    const rango = filtroRangoInstante(auditLog.fecha, input);
+    if (rango) {
+      condiciones.push(rango);
     }
     if (input.modulo) {
       condiciones.push(inArray(auditLog.tabla, [...MODULOS_AUDITABLES[input.modulo].tablas]));

@@ -168,4 +168,68 @@ describe("proveedores service (integración, RLS activo)", () => {
     });
     expect(total).toBe(1);
   });
+
+  // Este filtro estaba declarado en el schema y la pantalla lo mandaba, pero la
+  // consulta no lo aplicaba: el listado no cambiaba nunca.
+  it("filtra por condición de IVA", async () => {
+    const tenant = await crearTenantDePrueba();
+    await crearProveedor(tenant, {
+      razonSocial: "Inscripto SA",
+      condicionIva: "responsable_inscripto",
+      condicionPagoDias: 30,
+    });
+    await crearProveedor(tenant, {
+      razonSocial: "Monotributista",
+      condicionIva: "monotributo",
+      condicionPagoDias: 0,
+    });
+
+    const todos = await listarProveedores(tenant, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    expect(todos.total).toBe(2);
+
+    const soloMono = await listarProveedores(tenant, {
+      condicionIva: "monotributo",
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    expect(soloMono.total).toBe(1);
+    expect(soloMono.items[0]?.razonSocial).toBe("Monotributista");
+  });
+
+  it("filtra por fecha de alta, con las dos puntas inclusive", async () => {
+    const tenant = await crearTenantDePrueba();
+    await crearProveedor(tenant, {
+      razonSocial: "Alta de hoy",
+      condicionIva: "exento",
+      condicionPagoDias: 0,
+    });
+
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    const dentro = await listarProveedores(tenant, {
+      desde: hoy,
+      hasta: hoy,
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    expect(dentro.total).toBe(1);
+
+    const antes = await listarProveedores(tenant, {
+      hasta: "2020-01-01",
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    expect(antes.total).toBe(0);
+  });
 });

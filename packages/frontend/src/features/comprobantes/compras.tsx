@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { RangoFechas } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -279,13 +280,30 @@ export function Compras() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const [creando, setCreando] = useState(false);
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
   const { data, isPending, isError, refetch } = useQuery(
-    trpc.comprobantes.compras.listar.queryOptions({ pagina: 1, tamanoPagina: 50 }),
+    trpc.comprobantes.compras.listar.queryOptions({
+      ...(desde ? { desde } : {}),
+      ...(hasta ? { hasta } : {}),
+      pagina: 1,
+      tamanoPagina: 50,
+    }),
   );
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        {/* Sobre la fecha de recepción, que es de la que cuelga el plazo de
+            pago y, por lo tanto, la proyección de egresos. */}
+        <RangoFechas
+          desde={desde}
+          hasta={hasta}
+          onDesde={setDesde}
+          onHasta={setHasta}
+          etiquetaDesde="Recepción desde"
+          etiquetaHasta="Recepción hasta"
+        />
         {!isPending && data && (
           <p className="text-xs text-muted-foreground tabular">
             {data.total} {data.total === 1 ? "compra" : "compras"}
