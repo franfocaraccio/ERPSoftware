@@ -25,7 +25,7 @@ export function Asistente() {
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState("");
   const entradaRef = useRef<HTMLInputElement>(null);
-  const finRef = useRef<HTMLDivElement>(null);
+  const historialRef = useRef<HTMLDivElement>(null);
 
   const transport = useMemo(
     () =>
@@ -66,9 +66,15 @@ export function Asistente() {
   // de la vista y parece que no pasa nada. El disparador es el largo del texto
   // y no el array de mensajes: durante el streaming se agregan tokens dentro
   // del mismo mensaje, así que contar mensajes no alcanzaría.
+  //
+  // Se mueve el scroll del contenedor y no `scrollIntoView` sobre un elemento
+  // final: eso dejaba la respuesta 15px arriba del fondo —el padding de abajo
+  // del contenedor— y además puede mover el scroll de la página entera, que
+  // acá no tiene por qué moverse.
   useEffect(() => {
-    if (largoTotal > 0) {
-      finRef.current?.scrollIntoView({ block: "end" });
+    const historial = historialRef.current;
+    if (historial && largoTotal > 0) {
+      historial.scrollTop = historial.scrollHeight;
     }
   }, [largoTotal]);
 
@@ -120,7 +126,7 @@ export function Asistente() {
             </Boton>
           </header>
 
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm">
+          <div ref={historialRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4 text-sm">
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground">
@@ -173,8 +179,6 @@ export function Asistente() {
                 No se pudo responder. Probá de nuevo en un momento.
               </p>
             )}
-
-            <div ref={finRef} />
           </div>
 
           <form

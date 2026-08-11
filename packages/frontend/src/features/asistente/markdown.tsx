@@ -69,25 +69,63 @@ export function Markdown({ texto }: { texto: string }) {
   );
 }
 
+/**
+ * La negrita es la estructura de afuera y los links van adentro, no al revés.
+ *
+ * El modelo escribe `**[Comprobantes](/comprobantes)**` y lo hace seguido. Si
+ * se buscan los links primero, la línea queda partida en pedazos y los dos `**`
+ * de un mismo par caen en pedazos distintos: dejan de emparejarse, aparece un
+ * `**` suelto en pantalla y se termina poniendo en negrita el texto que va
+ * entre dos links en lugar de los links. Pasó de verdad, no es hipotético.
+ *
+ * Al revés funciona porque el contenido de una negrita nunca tiene `*`, así que
+ * un link entero entra sin cortar el par.
+ */
 function formatearLinea(linea: string): ReactNode[] {
   const nodos: ReactNode[] = [];
   let ultimo = 0;
   let clave = 0;
 
+  NEGRITA.lastIndex = 0;
+  let coincidencia = NEGRITA.exec(linea);
+  while (coincidencia !== null) {
+    if (coincidencia.index > ultimo) {
+      nodos.push(...conLinks(linea.slice(ultimo, coincidencia.index), `t${clave++}`));
+    }
+    nodos.push(
+      <strong key={`n${clave++}`} className="font-semibold">
+        {conLinks(coincidencia[1] ?? "", `n${clave}`)}
+      </strong>,
+    );
+    ultimo = coincidencia.index + coincidencia[0].length;
+    coincidencia = NEGRITA.exec(linea);
+  }
+
+  if (ultimo < linea.length) {
+    nodos.push(...conLinks(linea.slice(ultimo), `t${clave++}`));
+  }
+  return nodos;
+}
+
+function conLinks(texto: string, prefijo: string): ReactNode[] {
+  const nodos: ReactNode[] = [];
+  let ultimo = 0;
+  let clave = 0;
+
   LINK.lastIndex = 0;
-  let coincidencia = LINK.exec(linea);
+  let coincidencia = LINK.exec(texto);
   while (coincidencia !== null) {
     const etiqueta = coincidencia[1] ?? "";
     const ruta = coincidencia[2] ?? "";
 
     if (coincidencia.index > ultimo) {
-      nodos.push(...conNegrita(linea.slice(ultimo, coincidencia.index), `t${clave++}`));
+      nodos.push(texto.slice(ultimo, coincidencia.index));
     }
 
     if (esRutaConocida(ruta)) {
       nodos.push(
         <Link
-          key={`l${clave++}`}
+          key={`${prefijo}l${clave++}`}
           to={ruta}
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
@@ -99,33 +137,7 @@ function formatearLinea(linea: string): ReactNode[] {
     }
 
     ultimo = coincidencia.index + coincidencia[0].length;
-    coincidencia = LINK.exec(linea);
-  }
-
-  if (ultimo < linea.length) {
-    nodos.push(...conNegrita(linea.slice(ultimo), `t${clave++}`));
-  }
-  return nodos;
-}
-
-function conNegrita(texto: string, prefijo: string): ReactNode[] {
-  const nodos: ReactNode[] = [];
-  let ultimo = 0;
-  let clave = 0;
-
-  NEGRITA.lastIndex = 0;
-  let coincidencia = NEGRITA.exec(texto);
-  while (coincidencia !== null) {
-    if (coincidencia.index > ultimo) {
-      nodos.push(texto.slice(ultimo, coincidencia.index));
-    }
-    nodos.push(
-      <strong key={`${prefijo}b${clave++}`} className="font-semibold">
-        {coincidencia[1] ?? ""}
-      </strong>,
-    );
-    ultimo = coincidencia.index + coincidencia[0].length;
-    coincidencia = NEGRITA.exec(texto);
+    coincidencia = LINK.exec(texto);
   }
 
   if (ultimo < texto.length) {
