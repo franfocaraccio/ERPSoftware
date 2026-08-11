@@ -3,10 +3,10 @@
 Estado del deploy: qué plataformas usamos y por qué, qué está hecho, qué falta
 y qué problemas hay abiertos.
 
-> Última actualización: 10 de agosto de 2026. **Supabase `erp-dev` y el backend
-> en Railway están andando**, con la base verificada y el rate limiting
-> resuelto. Falta Vercel. `erp-prod` se posterga a propósito hasta que el
-> circuito completo funcione con dev.
+> Última actualización: 10 de agosto de 2026. **El circuito completo está
+> andando**: Vercel → Railway → Supabase `erp-dev`, con login funcionando de
+> punta a punta. Falta el **dominio propio**, bloqueado hasta definir el
+> nombre, y `erp-prod`, que se posterga a propósito.
 
 ---
 
@@ -155,22 +155,93 @@ Verificado contra el deploy: `/health` responde `{"ok":true}`, y
 `/api/auth/get-session` devuelve `200 null` — que es la prueba de que llega a
 Postgres, porque una base inalcanzable daría 500.
 
+### Vercel, el 10 de agosto de 2026
+
+Proyecto sobre `packages/frontend`, preset Vite, con `VITE_API_URL` apuntando a
+Railway. Esa variable **se incrusta en el bundle durante el build**: es pública
+por diseño, y cambiarla exige redeployar, no alcanza con guardarla.
+
+Dos cosas que hicieron falta y no eran obvias:
+
+- **`vercel.json` y `public/_redirects`** para servir `index.html` en cualquier
+  ruta desconocida. Sin eso, entrar directo a `/clientes` o apretar F5 estando
+  ahí devuelve 404: la SPA rutea del lado del cliente y el CDN busca un archivo
+  que no existe. Solo se ve en producción, nunca en desarrollo. Los dos
+  archivos dicen lo mismo a hosts distintos, así que el mismo build sirve para
+  Vercel, Cloudflare Pages y Netlify.
+- **La cookie de sesión entre sitios.** El login respondía 200 y la pantalla
+  volvía a login sin ningún error: `vercel.app` y `railway.app` son sitios
+  distintos, y con el `SameSite=Lax` que BetterAuth usa por defecto el
+  navegador nunca devolvía la cookie. Resuelto con `SameSite=None; Secure;
+  Partitioned`, que es un puente hasta el dominio propio.
+
 ---
 
 ## 3. Lo que sigue
 
-1. **Railway**: crear el servicio apuntando a `packages/backend/Dockerfile` con
-   contexto en la raíz, cargar variables, **desactivar scale-to-zero**,
-   healthcheck a `/health`. Región en **US West**, para que quede en la misma
-   costa que la base.
-2. **Vercel**: crear el proyecto sobre `packages/frontend`, cargar
-   `VITE_API_URL` con la URL de Railway. Ojo con el huevo y la gallina:
-   `FRONTEND_URL` en Railway necesita la URL de Vercel y `VITE_API_URL` en
-   Vercel necesita la de Railway, así que Railway se configura en dos pasadas.
-   Si falta la segunda, el síntoma es CORS bloqueando todo.
-3. **`erp-prod`**: repetir todo lo de la sección anterior, con otra contraseña
-   en cada rol.
-4. **Sentry**: proyectos de frontend y backend, DSNs por entorno.
+### 1. Dominio propio — decidido, falta comprarlo
+
+Bloqueado hasta definir el nombre. La estructura ya está decidida:
+
+```
+erp.com        →  Vercel   (todo lo que el usuario ve en la barra)
+api.erp.com    →  Railway  (invisible: solo lo llama el JavaScript)
+```
+
+**El frontend va en el dominio raíz, no en `app.`**, porque es lo único que el
+usuario ve: la barra tiene que decir `erp.com/login`, no `app.erp.com/login`.
+El raíz necesita registros A o ALIAS en vez de un CNAME, que es un poco más de
+trabajo en el registrador y nada más.
+
+El subdominio `api.` no es una concesión: **nunca aparece en la barra de
+direcciones**. Las llamadas a la API las hace `fetch` desde el JavaScript, no
+quedan en el historial y el usuario no las ve nunca.
+
+Por qué importa además de lo estético: compartiendo dominio, la cookie de
+sesión pasa a ser de primera parte y desaparece la dependencia de la política
+de cookies de terceros de cada navegador. Hoy Safari bloquea esas cookies por
+defecto, así que el login puede fallar en iPhone y Mac mientras el frontend y
+el backend estén en `vercel.app` y `railway.app`.
+
+**Descartado: proxear la API por Vercel** para que todo salga de `erp.com` sin
+ningún subdominio. Cuesta un salto de latencia en cada request, gasta ancho de
+banda de Vercel, es configuración específica de esa plataforma —lo que el
+proyecto evita— y sobre todo **rompería la resolución de IP del problema 1**:
+Railway vería la IP del edge de Vercel y todos los clientes volverían al mismo
+bucket de rate limiting, esta vez con una IP equivocada en lugar de ninguna.
+Todo eso para esconder un subdominio que nadie iba a ver.
+
+Cuando el dominio exista:
+
+| Dónde | Variable | Valor |
+| --- | --- | --- |
+| Railway | `FRONTEND_URL` | `https://erp.com` |
+| Railway | `BETTER_AUTH_URL` | `https://api.erp.com` |
+| Railway | `COOKIE_DOMAIN` | `.erp.com` — con el punto inicial |
+| Vercel | `VITE_API_URL` | `https://api.erp.com` |
+
+`COOKIE_DOMAIN` ya está implementada y probada en `auth.ts`: seteada, la cookie
+se emite para el dominio padre con `SameSite=Lax`; vacía, se mantiene el
+comportamiento actual.
+
+**Después de cambiar `VITE_API_URL` hay que redeployar Vercel**, no alcanza con
+guardar: Vite incrusta esa variable en el bundle durante el build.
+
+Verificación: en DevTools → Network, el `Set-Cookie` de `sign-in/email` tiene
+que decir `Domain=.erp.com` y `SameSite=Lax`, sin `Partitioned`. Y probar desde
+un iPhone, que es el motivo de todo esto.
+
+Efecto esperado: la URL vieja de `vercel.app` sigue cargando pero deja de poder
+iniciar sesión, porque el CORS pasa a permitir solo el dominio nuevo.
+
+### 2. `erp-prod`
+
+Repetir todo lo de Supabase de la sección anterior, con otra contraseña en cada
+rol y su propio `BETTER_AUTH_SECRET`.
+
+### 3. Sentry
+
+Proyectos de frontend y backend, DSNs por entorno.
 
 ---
 

@@ -33,9 +33,13 @@ Fase 1 y Fase 2 no tienen nada pendiente.
 
 ## Infraestructura
 
-- Sin deploy: no hay ningún entorno levantado todavía. El backend ya está
-  containerizado; falta crear las cuentas y configurar Supabase, Railway y
-  Vercel. El estado detallado y los problemas abiertos están en `DEPLOY.md`.
+- El entorno de desarrollo está deployado y andando: Vercel → Railway →
+  Supabase `erp-dev`. Falta el **dominio propio** —bloqueado hasta definir el
+  nombre— y el entorno `erp-prod`. Todo el detalle, con las variables exactas y
+  los problemas abiertos, está en `DEPLOY.md`.
+- **Sin dominio propio, el login puede no funcionar en iPhone ni en Mac**:
+  Safari bloquea las cookies de terceros por defecto y hoy el frontend y el
+  backend están en dominios sin relación. Es lo primero de `DEPLOY.md`.
 - Sin Sentry ni monitoreo.
-- **Antes de cualquier deploy:** `BETTER_AUTH_SECRET` sigue siendo el placeholder
-  de desarrollo y las credenciales del seed son las de ejemplo.
+- El plan Hobby de Vercel no permite uso comercial: hay que pasar a Pro o mudar
+  a Cloudflare Pages antes de tener clientes pagos.
