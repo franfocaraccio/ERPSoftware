@@ -17,15 +17,31 @@ const urlFrontend = process.env.FRONTEND_URL ?? "http://localhost:5173";
 const urlBackend = process.env.BETTER_AUTH_URL ?? "http://localhost:3001";
 
 /**
- * Si el frontend y el backend viven en hosts distintos, la cookie de sesión es
- * cross-site y el navegador no la manda con el `SameSite=Lax` que BetterAuth
- * usa por defecto: el login responde 200, la cookie se descarta y la siguiente
- * request vuelve sin sesión. Desde afuera se ve como "recarga y vuelve al
- * login", sin ningún error.
+ * Cómo se emite la cookie de sesión. Hay tres escenarios y ninguno se adivina
+ * bien solo: `COOKIE_DOMAIN` es lo que los distingue.
  *
- * En local no aplica: frontend y backend comparten `localhost` —el puerto no
- * cuenta para las cookies— y ahí `Lax` es lo correcto y más seguro.
+ * 1. `COOKIE_DOMAIN` seteado (ej. `.mierp.com.ar`) — frontend y backend son
+ *    subdominios del mismo dominio. La cookie se emite para el dominio padre y
+ *    queda de PRIMERA parte, con `SameSite=Lax`. Es el único escenario que no
+ *    depende de la política de cookies de terceros de cada navegador, y por
+ *    eso es el que hay que usar en producción.
+ *
+ * 2. Sin `COOKIE_DOMAIN` y hosts distintos — el caso `vercel.app` +
+ *    `railway.app`. La cookie es cross-site y `Lax` no la manda: el login
+ *    responde 200 y la request siguiente llega sin sesión, que desde afuera se
+ *    ve como "recarga y vuelve al login". Requiere `SameSite=None`, que
+ *    funciona en Chrome pero **Safari bloquea por defecto**.
+ *
+ * 3. Mismo host — desarrollo local, donde frontend y backend comparten
+ *    `localhost` (el puerto no cuenta para las cookies). El default de
+ *    BetterAuth ya es correcto y más seguro: no se toca nada.
+ *
+ * No se deduce el dominio padre a partir de los hostnames a propósito: eso
+ * requiere la Public Suffix List para no confundir `algo.vercel.app` con un
+ * subdominio propio, y una config explícita es más honesta que una heurística
+ * que falla en silencio.
  */
+const dominioCookies = process.env.COOKIE_DOMAIN;
 const sitiosDistintos = new URL(urlFrontend).hostname !== new URL(urlBackend).hostname;
 
 export const auth = betterAuth({
@@ -133,27 +149,23 @@ export const auth = betterAuth({
       ipAddressHeaders: ["x-real-ip"],
     },
 
-    /**
-     * Cookie de sesión entre sitios distintos. `Secure` es obligatorio para
-     * que el navegador acepte `SameSite=None`, y `Partitioned` (CHIPS) la
-     * mantiene viva bajo el bloqueo de cookies de terceros de Chrome.
-     *
-     * Esto es un parche, no la solución: Safari bloquea las cookies de
-     * terceros por defecto, así que mientras el frontend y el backend estén en
-     * dominios sin relación (`vercel.app` y `railway.app`) el login puede
-     * fallar en iPhone y en Mac. Lo que lo resuelve de verdad es un dominio
-     * propio con ambos colgando de él —`app.` y `api.`—, que vuelve la cookie
-     * de primera parte. Hay que hacerlo antes de que entre gente real.
-     */
-    ...(sitiosDistintos
-      ? {
-          defaultCookieAttributes: {
-            sameSite: "none" as const,
-            secure: true,
-            partitioned: true,
-          },
-        }
-      : {}),
+    // Escenario 1: subdominios del mismo dominio. La cookie se emite para el
+    // padre y sigue siendo de primera parte, así que `Lax` alcanza.
+    ...(dominioCookies
+      ? { crossSubDomainCookies: { enabled: true, domain: dominioCookies } }
+      : // Escenario 2: dominios sin relación. `Secure` es obligatorio para que
+        // el navegador acepte `SameSite=None`, y `Partitioned` (CHIPS) mantiene
+        // la cookie viva bajo el bloqueo de cookies de terceros de Chrome.
+        // Safari las bloquea igual: esto es un puente hasta el escenario 1.
+        sitiosDistintos
+        ? {
+            defaultCookieAttributes: {
+              sameSite: "none" as const,
+              secure: true,
+              partitioned: true,
+            },
+          }
+        : {}),
   },
 });
 
