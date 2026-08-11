@@ -39,11 +39,26 @@ No tiene acceso a los datos de la empresa y el prompt le exige decirlo en vez de
 inventar. Corre sobre OpenAI a través del AI SDK; cambiar de proveedor es
 cambiar el import en `modules/asistente/ruta.ts`.
 
-- **Falta la `OPENAI_API_KEY`.** Sin ella el chat queda deshabilitado a
-  propósito: la burbuja igual aparece pero la ruta contesta 503. Es lo único que
-  separa a la Fase A de estar andando en dev. **La llamada real al modelo no
-  está probada todavía** — sí lo está todo lo demás (sesión, validación, tope
-  diario, streaming y render).
+Andando en dev desde el 11 de agosto de 2026, verificado contra la API real:
+responde sobre el manual, se niega a inventar datos de la empresa y deriva al
+contador cuando le piden criterio impositivo. El cache pega: 4864 de 5260 tokens
+de entrada se leen cacheados a partir del segundo mensaje.
+
+- **El módulo no tiene tests.** Es la única parte del backend sin ninguno, y
+  hay tres cosas testeables sin API key: los topes y el rechazo del rol
+  `system` en `schema.ts`, el corte de día del contador en `limite.ts`, y que
+  `manual.ts` cargue y falle fuerte cuando no encuentra los archivos.
+- **Dos listas se pueden desincronizar en silencio**, que es la peor forma de
+  fallar acá:
+  - La lista blanca de rutas de `features/asistente/markdown.tsx` duplica el
+    árbol de rutas del router. Si se agrega una pantalla, el asistente la
+    nombra pero el link queda como texto muerto.
+  - `docs/ayuda` describe campos y pantallas. Si alguien agrega un campo
+    obligatorio y no toca el manual, el asistente sigue explicando el
+    formulario viejo con total seguridad.
+- **La burbuja aparece aunque el asistente esté apagado.** El endpoint
+  `/api/chat/estado` está hecho para poder esconderla, pero no está enganchado
+  en el frontend.
 - **Fase B — responder sobre los datos del usuario.** El diseño está decidido:
   herramientas de solo lectura sobre los services que ya existen, ejecutadas con
   el `Actor` que arma el servidor, nunca SQL generado por el modelo y nunca
@@ -52,8 +67,11 @@ cambiar el import en `modules/asistente/ruta.ts`.
 - **El tope diario vive en memoria** (`modules/asistente/limite.ts`): se
   reinicia en cada deploy y no se comparte entre instancias. Alcanza con un solo
   contenedor; si el backend escala, hay que moverlo a Postgres.
-- **Las conversaciones no se guardan.** Para mejorar el asistente hay que poder
-  leer qué le preguntan. Tabla con `tenant_id` y RLS como todo el resto.
+- **Las conversaciones no se guardan.** Tabla con `tenant_id` y RLS como todo el
+  resto. Conviene hacerlo **antes** de la Fase B, no después: lo que la gente
+  pregunta es lo que dice qué herramientas hay que construir y qué partes del
+  manual están flojas. Sin eso, la lista de herramientas de la Fase B se elige
+  adivinando.
 - El manual se lee del disco al arrancar: **editar un `.md` exige reiniciar el
   backend**, y el `Dockerfile` tiene que seguir copiando `docs/`.
 
