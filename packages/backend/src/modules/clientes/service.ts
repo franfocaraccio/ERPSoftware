@@ -1,4 +1,4 @@
-import { and, count, eq, ilike, or } from "drizzle-orm";
+import { and, count, eq, ilike, or, type SQL } from "drizzle-orm";
 import { auditLog } from "../../db/schema/auditoria.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { withTenant } from "../../db/tenant-db.js";
@@ -17,12 +17,26 @@ export async function listarClientes(
   input: ClientesListar,
 ): Promise<{ items: Cliente[]; total: number }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = input.busqueda
-      ? or(
-          ilike(clientes.razonSocial, `%${input.busqueda}%`),
-          ilike(clientes.cuit, `%${input.busqueda}%`),
-        )
-      : undefined;
+    // Los tres filtros se combinan. `condicionIva` y `estado` llegaban al
+    // service y no se usaban en ninguna condición: la pantalla ofrecía los dos
+    // desplegables y elegir cualquiera de ellos no cambiaba nada.
+    const condiciones: SQL[] = [];
+    if (input.busqueda) {
+      const busqueda = or(
+        ilike(clientes.razonSocial, `%${input.busqueda}%`),
+        ilike(clientes.cuit, `%${input.busqueda}%`),
+      );
+      if (busqueda) {
+        condiciones.push(busqueda);
+      }
+    }
+    if (input.condicionIva) {
+      condiciones.push(eq(clientes.condicionIva, input.condicionIva));
+    }
+    if (input.estado) {
+      condiciones.push(eq(clientes.estado, input.estado));
+    }
+    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
 
     const items = await tx
       .select()

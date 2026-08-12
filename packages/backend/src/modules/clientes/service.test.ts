@@ -126,3 +126,72 @@ describe("clientes service (integración, RLS activo)", () => {
     expect(resultado).toBeNull();
   });
 });
+
+/**
+ * Los filtros del listado llegaban al service y no se aplicaban a la consulta:
+ * la pantalla ofrecía los desplegables de Condición IVA y Estado, y elegir
+ * cualquiera devolvía la lista completa igual. No fallaba nada — simplemente
+ * mentía. Por eso cada filtro tiene ahora un caso que lo ejerce.
+ */
+describe("filtros del listado de clientes", () => {
+  let tenant: { tenantId: string; usuarioId: string };
+  const listar = (extra: Record<string, unknown>) =>
+    listarClientes(tenant, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 50,
+      ...extra,
+    } as never);
+
+  beforeAll(async () => {
+    tenant = await crearTenantDePrueba();
+    await crearCliente(tenant, {
+      razonSocial: "Monotributista SRL",
+      condicionIva: "monotributo",
+    });
+    const inscripto = await crearCliente(tenant, {
+      razonSocial: "Inscripto SA",
+      condicionIva: "responsable_inscripto",
+    });
+    await actualizarCliente(tenant, {
+      id: inscripto.id,
+      datos: {
+        razonSocial: "Inscripto SA",
+        condicionIva: "responsable_inscripto",
+        estado: "en_mora",
+      },
+    });
+  });
+
+  it("filtra por condición de IVA", async () => {
+    const { items, total } = await listar({ condicionIva: "monotributo" });
+
+    expect(total).toBe(1);
+    expect(items[0]?.razonSocial).toBe("Monotributista SRL");
+  });
+
+  it("filtra por estado", async () => {
+    const { items, total } = await listar({ estado: "en_mora" });
+
+    expect(total).toBe(1);
+    expect(items[0]?.razonSocial).toBe("Inscripto SA");
+  });
+
+  it("combina los filtros en lugar de quedarse con el último", async () => {
+    // Cada uno por separado devuelve una fila, pero juntos no hay ninguno que
+    // cumpla las dos cosas. Si las condiciones se pisaran, esto daría 1.
+    const { total } = await listar({ condicionIva: "monotributo", estado: "en_mora" });
+
+    expect(total).toBe(0);
+  });
+
+  it("combina la búsqueda con los filtros", async () => {
+    expect((await listar({ busqueda: "Inscripto" })).total).toBe(1);
+    expect((await listar({ busqueda: "Inscripto", condicionIva: "monotributo" })).total).toBe(0);
+  });
+
+  it("sin filtros devuelve todo", async () => {
+    expect((await listar({})).total).toBe(2);
+  });
+});
