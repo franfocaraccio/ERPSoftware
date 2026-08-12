@@ -7,14 +7,16 @@ import {
   Insignia,
   Tarjeta,
 } from "@erp/design-system";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Boxes, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import { ariaSort, type Direccion, EncabezadoOrdenable } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -113,6 +115,25 @@ const columnas = helper.columns([
   }),
 ]);
 
+const COLUMNAS_EXPORT: ColumnaExport<FilaProducto>[] = [
+  // El SKU va como código: Excel le comería el cero de "0012" y convertiría
+  // "1-2" en una fecha.
+  { encabezado: "SKU", valor: (p) => p.sku, tipo: "codigo", ancho: 14 },
+  { encabezado: "Descripción", valor: (p) => p.descripcion, tipo: "texto", ancho: 34 },
+  { encabezado: "Categoría", valor: (p) => p.categoria, tipo: "texto" },
+  { encabezado: "Proveedor", valor: (p) => p.proveedorNombre, tipo: "texto", ancho: 26 },
+  { encabezado: "Stock actual", valor: (p) => p.stockActual, tipo: "numero" },
+  { encabezado: "Stock mínimo", valor: (p) => p.stockMinimo, tipo: "numero" },
+  {
+    encabezado: "Estado",
+    valor: (p) => (p.estado === "reponer" ? "Reponer" : "OK"),
+    tipo: "texto",
+    ancho: 12,
+  },
+  { encabezado: "Valorización", valor: (p) => p.valorizacion, tipo: "dinero" },
+  { encabezado: "Margen bruto (%)", valor: (p) => p.margenBruto, tipo: "numero" },
+];
+
 const SIN_DATOS: FilaProducto[] = [];
 
 /** Columna de la tabla → campo por el que ordena el servidor. */
@@ -136,6 +157,7 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
 
 export function ListaStock() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const soloLectura = useModoLectura();
   const [orden, setOrden] = useState("sku");
   const [direccion, setDireccion] = useState<Direccion>("asc");
@@ -165,6 +187,23 @@ export function ListaStock() {
     columns: columnas,
     data: (data?.items as FilaProducto[] | undefined) ?? SIN_DATOS,
   });
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.stock.exportar.queryOptions({
+        busqueda: busquedaDiferida || undefined,
+        soloReponer,
+        orden: orden as "sku",
+        direccion,
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaProducto[], truncado: datos.truncado };
+  }
 
   return (
     <>
@@ -336,6 +375,12 @@ export function ListaStock() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && table.getRowModel().rows.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar traerFilas={traerParaExportar} columnas={COLUMNAS_EXPORT} nombre="stock" />
+        </div>
+      )}
     </>
   );
 }

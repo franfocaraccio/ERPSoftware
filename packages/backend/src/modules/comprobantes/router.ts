@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
+import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import {
   compraActualizarSchema,
   compraInputSchema,
@@ -42,6 +43,13 @@ export const comprobantesRouter = router({
     listar: tenantProcedure.input(ventasListarSchema).query(({ ctx, input }) => {
       return listarVentas(ctx, input);
     }),
+    exportar: tenantProcedure
+      .input(ventasListarSchema)
+      .query(({ ctx, input }) =>
+        exportarListado(ctx, { tabla: "comprobantes_venta", filtros: input }, () =>
+          listarVentas(ctx, { ...input, pagina: 1, tamanoPagina: TOPE_FILAS_EXPORT }),
+        ),
+      ),
     obtener: tenantProcedure.input(idSchema).query(async ({ ctx, input }) => {
       const venta = await obtenerVenta(ctx, input.id);
       if (!venta) {
@@ -74,6 +82,13 @@ export const comprobantesRouter = router({
     listar: tenantProcedure.input(comprasListarSchema).query(({ ctx, input }) => {
       return listarCompras(ctx, input);
     }),
+    exportar: tenantProcedure
+      .input(comprasListarSchema)
+      .query(({ ctx, input }) =>
+        exportarListado(ctx, { tabla: "comprobantes_compra", filtros: input }, () =>
+          listarCompras(ctx, { ...input, pagina: 1, tamanoPagina: TOPE_FILAS_EXPORT }),
+        ),
+      ),
     obtener: tenantProcedure.input(idSchema).query(async ({ ctx, input }) => {
       const compra = await obtenerCompra(ctx, input.id);
       if (!compra) {

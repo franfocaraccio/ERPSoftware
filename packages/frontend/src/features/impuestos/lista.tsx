@@ -7,11 +7,12 @@ import {
   Insignia,
   Tarjeta,
 } from "@erp/design-system";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { AlertTriangle, Plus, Receipt } from "lucide-react";
 import { useState } from "react";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
   type Direccion,
@@ -21,6 +22,7 @@ import {
 } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import {
   formatearFecha,
   formatearImporte,
@@ -136,6 +138,23 @@ const columnas = helper.columns([
   }),
 ]);
 
+const COLUMNAS_EXPORT: ColumnaExport<FilaImpuesto>[] = [
+  {
+    encabezado: "Impuesto",
+    valor: (i) => ETIQUETAS_TIPO[i.tipo] ?? i.tipo,
+    tipo: "texto",
+    ancho: 16,
+  },
+  // El período es AAAA-MM: como texto, para que no lo interprete como fecha.
+  { encabezado: "Período", valor: (i) => i.periodo, tipo: "codigo", ancho: 10 },
+  { encabezado: "Base imponible", valor: (i) => i.baseImponible, tipo: "dinero" },
+  { encabezado: "Alícuota (%)", valor: (i) => i.alicuota, tipo: "numero" },
+  { encabezado: "Importe determinado", valor: (i) => i.importeDeterminado, tipo: "dinero" },
+  { encabezado: "Importe pagado", valor: (i) => i.importePagado, tipo: "dinero" },
+  { encabezado: "Saldo", valor: (i) => i.saldo, tipo: "dinero" },
+  { encabezado: "Vencimiento", valor: (i) => i.fechaVencimiento, tipo: "fecha" },
+];
+
 const SIN_DATOS: FilaImpuesto[] = [];
 
 const TIPOS = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
@@ -157,6 +176,7 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
 
 export function ListaImpuestos() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const soloLectura = useModoLectura();
   const [tipo, setTipo] = useState<(typeof TIPOS)[number] | "">("");
   const [soloImpagos, setSoloImpagos] = useState(false);
@@ -190,6 +210,26 @@ export function ListaImpuestos() {
     columns: columnas,
     data: (data?.items as FilaImpuesto[] | undefined) ?? SIN_DATOS,
   });
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.impuestos.exportar.queryOptions({
+        tipo: tipo || undefined,
+        soloImpagos,
+        campoFecha,
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+        orden: orden as "fechaVencimiento",
+        direccion,
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaImpuesto[], truncado: datos.truncado };
+  }
 
   return (
     <>
@@ -379,6 +419,16 @@ export function ListaImpuestos() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && table.getRowModel().rows.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="impuestos"
+          />
+        </div>
+      )}
     </>
   );
 }

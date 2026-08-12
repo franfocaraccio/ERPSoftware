@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, Plus } from "lucide-react";
 import { useState } from "react";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
   type Direccion,
@@ -19,6 +20,7 @@ import {
   RangoFechas,
 } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -49,6 +51,34 @@ const ETIQUETA_EVENTO: Record<Evento, string> = {
 };
 
 const ESTADOS: Estado[] = ["borrador", "enviada", "aprobada", "rechazada"];
+
+interface FilaExportVenta {
+  fechaEmision: string;
+  letra: string;
+  puntoVenta: number;
+  numero: number | null;
+  clienteRazonSocial: string;
+  estado: string;
+  moneda: string;
+  neto: string;
+  iva: string;
+  total: string;
+}
+
+const COLUMNAS_EXPORT: ColumnaExport<FilaExportVenta>[] = [
+  { encabezado: "Fecha", valor: (v) => v.fechaEmision, tipo: "fecha", ancho: 12 },
+  { encabezado: "Letra", valor: (v) => v.letra, tipo: "texto", ancho: 8 },
+  // Punto de venta y número son identificadores fiscales: van como texto para
+  // que Excel no les coma los ceros de adelante.
+  { encabezado: "Punto de venta", valor: (v) => v.puntoVenta, tipo: "codigo", ancho: 14 },
+  { encabezado: "Número", valor: (v) => v.numero, tipo: "codigo", ancho: 12 },
+  { encabezado: "Cliente", valor: (v) => v.clienteRazonSocial, tipo: "texto", ancho: 32 },
+  { encabezado: "Estado", valor: (v) => v.estado, tipo: "texto", ancho: 12 },
+  { encabezado: "Moneda", valor: (v) => v.moneda, tipo: "texto", ancho: 10 },
+  { encabezado: "Neto", valor: (v) => v.neto, tipo: "dinero" },
+  { encabezado: "IVA", valor: (v) => v.iva, tipo: "dinero" },
+  { encabezado: "Total", valor: (v) => v.total, tipo: "dinero" },
+];
 
 export function Ventas() {
   const soloLectura = useModoLectura();
@@ -95,6 +125,24 @@ export function Ventas() {
       tamanoPagina: 50,
     }),
   );
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.comprobantes.ventas.exportar.queryOptions({
+        estado: estado || undefined,
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+        orden: orden as "fechaEmision",
+        direccion,
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaExportVenta[], truncado: datos.truncado };
+  }
 
   const transicionar = useMutation({
     ...trpc.comprobantes.ventas.transicionar.mutationOptions(),
@@ -258,6 +306,16 @@ export function Ventas() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && (data?.items.length ?? 0) > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="comprobantes-venta"
+          />
+        </div>
+      )}
     </>
   );
 }

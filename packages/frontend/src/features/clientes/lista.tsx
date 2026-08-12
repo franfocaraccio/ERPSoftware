@@ -7,11 +7,12 @@ import {
   Insignia,
   Tarjeta,
 } from "@erp/design-system";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Plus, Search, Users } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
   type Direccion,
@@ -20,6 +21,7 @@ import {
 } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import {
   etiquetaCondicionIva,
   etiquetaEstado,
@@ -44,6 +46,27 @@ const TONO_ESTADO = {
   inactivo: "neutro",
   en_mora: "peligro",
 } as const;
+
+/**
+ * Columnas del archivo exportado. No son las de la tabla: la pantalla esconde
+ * el email y el teléfono por espacio, y en una planilla esos son justo los
+ * datos que uno va a buscar.
+ *
+ * El CUIT va como `codigo` y no como número: Excel abriría `20123456789` como
+ * `2,01235E+10`.
+ */
+const COLUMNAS_EXPORT: ColumnaExport<FilaCliente>[] = [
+  { encabezado: "Razón social", valor: (c) => c.razonSocial, tipo: "texto", ancho: 32 },
+  { encabezado: "CUIT", valor: (c) => c.cuit, tipo: "codigo", ancho: 14 },
+  {
+    encabezado: "Condición IVA",
+    valor: (c) => etiquetaCondicionIva(c.condicionIva),
+    tipo: "texto",
+  },
+  { encabezado: "Email", valor: (c) => c.email, tipo: "texto", ancho: 28 },
+  { encabezado: "Límite de crédito", valor: (c) => c.limiteCredito, tipo: "dinero" },
+  { encabezado: "Estado", valor: (c) => etiquetaEstado(c.estado), tipo: "texto", ancho: 12 },
+];
 
 const features = tableFeatures({});
 const helper = createColumnHelper<typeof features, FilaCliente>();
@@ -123,6 +146,7 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
 
 export function ListaClientes() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const soloLectura = useModoLectura();
   const [condicionIva, setCondicionIva] = useState("");
   const [orden, setOrden] = useState("razonSocial");
@@ -153,6 +177,27 @@ export function ListaClientes() {
     columns: columnas,
     data: (data?.items as FilaCliente[] | undefined) ?? SIN_DATOS,
   });
+
+  /**
+   * Trae todo lo que matchea los filtros activos, no la página que se ve. Los
+   * mismos filtros que la consulta de arriba: un archivo que no coincide con
+   * la pantalla es peor que no tener exportación.
+   */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.clientes.exportar.queryOptions({
+        busqueda: busquedaDiferida || undefined,
+        ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+        orden: orden as "razonSocial",
+        direccion,
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaCliente[], truncado: datos.truncado };
+  }
 
   return (
     <>
@@ -308,6 +353,16 @@ export function ListaClientes() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && table.getRowModel().rows.length > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="clientes"
+          />
+        </div>
+      )}
     </>
   );
 }

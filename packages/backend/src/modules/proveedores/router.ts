@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
+import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import {
   proveedorActualizarSchema,
   proveedoresListarSchema,
@@ -17,6 +18,14 @@ export const proveedoresRouter = router({
   listar: tenantProcedure.input(proveedoresListarSchema).query(({ ctx, input }) => {
     return listarProveedores(ctx, input);
   }),
+
+  exportar: tenantProcedure
+    .input(proveedoresListarSchema)
+    .query(({ ctx, input }) =>
+      exportarListado(ctx, { tabla: "proveedores", filtros: input }, () =>
+        listarProveedores(ctx, { ...input, pagina: 1, tamanoPagina: TOPE_FILAS_EXPORT }),
+      ),
+    ),
 
   obtener: tenantProcedure.input(z.object({ id: z.uuid() })).query(async ({ ctx, input }) => {
     const proveedor = await obtenerProveedor(ctx, input.id);

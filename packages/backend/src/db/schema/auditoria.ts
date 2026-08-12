@@ -5,6 +5,9 @@ export const accionAuditoriaEnum = pgEnum("accion_auditoria", [
   "modificacion",
   "baja",
   "transicion_estado",
+  // No modifica nada, pero llevarse un padrón entero es lo que uno quiere
+  // poder reconstruir después.
+  "exportacion",
 ]);
 
 // Regla dura: audit log de toda operación que impacte saldos, stock o impuestos.

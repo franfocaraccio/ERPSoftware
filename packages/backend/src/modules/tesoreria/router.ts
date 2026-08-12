@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
+import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import {
   chequeActualizarSchema,
   chequeInputSchema,
@@ -56,6 +57,13 @@ export const tesoreriaRouter = router({
     listar: tenantProcedure.input(movimientosListarSchema).query(({ ctx, input }) => {
       return listarMovimientos(ctx, input);
     }),
+    exportar: tenantProcedure
+      .input(movimientosListarSchema)
+      .query(({ ctx, input }) =>
+        exportarListado(ctx, { tabla: "movimientos", filtros: input }, () =>
+          listarMovimientos(ctx, { ...input, pagina: 1, tamanoPagina: TOPE_FILAS_EXPORT }),
+        ),
+      ),
     obtener: tenantProcedure.input(idSchema).query(async ({ ctx, input }) => {
       const movimiento = await obtenerMovimiento(ctx, input.id);
       if (!movimiento) {
@@ -81,6 +89,13 @@ export const tesoreriaRouter = router({
     listar: tenantProcedure.input(chequesListarSchema).query(({ ctx, input }) => {
       return listarCheques(ctx, input);
     }),
+    exportar: tenantProcedure
+      .input(chequesListarSchema)
+      .query(({ ctx, input }) =>
+        exportarListado(ctx, { tabla: "cheques", filtros: input }, () =>
+          listarCheques(ctx, { ...input, pagina: 1, tamanoPagina: TOPE_FILAS_EXPORT }),
+        ),
+      ),
     obtener: tenantProcedure.input(idSchema).query(async ({ ctx, input }) => {
       const cheque = await obtenerCheque(ctx, input.id);
       if (!cheque) {

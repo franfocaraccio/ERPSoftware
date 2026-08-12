@@ -8,10 +8,12 @@ import {
   Selector,
   Tarjeta,
 } from "@erp/design-system";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ScrollText } from "lucide-react";
 import { Fragment, useState } from "react";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 type Tono = "exito" | "advertencia" | "peligro" | "info" | "neutro";
@@ -43,8 +45,47 @@ function Detalle({ detalle }: { detalle: unknown }) {
   );
 }
 
+interface FilaExportAuditoria {
+  fecha: string | Date;
+  autor: string | null;
+  autorEmail: string | null;
+  modulo: string;
+  tabla: string;
+  accion: string;
+  detalle: unknown;
+}
+
+const COLUMNAS_EXPORT: ColumnaExport<FilaExportAuditoria>[] = [
+  // Esta sí es un instante con hora, no una fecha suelta: se exporta en hora
+  // argentina.
+  {
+    encabezado: "Fecha",
+    valor: (e) => (e.fecha instanceof Date ? e.fecha.toISOString() : e.fecha),
+    tipo: "fecha",
+    ancho: 14,
+  },
+  { encabezado: "Autor", valor: (e) => e.autor, tipo: "texto", ancho: 26 },
+  { encabezado: "Email", valor: (e) => e.autorEmail, tipo: "texto", ancho: 28 },
+  { encabezado: "Módulo", valor: (e) => e.modulo || e.tabla, tipo: "texto", ancho: 18 },
+  {
+    encabezado: "Acción",
+    valor: (e) => ACCION[e.accion]?.etiqueta ?? e.accion,
+    tipo: "texto",
+    ancho: 16,
+  },
+  // El detalle es el antes y el después de cada cambio: es justo lo que se va
+  // a buscar en un historial exportado, así que va aunque quede largo.
+  {
+    encabezado: "Detalle",
+    valor: (e) => (e.detalle == null ? null : JSON.stringify(e.detalle)),
+    tipo: "texto",
+    ancho: 60,
+  },
+];
+
 export function Auditoria() {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [modulo, setModulo] = useState("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
@@ -61,6 +102,26 @@ export function Auditoria() {
       ...(hasta ? { hasta } : {}),
     }),
   );
+
+  /**
+   * Todo lo que matchea los filtros, no la página que se está viendo. Acá se
+   * nota más que en el resto: el historial se pagina de a poco y exportar la
+   * página visible no serviría para nada.
+   */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.auditoria.exportar.queryOptions({
+        ...(modulo ? { modulo: modulo as "clientes" } : {}),
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaExportAuditoria[], truncado: datos.truncado };
+  }
 
   // Cualquier cambio de filtro invalida la página en la que estabas.
   const cambiarFiltro = (aplicar: () => void) => {
@@ -233,7 +294,7 @@ export function Auditoria() {
               {data.total} {data.total === 1 ? "movimiento" : "movimientos"} · página {pagina} de{" "}
               {paginas}
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Boton
                 variante="secundario"
                 tamano="sm"
@@ -250,6 +311,11 @@ export function Auditoria() {
               >
                 Siguiente
               </Boton>
+              <BotonExportar
+                traerFilas={traerParaExportar}
+                columnas={COLUMNAS_EXPORT}
+                nombre="historial"
+              />
             </div>
           </div>
         </>

@@ -13,8 +13,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import { RangoFechas } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -276,9 +278,34 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
   );
 }
 
+interface FilaExportCompra {
+  fechaRecepcion: string;
+  letra: string;
+  numeroCompleto: string;
+  proveedorRazonSocial: string;
+  condicionPagoDias: number;
+  moneda: string;
+  neto: string;
+  iva: string;
+  total: string;
+}
+
+const COLUMNAS_EXPORT: ColumnaExport<FilaExportCompra>[] = [
+  { encabezado: "Fecha de recepción", valor: (c) => c.fechaRecepcion, tipo: "fecha", ancho: 16 },
+  { encabezado: "Letra", valor: (c) => c.letra, tipo: "texto", ancho: 8 },
+  { encabezado: "Número", valor: (c) => c.numeroCompleto, tipo: "codigo", ancho: 18 },
+  { encabezado: "Proveedor", valor: (c) => c.proveedorRazonSocial, tipo: "texto", ancho: 32 },
+  { encabezado: "Plazo de pago (días)", valor: (c) => c.condicionPagoDias, tipo: "numero" },
+  { encabezado: "Moneda", valor: (c) => c.moneda, tipo: "texto", ancho: 10 },
+  { encabezado: "Neto", valor: (c) => c.neto, tipo: "dinero" },
+  { encabezado: "IVA", valor: (c) => c.iva, tipo: "dinero" },
+  { encabezado: "Total", valor: (c) => c.total, tipo: "dinero" },
+];
+
 export function Compras() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [creando, setCreando] = useState(false);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
@@ -290,6 +317,21 @@ export function Compras() {
       tamanoPagina: 50,
     }),
   );
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.comprobantes.compras.exportar.queryOptions({
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaExportCompra[], truncado: datos.truncado };
+  }
 
   return (
     <>
@@ -398,6 +440,16 @@ export function Compras() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && (data?.items.length ?? 0) > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="comprobantes-compra"
+          />
+        </div>
+      )}
     </>
   );
 }

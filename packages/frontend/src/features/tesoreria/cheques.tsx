@@ -13,8 +13,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ScrollText } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import { FiltroSelector, RangoFechas } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -294,9 +296,34 @@ function TextoDias({ dias, estado }: { dias: number; estado: string }) {
   );
 }
 
+interface FilaExportCheque {
+  numero: string;
+  libradorNombreEfectivo: string;
+  banco: string | null;
+  fechaPago: string;
+  estado: keyof typeof ETIQUETA_ESTADO;
+  importe: string;
+}
+
+const COLUMNAS_EXPORT: ColumnaExport<FilaExportCheque>[] = [
+  // El número de cheque es un código, no una cifra: puede tener ceros adelante.
+  { encabezado: "Número", valor: (c) => c.numero, tipo: "codigo", ancho: 14 },
+  { encabezado: "Librador", valor: (c) => c.libradorNombreEfectivo, tipo: "texto", ancho: 30 },
+  { encabezado: "Banco", valor: (c) => c.banco, tipo: "texto", ancho: 22 },
+  { encabezado: "Fecha de pago", valor: (c) => c.fechaPago, tipo: "fecha", ancho: 14 },
+  {
+    encabezado: "Estado",
+    valor: (c) => ETIQUETA_ESTADO[c.estado] ?? c.estado,
+    tipo: "texto",
+    ancho: 14,
+  },
+  { encabezado: "Importe", valor: (c) => c.importe, tipo: "dinero" },
+];
+
 export function Cheques() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [creando, setCreando] = useState(false);
   const [estado, setEstado] = useState<ValoresCheque["estado"] | "">("");
   const [desde, setDesde] = useState("");
@@ -311,6 +338,22 @@ export function Cheques() {
       tamanoPagina: 100,
     }),
   );
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.tesoreria.cheques.exportar.queryOptions({
+        estado: estado || undefined,
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaExportCheque[], truncado: datos.truncado };
+  }
 
   return (
     <>
@@ -425,6 +468,16 @@ export function Cheques() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && (data?.items.length ?? 0) > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="cheques"
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDownLeft, ArrowUpRight, Plus } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
+import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
   BarraFiltros,
@@ -23,6 +24,7 @@ import {
   RangoFechas,
 } from "../../components/filtros.js";
 import { useModoLectura } from "../../components/sesion.js";
+import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -333,9 +335,35 @@ const TIPOS_MOVIMIENTO = [
   { id: "egreso" as const, etiqueta: "Egresos" },
 ];
 
+interface FilaExportMovimiento {
+  fecha: string;
+  cuentaNombre: string;
+  cuentaMoneda: "ARS" | "USD";
+  tipo: "ingreso" | "egreso";
+  medioPago: string;
+  concepto: string | null;
+  importe: string;
+}
+
+const COLUMNAS_EXPORT: ColumnaExport<FilaExportMovimiento>[] = [
+  { encabezado: "Fecha", valor: (m) => m.fecha, tipo: "fecha", ancho: 12 },
+  { encabezado: "Cuenta", valor: (m) => m.cuentaNombre, tipo: "texto", ancho: 24 },
+  { encabezado: "Moneda", valor: (m) => m.cuentaMoneda, tipo: "texto", ancho: 10 },
+  {
+    encabezado: "Tipo",
+    valor: (m) => (m.tipo === "ingreso" ? "Ingreso" : "Egreso"),
+    tipo: "texto",
+    ancho: 12,
+  },
+  { encabezado: "Medio de pago", valor: (m) => m.medioPago, tipo: "texto" },
+  { encabezado: "Concepto", valor: (m) => m.concepto, tipo: "texto", ancho: 36 },
+  { encabezado: "Importe", valor: (m) => m.importe, tipo: "dinero" },
+];
+
 export function Movimientos() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [creando, setCreando] = useState(false);
   const [cuentaId, setCuentaId] = useState("");
   const [tipo, setTipo] = useState<"ingreso" | "egreso" | "">("");
@@ -357,6 +385,25 @@ export function Movimientos() {
       tamanoPagina: 100,
     }),
   );
+
+  /** Todo lo que matchea los filtros activos, no la página visible. */
+  async function traerParaExportar() {
+    const datos = await queryClient.fetchQuery({
+      ...trpc.tesoreria.movimientos.exportar.queryOptions({
+        ...(cuentaId ? { cuentaId } : {}),
+        ...(tipo ? { tipo } : {}),
+        ...(desde ? { desde } : {}),
+        ...(hasta ? { hasta } : {}),
+        orden: orden as "fecha",
+        direccion,
+      }),
+      // staleTime 0 va después del spread para que gane: un archivo que el
+      // usuario va a guardar no puede salir de la caché. El listado tolera 30s
+      // de desfase; una exportación no.
+      staleTime: 0,
+    });
+    return { items: datos.items as FilaExportMovimiento[], truncado: datos.truncado };
+  }
 
   const hayFiltros = Boolean(cuentaId || tipo || desde || hasta);
   const limpiar = () => {
@@ -519,6 +566,16 @@ export function Movimientos() {
           </div>
         )}
       </Tarjeta>
+
+      {!isPending && !isError && (data?.items.length ?? 0) > 0 && (
+        <div className="mt-3 flex justify-end">
+          <BotonExportar
+            traerFilas={traerParaExportar}
+            columnas={COLUMNAS_EXPORT}
+            nombre="movimientos"
+          />
+        </div>
+      )}
     </>
   );
 }
