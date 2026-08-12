@@ -153,7 +153,7 @@ function BotonContacto({ tamano = "md" }: { tamano?: "sm" | "md" }) {
 }
 
 export function Landing() {
-  const { data: sesion } = useSession();
+  const { data: sesion, isPending } = useSession();
 
   /**
    * El botón dice siempre "Ingresar", con sesión o sin ella.
@@ -163,10 +163,18 @@ export function Landing() {
    * dibujaba primero como "Ingresar" y cambiaba solo al volver la respuesta.
    * Una etiqueta fija no puede parpadear.
    *
-   * El destino sí sigue dependiendo de la sesión: quien ya entró va derecho al
-   * ERP y no vuelve a pasar por el login.
+   * El destino sí depende de la sesión, pero solo se manda al ERP cuando se
+   * sabe que la hay: mientras `useSession` resuelve, y por supuesto si no hay
+   * sesión, el botón apunta al login.
+   *
+   * Antes apuntaba a `/panel` siempre, y a quien no había entrado lo mandaba a
+   * una pantalla que no podía ver: el portón lo rebotaba al login y en ese
+   * rebote se alcanzaba a ver un instante del armazón de la aplicación. Al
+   * revés no pasa lo mismo — si alguien con sesión llega a hacer clic durante
+   * esos milisegundos, el login lo devuelve al ERP sin mostrarle nada de más.
    */
-  const destino = sesion?.user.role === "admin" ? "/admin" : "/panel";
+  const destino =
+    !isPending && sesion ? (sesion.user.role === "admin" ? "/admin" : "/panel") : "/login";
 
   return (
     <div className="min-h-dvh bg-canvas">
