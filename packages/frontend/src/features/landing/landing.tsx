@@ -154,9 +154,19 @@ function BotonContacto({ tamano = "md" }: { tamano?: "sm" | "md" }) {
 
 export function Landing() {
   const { data: sesion } = useSession();
-  const conSesion = Boolean(sesion);
+
+  /**
+   * El botón dice siempre "Ingresar", con sesión o sin ella.
+   *
+   * Antes alternaba con "Ir al ERP" según hubiera sesión, y como `useSession`
+   * resuelve contra el servidor, en cada carga de la portada el botón se
+   * dibujaba primero como "Ingresar" y cambiaba solo al volver la respuesta.
+   * Una etiqueta fija no puede parpadear.
+   *
+   * El destino sí sigue dependiendo de la sesión: quien ya entró va derecho al
+   * ERP y no vuelve a pasar por el login.
+   */
   const destino = sesion?.user.role === "admin" ? "/admin" : "/panel";
-  const textoIngreso = conSesion ? "Ir al ERP" : "Ingresar";
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -169,7 +179,7 @@ export function Landing() {
           <div className="flex items-center gap-2">
             <ToggleTema />
             <Link to={destino} className={clasesBoton("primario", "sm")}>
-              {textoIngreso}
+              Ingresar
             </Link>
           </div>
         </div>
@@ -192,7 +202,7 @@ export function Landing() {
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-start">
               <Link to={destino} className={clasesBoton()}>
-                {textoIngreso}
+                Ingresar
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
               <BotonContacto />
