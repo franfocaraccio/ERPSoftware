@@ -15,7 +15,9 @@ import { useDeferredValue, useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { ariaSort, type Direccion, EncabezadoOrdenable } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
@@ -52,8 +54,14 @@ const columnas = helper.columns([
     ),
   }),
   helper.accessor("descripcion", {
+    meta: { ancha: true },
     header: "Descripción",
-    cell: (info) => <span className="text-foreground">{info.getValue()}</span>,
+    cell: (info) => (
+      // El title lleva el texto completo: la celda se recorta, el dato no.
+      <span className="text-foreground" title={info.getValue()}>
+        {info.getValue()}
+      </span>
+    ),
   }),
   helper.accessor("categoria", {
     meta: { secundaria: true },
@@ -167,6 +175,8 @@ export function ListaStock() {
   };
   const [busqueda, setBusqueda] = useState("");
   const [soloReponer, setSoloReponer] = useState(false);
+  // Stock es la tabla con más columnas: es la que motivó el selector.
+  const [densidad, setDensidad] = useDensidad("stock");
   const busquedaDiferida = useDeferredValue(busqueda);
 
   const { data, isPending, isError, refetch } = useQuery(
@@ -246,15 +256,18 @@ export function ListaStock() {
           Solo los que hay que reponer
         </label>
 
-        {!isPending && data && (
-          <p className="ml-auto text-xs text-muted-foreground">
-            <span className="tabular">{data.total}</span>{" "}
-            {data.total === 1 ? "producto" : "productos"} · Capital inmovilizado{" "}
-            <span className="font-medium tabular text-foreground">
-              {formatearImporte(data.valorizacionTotal)}
-            </span>
-          </p>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {!isPending && data && (
+            <p className="text-xs text-muted-foreground">
+              <span className="tabular">{data.total}</span>{" "}
+              {data.total === 1 ? "producto" : "productos"} · Capital inmovilizado{" "}
+              <span className="font-medium tabular text-foreground">
+                {formatearImporte(data.valorizacionTotal)}
+              </span>
+            </p>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       <Tarjeta className="overflow-hidden">
@@ -328,7 +341,8 @@ export function ListaStock() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
+                            clasesEncabezado(densidad),
+                            "text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
                             derecha ? "text-right" : "text-left",
                             clasesColumna(header.column.columnDef.meta),
                           )}
@@ -361,7 +375,8 @@ export function ListaStock() {
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesCelda(densidad),
+                          "align-middle whitespace-nowrap",
                           clasesColumna(cell.column.columnDef.meta),
                         )}
                       >

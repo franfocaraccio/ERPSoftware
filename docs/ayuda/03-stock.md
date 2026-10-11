@@ -48,3 +48,21 @@ compra ni por promedio ponderado.
   porcentaje. Necesita ambos cargados.
 - **Valorización**: stock actual × costo unitario.
 - **Estado**: marca los productos por debajo del mínimo.
+
+## Si la tabla no te entra en la pantalla
+
+Arriba a la derecha de la tabla hay dos botones que cambian la **densidad**:
+
+- **Cómoda**: como viene por defecto.
+- **Compacta**: menos aire entre columnas y filas. Entran todas las columnas sin
+  tener que scrollear al costado, y se ven más productos de una.
+
+El tamaño de la letra **no cambia** en ninguno de los dos: lo único que se achica
+es el espacio alrededor. Por eso conviene esto antes que bajar el zoom del
+navegador, que sí achica el texto y los botones.
+
+La elección se guarda en tu navegador y es **tuya**: cada persona tiene la suya,
+y es independiente en cada pantalla.
+
+Las descripciones largas se cortan con puntos suspensivos para no empujar al
+resto de las columnas. Pasando el mouse por encima se ve el texto completo.

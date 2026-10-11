@@ -31,12 +31,29 @@ declare module "@tanstack/react-table" {
      * silencio del teléfono.
      */
     secundaria?: boolean;
+    /**
+     * Columnas de texto libre, que se recortan con puntos suspensivos en vez de
+     * empujar el ancho de la tabla.
+     *
+     * Sin esto, una sola descripción larga desplaza a las columnas de la
+     * derecha fuera de la pantalla, en cualquier densidad: las celdas son
+     * `whitespace-nowrap` y la columna crece hasta donde haga falta. El texto
+     * completo queda en el `title`, y la fila se abre para verlo entero.
+     */
+    ancha?: boolean;
   }
 }
 
 /** Clases para esconder una columna secundaria abajo del breakpoint `sm`. */
-export function clasesColumna(meta: { secundaria?: boolean } | undefined): string {
-  return meta?.secundaria ? "hidden sm:table-cell" : "";
+export function clasesColumna(meta: { secundaria?: boolean; ancha?: boolean } | undefined): string {
+  const clases: string[] = [];
+  if (meta?.secundaria) {
+    clases.push("hidden sm:table-cell");
+  }
+  if (meta?.ancha) {
+    clases.push("max-w-[22rem] truncate");
+  }
+  return clases.join(" ");
 }
 
 // Recibe el `meta` y no el header entero: los genéricos de Header no unifican
