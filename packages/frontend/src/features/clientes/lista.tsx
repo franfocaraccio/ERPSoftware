@@ -27,7 +27,9 @@ import {
   type ResumenCartera,
   TarjetasCartera,
 } from "../../components/resumen-cartera.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import {
   etiquetaCondicionIva,
@@ -72,10 +74,9 @@ const TONO_ESTADO = {
 } as const;
 
 /**
- * Columnas del archivo exportado. No son las de la tabla: la pantalla no
- * muestra el email ni el teléfono por espacio —desde que el listado trae saldo,
- * vencimiento y concentración no entran nueve columnas— y en una planilla esos
- * son justo los datos que uno va a buscar.
+ * Columnas del archivo exportado. No son exactamente las de la tabla: el
+ * teléfono no se muestra en pantalla y en una planilla es justo uno de los
+ * datos que uno va a buscar.
  *
  * El CUIT va como `codigo` y no como número: Excel abriría `20123456789` como
  * `2,01235E+10`.
@@ -120,6 +121,15 @@ const columnas = helper.columns([
     header: "CUIT",
     cell: (info) => (
       <span className="tabular text-muted-foreground">{formatearCuit(info.getValue())}</span>
+    ),
+  }),
+  helper.accessor("email", {
+    meta: { secundaria: true, ancha: true },
+    header: "Email",
+    cell: (info) => (
+      <span className="text-muted-foreground" title={info.getValue() ?? undefined}>
+        {info.getValue() ?? "—"}
+      </span>
     ),
   }),
   helper.accessor("condicionIva", {
@@ -210,6 +220,7 @@ const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
 const ETIQUETA_COLUMNA: Record<string, string> = {
   razonSocial: "Razón social",
   cuit: "CUIT",
+  email: "Email",
   condicionIva: "Condición IVA",
   limiteCredito: "Límite de crédito",
   saldo: "Saldo",
@@ -232,6 +243,7 @@ export function ListaClientes() {
   const [busqueda, setBusqueda] = useState("");
   // Difiere el filtrado para no disparar una request por tecla.
   const busquedaDiferida = useDeferredValue(busqueda);
+  const [densidad, setDensidad] = useDensidad("clientes");
 
   /** Los mismos filtros alimentan el listado y el resumen: si divergen, el
    * porcentaje de cada fila se calcularía contra un total que no es el suyo. */
@@ -365,11 +377,14 @@ export function ListaClientes() {
             className="h-10 w-full rounded-lg border border-border-strong bg-surface pr-3 pl-9 text-sm text-foreground transition-colors placeholder:text-muted-foreground/70 focus:border-ring"
           />
         </div>
-        {!isPending && data && (
-          <p className="text-xs text-muted-foreground tabular">
-            {data.total} {data.total === 1 ? "cliente" : "clientes"}
-          </p>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {!isPending && data && (
+            <p className="text-xs text-muted-foreground tabular">
+              {data.total} {data.total === 1 ? "cliente" : "clientes"}
+            </p>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       <Tarjeta className="overflow-hidden">
@@ -431,7 +446,8 @@ export function ListaClientes() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
+                            clasesEncabezado(densidad),
+                            "text-xs font-medium tracking-wide text-muted-foreground uppercase",
                             derecha ? "text-right" : "text-left",
                             clasesColumna(header.column.columnDef.meta),
                           )}
@@ -464,7 +480,8 @@ export function ListaClientes() {
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesCelda(densidad),
+                          "align-middle whitespace-nowrap",
                           clasesColumna(cell.column.columnDef.meta),
                         )}
                       >

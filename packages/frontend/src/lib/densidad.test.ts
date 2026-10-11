@@ -40,8 +40,16 @@ describe("clases por densidad", () => {
   });
 
   it("los encabezados acompañan a las celdas", () => {
-    expect(clasesEncabezado("comoda")).toBe("px-4 py-2.5");
-    expect(clasesEncabezado("compacta")).toBe("px-2 py-1.5");
+    expect(clasesEncabezado("comoda")).toContain("px-4 py-2.5");
+    expect(clasesEncabezado("compacta")).toContain("px-2 py-1.5");
+  });
+
+  it("solo la compacta deja que el título se parta en dos líneas", () => {
+    // En varias tablas el título es más ancho que el dato que encabeza, así que
+    // es el `th` el que fija el ancho de la columna. Dejarlo envolver cuesta un
+    // encabezado más alto una sola vez y devuelve ancho en todas las filas.
+    expect(clasesEncabezado("comoda")).toContain("whitespace-nowrap");
+    expect(clasesEncabezado("compacta")).not.toContain("whitespace-nowrap");
   });
 
   it("ninguna densidad toca el tamaño del texto", () => {

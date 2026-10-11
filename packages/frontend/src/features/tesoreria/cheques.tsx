@@ -1,6 +1,7 @@
 import {
   Boton,
   Campo,
+  cn,
   Entrada,
   Esqueleto,
   EstadoVacio,
@@ -15,7 +16,9 @@ import { useState } from "react";
 import { z } from "zod";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { FiltroSelector, RangoFechas } from "../../components/filtros.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -328,6 +331,7 @@ export function Cheques() {
   const [estado, setEstado] = useState<ValoresCheque["estado"] | "">("");
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [densidad, setDensidad] = useDensidad("cheques");
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.tesoreria.cheques.listar.queryOptions({
@@ -386,12 +390,15 @@ export function Cheques() {
           </p>
         )}
 
-        {!creando && !soloLectura && (
-          <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo cheque
-          </Boton>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {!creando && !soloLectura && (
+            <Boton tamano="sm" onClick={() => setCreando(true)}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nuevo cheque
+            </Boton>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       {creando && <FormularioCheque onListo={() => setCreando(false)} />}
@@ -427,14 +434,20 @@ export function Cheques() {
                     <th
                       key={h}
                       scope="col"
-                      className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      className={cn(
+                        clasesEncabezado(densidad),
+                        "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                      )}
                     >
                       {h}
                     </th>
                   ))}
                   <th
                     scope="col"
-                    className="px-4 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    className={cn(
+                      clasesEncabezado(densidad),
+                      "text-right text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                    )}
                   >
                     Importe
                   </th>
@@ -446,19 +459,32 @@ export function Cheques() {
                     key={c.id}
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
-                    <td className="px-4 py-3 tabular font-medium text-foreground">{c.numero}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.libradorNombreEfectivo}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.banco ?? "—"}</td>
-                    <td className="px-4 py-3 tabular text-muted-foreground">
+                    <td
+                      className={cn(clasesCelda(densidad), "tabular font-medium text-foreground")}
+                    >
+                      {c.numero}
+                    </td>
+                    <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                      {c.libradorNombreEfectivo}
+                    </td>
+                    <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                      {c.banco ?? "—"}
+                    </td>
+                    <td className={cn(clasesCelda(densidad), "tabular text-muted-foreground")}>
                       {formatearFecha(c.fechaPago)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={clasesCelda(densidad)}>
                       <TextoDias dias={c.diasParaCobro} estado={c.estado} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={clasesCelda(densidad)}>
                       <Insignia tono={TONO_ESTADO[c.estado]}>{ETIQUETA_ESTADO[c.estado]}</Insignia>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium tabular text-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right font-medium tabular text-foreground",
+                      )}
+                    >
                       {formatearImporte(c.importe)}
                     </td>
                   </tr>

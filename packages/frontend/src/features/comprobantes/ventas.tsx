@@ -19,7 +19,9 @@ import {
   FiltroSelector,
   RangoFechas,
 } from "../../components/filtros.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -89,6 +91,7 @@ export function Ventas() {
   const [hasta, setHasta] = useState("");
   const [orden, setOrden] = useState("fechaEmision");
   const [direccion, setDireccion] = useState<Direccion>("desc");
+  const [densidad, setDensidad] = useDensidad("comprobantes-venta");
   const ordenar = (campo: string, dir: Direccion) => {
     setOrden(campo);
     setDireccion(dir);
@@ -99,7 +102,8 @@ export function Ventas() {
       scope="col"
       aria-sort={ariaSort(campo, orden, direccion)}
       className={cn(
-        "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+        clasesEncabezado(densidad),
+        "text-xs font-medium tracking-wide text-muted-foreground uppercase",
         alineado === "derecha" ? "text-right" : "text-left",
       )}
     >
@@ -174,12 +178,15 @@ export function Ventas() {
           </p>
         )}
 
-        {!soloLectura && (
-          <Link to="/comprobantes/nuevo" className={cn("ml-auto", clasesBoton("primario", "sm"))}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nuevo comprobante
-          </Link>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {!soloLectura && (
+            <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nuevo comprobante
+            </Link>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       {transicionar.isError && (
@@ -231,7 +238,10 @@ export function Ventas() {
                   {encabezado("Comprobante", "numero")}
                   <th
                     scope="col"
-                    className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                    className={cn(
+                      clasesEncabezado(densidad),
+                      "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                    )}
                   >
                     Cliente
                   </th>
@@ -240,14 +250,17 @@ export function Ventas() {
                     <th
                       key={h}
                       scope="col"
-                      className="px-4 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      className={cn(
+                        clasesEncabezado(densidad),
+                        "text-right text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                      )}
                     >
                       {h}
                     </th>
                   ))}
                   {encabezado("Total", "total", "derecha")}
                   {encabezado("Estado", "estado")}
-                  <th scope="col" className="px-4 py-2.5" />
+                  <th scope="col" className={clasesEncabezado(densidad)} />
                 </tr>
               </thead>
               <tbody>
@@ -256,7 +269,7 @@ export function Ventas() {
                     key={v.id}
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
-                    <td className="px-4 py-3">
+                    <td className={clasesCelda(densidad)}>
                       <Link
                         to="/comprobantes/$comprobanteId"
                         params={{ comprobanteId: v.id }}
@@ -266,25 +279,42 @@ export function Ventas() {
                         {v.numero === null ? "—" : String(v.numero).padStart(8, "0")}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{v.clienteRazonSocial}</td>
-                    <td className="px-4 py-3 tabular text-muted-foreground">
+                    <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                      {v.clienteRazonSocial}
+                    </td>
+                    <td className={cn(clasesCelda(densidad), "tabular text-muted-foreground")}>
                       {formatearFecha(v.fechaEmision)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular text-muted-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right tabular text-muted-foreground",
+                      )}
+                    >
                       {formatearImporte(v.neto, v.moneda)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular text-muted-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right tabular text-muted-foreground",
+                      )}
+                    >
                       {formatearImporte(v.iva, v.moneda)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium tabular text-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right font-medium tabular text-foreground",
+                      )}
+                    >
                       {formatearImporte(v.total, v.moneda)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={clasesCelda(densidad)}>
                       <Insignia tono={TONO_ESTADO[v.estado as Estado]}>
                         {ETIQUETA_ESTADO[v.estado as Estado]}
                       </Insignia>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={clasesCelda(densidad)}>
                       <div className="flex justify-end gap-1.5">
                         {(v.availableEvents as Evento[]).map((evento) => (
                           <Boton

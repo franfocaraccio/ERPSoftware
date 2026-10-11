@@ -29,17 +29,17 @@ dólar oficial del BCRA en el panel.
 
 **Pendiente, mediano:**
 
-- **Falta llevar el selector de densidad al resto de las tablas.** Ya está hecho
-  en **stock**, que era el caso que ella reportó: en modo compacto entran las
-  nueve columnas sin scroll horizontal (medido a 1512px: cómoda se pasa 126px,
-  compacta cero). El componente es `components/selector-densidad.tsx` y el
-  estado `lib/densidad.ts`; enchufarlo a una tabla es importar `useDensidad`,
-  poner el selector y reemplazar el padding fijo por `clasesCelda` /
-  `clasesEncabezado`.
-  - Faltan clientes, proveedores, tesorería, comprobantes e historial.
-  - En clientes y proveedores se había ganado aire sacando Email y Rubro de la
-    tabla (siguen en el export). Con el selector puesto se puede revisar si
-    conviene devolverlas.
+- **La densidad de las tablas quedó resuelta**, pero conviene mirarla con Jesi
+  en su pantalla antes de darla por cerrada. El selector está en las ocho
+  tablas (clientes, proveedores, stock, movimientos, cheques, comprobantes de
+  venta y de compra, e historial) y la elección se guarda por persona y por
+  tabla.
+  - Medido a 1512px en modo compacto: entran todas sin scroll horizontal menos
+    **clientes**, que se pasa 35px. Es la única con nueve columnas y texto
+    largo —razón social, email— a la vez. En modo cómodo se pasa 233px.
+  - Si molesta, la palanca es el título **CONCENTRACIÓN**: es una sola palabra
+    que no puede partirse y reserva 126px para mostrar un porcentaje. Acortarlo
+    cierra la diferencia, pero es una decisión de redacción, no técnica.
   - El `meta.ancha` de `lib/tabla.ts` corta los textos libres con puntos
     suspensivos. Sin eso, una sola descripción larga empuja las columnas de la
     derecha fuera de la pantalla en cualquier densidad. Conviene marcarlo en

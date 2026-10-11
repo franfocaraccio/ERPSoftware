@@ -1,6 +1,7 @@
 import {
   Boton,
   Campo,
+  cn,
   Entrada,
   Esqueleto,
   EstadoVacio,
@@ -13,6 +14,8 @@ import { ChevronDown, ChevronRight, ScrollText } from "lucide-react";
 import { Fragment, useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { useTRPC } from "../../lib/trpc.js";
 
@@ -91,6 +94,7 @@ export function Auditoria() {
   const [hasta, setHasta] = useState("");
   const [pagina, setPagina] = useState(1);
   const [abierta, setAbierta] = useState<string | null>(null);
+  const [densidad, setDensidad] = useDensidad("historial");
 
   const { data: modulos } = useQuery(trpc.auditoria.modulos.queryOptions());
   const { data, isPending, isError, refetch } = useQuery(
@@ -219,7 +223,10 @@ export function Auditoria() {
                         // biome-ignore lint/suspicious/noArrayIndexKey: encabezados fijos
                         key={i}
                         scope="col"
-                        className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                        className={cn(
+                          clasesEncabezado(densidad),
+                          "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                        )}
                       >
                         {h}
                       </th>
@@ -239,10 +246,15 @@ export function Auditoria() {
                     return (
                       <Fragment key={entrada.id}>
                         <tr className="border-b border-border/60 last:border-0">
-                          <td className="px-4 py-3 tabular whitespace-nowrap text-muted-foreground">
+                          <td
+                            className={cn(
+                              clasesCelda(densidad),
+                              "tabular whitespace-nowrap text-muted-foreground",
+                            )}
+                          >
                             {fechaHora(entrada.fecha)}
                           </td>
-                          <td className="px-4 py-3">
+                          <td className={clasesCelda(densidad)}>
                             {entrada.autor ? (
                               <>
                                 <p className="font-medium text-foreground">{entrada.autor}</p>
@@ -254,11 +266,13 @@ export function Auditoria() {
                               <span className="text-muted-foreground">Proceso automático</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-muted-foreground">{etiquetaModulo}</td>
-                          <td className="px-4 py-3">
+                          <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                            {etiquetaModulo}
+                          </td>
+                          <td className={clasesCelda(densidad)}>
                             <Insignia tono={accion.tono}>{accion.etiqueta}</Insignia>
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className={cn(clasesCelda(densidad), "text-right")}>
                             <Boton
                               variante="fantasma"
                               tamano="sm"
@@ -290,10 +304,13 @@ export function Auditoria() {
           </Tarjeta>
 
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground tabular">
-              {data.total} {data.total === 1 ? "movimiento" : "movimientos"} · página {pagina} de{" "}
-              {paginas}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-muted-foreground tabular">
+                {data.total} {data.total === 1 ? "movimiento" : "movimientos"} · página {pagina} de{" "}
+                {paginas}
+              </p>
+              <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+            </div>
             <div className="flex items-center gap-2">
               <Boton
                 variante="secundario"

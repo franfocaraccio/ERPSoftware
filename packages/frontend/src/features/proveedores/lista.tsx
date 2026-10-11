@@ -27,7 +27,9 @@ import {
   type ResumenCartera,
   TarjetasCartera,
 } from "../../components/resumen-cartera.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import {
   etiquetaCondicionIva,
@@ -93,6 +95,15 @@ const columnas = helper.columns([
       <span className="text-muted-foreground">{etiquetaCondicionIva(info.getValue())}</span>
     ),
   }),
+  helper.accessor("rubro", {
+    meta: { secundaria: true, ancha: true },
+    header: "Rubro",
+    cell: (info) => (
+      <span className="text-muted-foreground" title={info.getValue() ?? undefined}>
+        {info.getValue() ?? "—"}
+      </span>
+    ),
+  }),
   helper.accessor("condicionPagoDias", {
     header: "Plazo",
     meta: { alineado: "derecha", secundaria: true },
@@ -146,12 +157,6 @@ const columnas = helper.columns([
   }),
 ]);
 
-/**
- * Columnas del archivo exportado. No son las de la tabla: la pantalla no
- * muestra el rubro por espacio —desde que el listado trae vencimiento, saldo y
- * concentración no entran ocho columnas— y en una planilla es justo por donde
- * uno va a querer agrupar.
- */
 const COLUMNAS_EXPORT: ColumnaExport<FilaProveedor>[] = [
   { encabezado: "Razón social", valor: (p) => p.razonSocial, tipo: "texto", ancho: 32 },
   { encabezado: "CUIT", valor: (p) => p.cuit, tipo: "codigo", ancho: 14 },
@@ -173,6 +178,7 @@ const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
   razonSocial: "razonSocial",
   cuit: "cuit",
   condicionIva: "condicionIva",
+  rubro: "rubro",
   condicionPagoDias: "condicionPagoDias",
 };
 
@@ -180,6 +186,7 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
   razonSocial: "Razón social",
   cuit: "CUIT",
   condicionIva: "Condición IVA",
+  rubro: "Rubro",
   condicionPagoDias: "Plazo",
   proximoVencimiento: "Próx. vencimiento",
   saldoAPagar: "Saldo a pagar",
@@ -199,6 +206,7 @@ export function ListaProveedores() {
   };
   const [busqueda, setBusqueda] = useState("");
   const busquedaDiferida = useDeferredValue(busqueda);
+  const [densidad, setDensidad] = useDensidad("proveedores");
 
   /** Los mismos filtros alimentan el listado y el resumen: si divergen, el
    * porcentaje de cada fila se calcularía contra un total que no es el suyo. */
@@ -327,11 +335,14 @@ export function ListaProveedores() {
             className="h-10 w-full rounded-lg border border-border-strong bg-surface pr-3 pl-9 text-sm text-foreground transition-colors placeholder:text-muted-foreground/70 focus:border-ring"
           />
         </div>
-        {!isPending && data && (
-          <p className="text-xs text-muted-foreground tabular">
-            {data.total} {data.total === 1 ? "proveedor" : "proveedores"}
-          </p>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {!isPending && data && (
+            <p className="text-xs text-muted-foreground tabular">
+              {data.total} {data.total === 1 ? "proveedor" : "proveedores"}
+            </p>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       <Tarjeta className="overflow-hidden">
@@ -393,7 +404,8 @@ export function ListaProveedores() {
                           scope="col"
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
-                            "px-4 py-2.5 text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
+                            clasesEncabezado(densidad),
+                            "text-xs font-medium tracking-wide text-muted-foreground uppercase",
                             derecha ? "text-right" : "text-left",
                             clasesColumna(header.column.columnDef.meta),
                           )}
@@ -426,7 +438,8 @@ export function ListaProveedores() {
                       <td
                         key={cell.id}
                         className={cn(
-                          "px-4 py-3 align-middle whitespace-nowrap",
+                          clasesCelda(densidad),
+                          "align-middle whitespace-nowrap",
                           clasesColumna(cell.column.columnDef.meta),
                         )}
                       >

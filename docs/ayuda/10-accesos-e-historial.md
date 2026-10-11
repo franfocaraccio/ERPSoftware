@@ -32,3 +32,19 @@ cambió y cuándo.
 Queda rastro de toda operación que impacte saldos, stock o impuestos.
 
 Se puede filtrar por rango de fechas. Es de consulta: no se edita ni se borra.
+
+## Si la tabla no te entra en la pantalla
+
+Arriba a la derecha de la tabla hay dos botones que cambian la **densidad**:
+
+- **Cómoda**: como viene por defecto.
+- **Compacta**: menos aire entre columnas y filas, y los títulos de columna se
+  parten en dos líneas. Entran más columnas sin scrollear al costado y se ven
+  más filas de una.
+
+El tamaño de la letra **no cambia** en ninguno de los dos: lo único que se achica
+es el espacio alrededor. Por eso conviene esto antes que bajar el zoom del
+navegador, que sí achica el texto y los botones.
+
+La elección se guarda en tu navegador y es **tuya**: cada persona tiene la suya,
+y es independiente en cada pantalla.

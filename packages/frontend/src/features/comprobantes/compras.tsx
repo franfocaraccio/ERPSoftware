@@ -2,6 +2,7 @@ import { hoyEnArgentina } from "@erp/core/dates";
 import {
   Boton,
   Campo,
+  cn,
   Entrada,
   Esqueleto,
   EstadoVacio,
@@ -15,7 +16,9 @@ import { useState } from "react";
 import { z } from "zod";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { RangoFechas } from "../../components/filtros.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -309,6 +312,7 @@ export function Compras() {
   const [creando, setCreando] = useState(false);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [densidad, setDensidad] = useDensidad("comprobantes-compra");
   const { data, isPending, isError, refetch } = useQuery(
     trpc.comprobantes.compras.listar.queryOptions({
       ...(desde ? { desde } : {}),
@@ -351,12 +355,15 @@ export function Compras() {
             {data.total} {data.total === 1 ? "compra" : "compras"}
           </p>
         )}
-        {!creando && !soloLectura && (
-          <Boton tamano="sm" className="ml-auto" onClick={() => setCreando(true)}>
-            <Plus className="size-4" aria-hidden="true" />
-            Nueva compra
-          </Boton>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {!creando && !soloLectura && (
+            <Boton tamano="sm" onClick={() => setCreando(true)}>
+              <Plus className="size-4" aria-hidden="true" />
+              Nueva compra
+            </Boton>
+          )}
+          <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+        </div>
       </div>
 
       {creando && <FormularioCompra onListo={() => setCreando(false)} />}
@@ -392,7 +399,10 @@ export function Compras() {
                     <th
                       key={h}
                       scope="col"
-                      className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      className={cn(
+                        clasesEncabezado(densidad),
+                        "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                      )}
                     >
                       {h}
                     </th>
@@ -401,7 +411,10 @@ export function Compras() {
                     <th
                       key={h}
                       scope="col"
-                      className="px-4 py-2.5 text-right text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      className={cn(
+                        clasesEncabezado(densidad),
+                        "text-right text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                      )}
                     >
                       {h}
                     </th>
@@ -414,23 +427,42 @@ export function Compras() {
                     key={c.id}
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
-                    <td className="px-4 py-3 tabular font-medium text-foreground">
+                    <td
+                      className={cn(clasesCelda(densidad), "tabular font-medium text-foreground")}
+                    >
                       {c.letra ?? "—"} {c.numeroCompleto ?? ""}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{c.proveedorRazonSocial}</td>
-                    <td className="px-4 py-3 tabular text-muted-foreground">
+                    <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                      {c.proveedorRazonSocial}
+                    </td>
+                    <td className={cn(clasesCelda(densidad), "tabular text-muted-foreground")}>
                       {formatearFecha(c.fechaRecepcion)}
                     </td>
-                    <td className="px-4 py-3 tabular text-muted-foreground">
+                    <td className={cn(clasesCelda(densidad), "tabular text-muted-foreground")}>
                       {c.condicionPagoDias} d
                     </td>
-                    <td className="px-4 py-3 text-right tabular text-muted-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right tabular text-muted-foreground",
+                      )}
+                    >
                       {formatearImporte(c.neto, c.moneda)}
                     </td>
-                    <td className="px-4 py-3 text-right tabular text-muted-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right tabular text-muted-foreground",
+                      )}
+                    >
                       {formatearImporte(c.iva, c.moneda)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium tabular text-foreground">
+                    <td
+                      className={cn(
+                        clasesCelda(densidad),
+                        "text-right font-medium tabular text-foreground",
+                      )}
+                    >
                       {formatearImporte(c.total, c.moneda)}
                     </td>
                   </tr>

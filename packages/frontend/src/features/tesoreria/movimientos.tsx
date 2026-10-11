@@ -2,6 +2,7 @@ import { hoyEnArgentina } from "@erp/core/dates";
 import {
   Boton,
   Campo,
+  cn,
   Entrada,
   Esqueleto,
   EstadoVacio,
@@ -23,7 +24,9 @@ import {
   FiltroSelector,
   RangoFechas,
 } from "../../components/filtros.js";
+import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
@@ -370,6 +373,7 @@ export function Movimientos() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [orden, setOrden] = useState<string>("fecha");
+  const [densidad, setDensidad] = useDensidad("movimientos");
   const [direccion, setDireccion] = useState<Direccion>("desc");
 
   const cuentas = useQuery(trpc.tesoreria.cuentas.listar.queryOptions());
@@ -423,7 +427,7 @@ export function Movimientos() {
       key={campo}
       scope="col"
       aria-sort={ariaSort(campo, orden, direccion)}
-      className={`px-4 py-2.5 text-xs font-medium tracking-wide uppercase ${alineado === "derecha" ? "text-right" : "text-left"}`}
+      className={`${clasesEncabezado(densidad)} text-xs font-medium tracking-wide uppercase ${alineado === "derecha" ? "text-right" : "text-left"}`}
     >
       <EncabezadoOrdenable
         etiqueta={etiqueta}
@@ -442,12 +446,14 @@ export function Movimientos() {
         hayFiltros={hayFiltros}
         onLimpiar={limpiar}
         resumen={
-          !isPending &&
-          data && (
-            <p className="text-xs text-muted-foreground tabular">
-              {data.total} {data.total === 1 ? "movimiento" : "movimientos"}
-            </p>
-          )
+          <div className="flex items-center gap-3">
+            {!isPending && data && (
+              <p className="text-xs text-muted-foreground tabular">
+                {data.total} {data.total === 1 ? "movimiento" : "movimientos"}
+              </p>
+            )}
+            <SelectorDensidad valor={densidad} onCambio={setDensidad} />
+          </div>
         }
       >
         <FiltroSelector
@@ -517,7 +523,10 @@ export function Movimientos() {
                     <th
                       key={h}
                       scope="col"
-                      className="px-4 py-2.5 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      className={cn(
+                        clasesEncabezado(densidad),
+                        "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                      )}
                     >
                       {h}
                     </th>
@@ -534,15 +543,19 @@ export function Movimientos() {
                       key={m.id}
                       className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                     >
-                      <td className="px-4 py-3 tabular text-muted-foreground">
+                      <td className={cn(clasesCelda(densidad), "tabular text-muted-foreground")}>
                         {formatearFecha(m.fecha)}
                       </td>
-                      <td className="px-4 py-3 text-foreground">{m.cuentaNombre}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{m.concepto ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
+                      <td className={cn(clasesCelda(densidad), "text-foreground")}>
+                        {m.cuentaNombre}
+                      </td>
+                      <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
+                        {m.concepto ?? "—"}
+                      </td>
+                      <td className={cn(clasesCelda(densidad), "text-muted-foreground")}>
                         {ETIQUETA_MEDIO[m.medioPago]}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={clasesCelda(densidad)}>
                         <Insignia tono={esIngreso ? "exito" : "neutro"}>
                           {esIngreso ? (
                             <ArrowDownLeft className="mr-1 size-3" aria-hidden="true" />
@@ -553,7 +566,7 @@ export function Movimientos() {
                         </Insignia>
                       </td>
                       <td
-                        className={`px-4 py-3 text-right font-medium tabular ${esIngreso ? "text-success" : "text-foreground"}`}
+                        className={`${clasesCelda(densidad)} text-right font-medium tabular ${esIngreso ? "text-success" : "text-foreground"}`}
                       >
                         {esIngreso ? "" : "−"}
                         {formatearImporte(m.importe, m.cuentaMoneda)}

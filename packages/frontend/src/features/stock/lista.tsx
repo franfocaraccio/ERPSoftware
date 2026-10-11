@@ -342,7 +342,7 @@ export function ListaStock() {
                           aria-sort={ordenable ? ariaSort(ordenable, orden, direccion) : undefined}
                           className={cn(
                             clasesEncabezado(densidad),
-                            "text-xs font-medium tracking-wide text-muted-foreground uppercase whitespace-nowrap",
+                            "text-xs font-medium tracking-wide text-muted-foreground uppercase",
                             derecha ? "text-right" : "text-left",
                             clasesColumna(header.column.columnDef.meta),
                           )}

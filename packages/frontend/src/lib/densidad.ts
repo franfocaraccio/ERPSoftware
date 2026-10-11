@@ -26,8 +26,17 @@ const CELDA: Record<Densidad, string> = {
   compacta: "px-2 py-1.5",
 };
 
+/**
+ * Los encabezados además pueden partirse en dos líneas en modo compacto.
+ *
+ * En varias tablas el título es más ancho que el dato que encabeza —"PRÓX.
+ * VENCIMIENTO" sobre una fecha, "Límite de crédito" sobre un importe— así que
+ * es el texto del `th` el que fija el ancho de la columna. Dejarlo envolver
+ * cuesta una fila de encabezado un poco más alta, una sola vez, y devuelve
+ * ancho en todas las filas.
+ */
 const ENCABEZADO: Record<Densidad, string> = {
-  comoda: "px-4 py-2.5",
+  comoda: "px-4 py-2.5 whitespace-nowrap",
   compacta: "px-2 py-1.5",
 };
 

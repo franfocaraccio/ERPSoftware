@@ -54,8 +54,9 @@ compra ni por promedio ponderado.
 Arriba a la derecha de la tabla hay dos botones que cambian la **densidad**:
 
 - **Cómoda**: como viene por defecto.
-- **Compacta**: menos aire entre columnas y filas. Entran todas las columnas sin
-  tener que scrollear al costado, y se ven más productos de una.
+- **Compacta**: menos aire entre columnas y filas, y los títulos de columna se
+  parten en dos líneas. Entran todas las columnas sin tener que scrollear al
+  costado, y se ven más productos de una.
 
 El tamaño de la letra **no cambia** en ninguno de los dos: lo único que se achica
 es el espacio alrededor. Por eso conviene esto antes que bajar el zoom del
