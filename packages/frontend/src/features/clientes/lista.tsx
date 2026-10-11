@@ -68,9 +68,10 @@ const TONO_ESTADO = {
 } as const;
 
 /**
- * Columnas del archivo exportado. No son las de la tabla: la pantalla esconde
- * el email y el teléfono por espacio, y en una planilla esos son justo los
- * datos que uno va a buscar.
+ * Columnas del archivo exportado. No son las de la tabla: la pantalla no
+ * muestra el email ni el teléfono por espacio —desde que el listado trae saldo,
+ * vencimiento y concentración no entran nueve columnas— y en una planilla esos
+ * son justo los datos que uno va a buscar.
  *
  * El CUIT va como `codigo` y no como número: Excel abriría `20123456789` como
  * `2,01235E+10`.
@@ -123,11 +124,6 @@ const columnas = helper.columns([
     cell: (info) => (
       <span className="text-muted-foreground">{etiquetaCondicionIva(info.getValue())}</span>
     ),
-  }),
-  helper.accessor("email", {
-    meta: { secundaria: true },
-    header: "Email",
-    cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("limiteCredito", {
     header: "Límite de crédito",
