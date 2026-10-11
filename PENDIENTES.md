@@ -5,6 +5,65 @@ falta; lo que no está, está hecho.
 
 Fase 1 y Fase 2 no tienen nada pendiente.
 
+## Pedidos de Jesi (11 de octubre de 2026)
+
+Diez puntos revisados contra el código. Tres no eran trabajo sino preguntas con
+respuesta, y dos chocan con una decisión ya tomada.
+
+**Hecho:** saldo y próximo vencimiento por cliente, total a cobrar y
+concentración de cartera con umbral configurable por empresa.
+
+**Ya estaba resuelto, sin trabajo:**
+
+- *¿El SKU es manual?* Sí: `text` obligatorio con índice único por empresa, sin
+  autonumeración. Si se quiere generar, es un pedido nuevo y chico.
+- *¿De dónde sale el margen?* De `margenBruto(precioVenta, costoUnitario)` en
+  `core`, calculado al leer. Lo importante es que `costo_unitario` es carga
+  manual por decisión de Fase 1: el margen vale lo que vale el costo tipeado.
+- *¿Quién valida un comprobante aprobado?* Una persona, ya. La máquina de
+  estados es `borrador → enviada → aprobada/rechazada` y nada llega a
+  `aprobada` solo; además `aprobada` no tiene salida, porque un comprobante con
+  CAE es inmutable.
+
+**Pendiente, chico:**
+
+- **Total a pagar y concentración en proveedores.** Es el gemelo de lo que se
+  hizo en clientes y el saldo por proveedor ya se calcula: falta sumar y poner
+  la tarjeta. Reusa `concentracionMaxima` de `core`.
+- **Cotización del dólar del BCRA.** Un fetch con cache. La trampa conocida es
+  el certificado SSL del BCRA, que Node suele rechazar; y hay que decidir qué
+  cotización se muestra (oficial, mayorista).
+
+**Pendiente, mediano:**
+
+- **La tabla de stock se corta.** El pedido venía como "poner el zoom al 80%",
+  pero eso baja el texto a 12,8px y achica los botones por debajo del tamaño
+  táctil. La tabla tiene nueve columnas: lo que corresponde es un selector de
+  densidad y esconder columnas secundarias en pantallas angostas, guardado por
+  usuario — que es lo que el pedido quería decir con "que cada uno lo ajuste".
+
+**Pendiente, grande:**
+
+- **Mails automáticos de saldos próximos a vencer.** Necesita pg-boss, que no
+  existe todavía, la key de Resend, y decisiones de producto: a quién, cada
+  cuánto, quién lo apaga.
+- **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR,
+  y `CLAUDE.md` dice explícitamente "No implementar el módulo de IA (voz/OCR) —
+  fuera de alcance". Si se quieren, es una conversación de alcance, no una
+  tarea. Aparte: en el extracto lo difícil no es leer el PDF sino **conciliar**
+  cada línea contra el movimiento ya cargado.
+
+## Dos problemas transversales encontrados al hacer esto
+
+- **Proveedores suma dólares como si fueran pesos.** `listarProveedores` arma el
+  saldo con `Money.desdeString(..., "ARS")` sobre la suma de todos los
+  comprobantes, pero `comprobantes_compra` tiene columna `moneda`. El patrón
+  correcto quedó en `clientes/service.ts` (`agregadosDe`).
+- **Las notas de crédito suman en vez de restar** en el DSO, la proyección de
+  caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
+  único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
+  cliente hoy le aumenta las ventas. En clientes ya se resta.
+
 ## Descartado
 
 - **Histórico de KPIs y selector dinámico de indicadores.** Decisión de Fran:
