@@ -2,6 +2,7 @@ import { auditoriaRouter } from "../modules/auditoria/router.js";
 import { clientesRouter } from "../modules/clientes/router.js";
 import { comprobantesRouter } from "../modules/comprobantes/router.js";
 import { consolidadoRouter } from "../modules/consolidado/router.js";
+import { cotizacionesRouter } from "../modules/cotizaciones/router.js";
 import { equipoRouter } from "../modules/equipo/router.js";
 import { financieroRouter } from "../modules/financiero/router.js";
 import { impuestosRouter } from "../modules/impuestos/router.js";
@@ -18,6 +19,7 @@ export const appRouter = router({
   clientes: clientesRouter,
   comprobantes: comprobantesRouter,
   consolidado: consolidadoRouter,
+  cotizaciones: cotizacionesRouter,
   equipo: equipoRouter,
   financiero: financieroRouter,
   impuestos: impuestosRouter,

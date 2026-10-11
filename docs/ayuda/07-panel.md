@@ -38,3 +38,14 @@ Los umbrales que deciden si un semáforo está en ok o en alerta se configuran e
 
 Si un indicador se ve siempre en alerta, lo primero a revisar es el umbral en
 `/parametros`.
+
+## Dólar oficial
+
+Arriba a la derecha del panel aparece la cotización del **dólar oficial** que
+publica el BCRA, con la fecha del dato al lado.
+
+Esa fecha importa: el BCRA publica una vez por día hábil, así que un lunes a la
+mañana el valor es el del viernes. Es informativo — el sistema no lo usa para
+convertir ningún importe.
+
+Si el BCRA no responde, el recuadro no aparece. No es un error del sistema.

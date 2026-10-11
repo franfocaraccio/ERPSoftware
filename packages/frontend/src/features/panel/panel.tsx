@@ -6,6 +6,7 @@ import { lazy, Suspense } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { DolarOficial } from "./dolar.js";
 import type { FilaProyeccion } from "./graficos.js";
 import { EsqueletoKpis, type Kpi, TarjetaKpi } from "./kpis.js";
 
@@ -133,6 +134,7 @@ export function Panel() {
       <EncabezadoPagina
         titulo="Panel"
         descripcion="Indicadores del negocio y proyección de caja a trece semanas."
+        acciones={<DolarOficial />}
       />
 
       {sinDatos ? (
