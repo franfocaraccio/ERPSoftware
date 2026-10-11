@@ -1,9 +1,19 @@
-import { Boton, clasesBoton, cn, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import { participacion } from "@erp/core/kpis";
+import { Money } from "@erp/core/money";
+import {
+  Boton,
+  clasesBoton,
+  cn,
+  Esqueleto,
+  EstadoVacio,
+  Insignia,
+  Tarjeta,
+} from "@erp/design-system";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Building2, Plus, Search } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
@@ -12,6 +22,11 @@ import {
   FiltroSelector,
 } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import {
+  EsqueletoCartera,
+  type ResumenCartera,
+  TarjetasCartera,
+} from "../../components/resumen-cartera.js";
 import { useModoLectura } from "../../components/sesion.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import {
@@ -19,6 +34,7 @@ import {
   formatearCuit,
   formatearFecha,
   formatearImporte,
+  formatearPorcentaje,
 } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
@@ -32,10 +48,23 @@ interface FilaProveedor {
   condicionPagoDias: number;
   saldoAPagar: string;
   proximoVencimiento: string | null;
+  tieneMonedaExtranjera: boolean;
+}
+
+/**
+ * La fila de la tabla: el proveedor más cuánto pesa dentro del total a pagar.
+ *
+ * La concentración no viene del servidor porque es relativa al total de los
+ * filtros activos, que lo trae el resumen: se arma acá, donde conviven los dos.
+ */
+interface FilaConPeso extends FilaProveedor {
+  /** % del total a pagar. null si no se le debe nada o no hay total. */
+  concentracion: string | null;
+  concentracionAlerta: boolean;
 }
 
 const features = tableFeatures({});
-const helper = createColumnHelper<typeof features, FilaProveedor>();
+const helper = createColumnHelper<typeof features, FilaConPeso>();
 
 const columnas = helper.columns([
   helper.accessor("razonSocial", {
@@ -63,11 +92,6 @@ const columnas = helper.columns([
     cell: (info) => (
       <span className="text-muted-foreground">{etiquetaCondicionIva(info.getValue())}</span>
     ),
-  }),
-  helper.accessor("rubro", {
-    meta: { secundaria: true },
-    header: "Rubro",
-    cell: (info) => <span className="text-muted-foreground">{info.getValue() ?? "—"}</span>,
   }),
   helper.accessor("condicionPagoDias", {
     header: "Plazo",
@@ -100,8 +124,34 @@ const columnas = helper.columns([
       );
     },
   }),
+  helper.accessor("concentracion", {
+    header: "Concentración",
+    meta: { alineado: "derecha" },
+    cell: (info) => {
+      const valor = info.getValue();
+      if (valor === null) {
+        return <span className="block text-right text-muted-foreground">—</span>;
+      }
+      const texto = formatearPorcentaje(valor);
+      return (
+        <span className="block text-right">
+          {info.row.original.concentracionAlerta ? (
+            <Insignia tono="advertencia">{texto}</Insignia>
+          ) : (
+            <span className="tabular text-muted-foreground">{texto}</span>
+          )}
+        </span>
+      );
+    },
+  }),
 ]);
 
+/**
+ * Columnas del archivo exportado. No son las de la tabla: la pantalla no
+ * muestra el rubro por espacio —desde que el listado trae vencimiento, saldo y
+ * concentración no entran ocho columnas— y en una planilla es justo por donde
+ * uno va a querer agrupar.
+ */
 const COLUMNAS_EXPORT: ColumnaExport<FilaProveedor>[] = [
   { encabezado: "Razón social", valor: (p) => p.razonSocial, tipo: "texto", ancho: 32 },
   { encabezado: "CUIT", valor: (p) => p.cuit, tipo: "codigo", ancho: 14 },
@@ -123,7 +173,6 @@ const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
   razonSocial: "razonSocial",
   cuit: "cuit",
   condicionIva: "condicionIva",
-  rubro: "rubro",
   condicionPagoDias: "condicionPagoDias",
 };
 
@@ -131,8 +180,10 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
   razonSocial: "Razón social",
   cuit: "CUIT",
   condicionIva: "Condición IVA",
-  rubro: "Rubro",
   condicionPagoDias: "Plazo",
+  proximoVencimiento: "Próx. vencimiento",
+  saldoAPagar: "Saldo a pagar",
+  concentracion: "Concentración",
 };
 
 export function ListaProveedores() {
@@ -149,23 +200,49 @@ export function ListaProveedores() {
   const [busqueda, setBusqueda] = useState("");
   const busquedaDiferida = useDeferredValue(busqueda);
 
+  /** Los mismos filtros alimentan el listado y el resumen: si divergen, el
+   * porcentaje de cada fila se calcularía contra un total que no es el suyo. */
+  const filtros = {
+    busqueda: busquedaDiferida || undefined,
+    ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+  };
+
   const { data, isPending, isError, refetch } = useQuery(
     trpc.proveedores.listar.queryOptions({
-      busqueda: busquedaDiferida || undefined,
-      ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+      ...filtros,
       orden: orden as "razonSocial",
-
       direccion,
-
       pagina: 1,
       tamanoPagina: 50,
     }),
   );
 
+  const { data: resumen, isError: resumenFallo } = useQuery(
+    trpc.proveedores.resumen.queryOptions(filtros),
+  );
+
+  const filas = useMemo<FilaConPeso[]>(() => {
+    const items = (data?.items as FilaProveedor[] | undefined) ?? SIN_DATOS;
+    const total = resumen ? Money.desdeString(resumen.totalAPagar, "ARS") : null;
+    const umbral = resumen ? Number(resumen.umbralConcentracion) : null;
+
+    return items.map((proveedor) => {
+      const saldo = Money.desdeString(proveedor.saldoAPagar, "ARS");
+      // Un proveedor al que le pagaste de más no concentra nada.
+      const concentracion = total && saldo.esPositivo() ? participacion(saldo, total) : null;
+      return {
+        ...proveedor,
+        concentracion,
+        concentracionAlerta:
+          concentracion !== null && umbral !== null && Number(concentracion) > umbral,
+      };
+    });
+  }, [data?.items, resumen]);
+
   const table = useTable({
     features,
     columns: columnas,
-    data: (data?.items as FilaProveedor[] | undefined) ?? SIN_DATOS,
+    data: filas,
   });
 
   /** Todo lo que matchea los filtros activos, no la página visible. */
@@ -199,6 +276,30 @@ export function ListaProveedores() {
           )
         }
       />
+
+      {/* Si el resumen falla, el listado sigue siendo útil: se omiten las
+          tarjetas en vez de dejar un esqueleto girando para siempre. */}
+      {resumen ? (
+        <TarjetasCartera
+          resumen={
+            {
+              total: resumen.totalAPagar,
+              contrapartes: resumen.acreedores,
+              concentracion: resumen.concentracion,
+              umbralConcentracion: resumen.umbralConcentracion,
+              semaforo: resumen.semaforo,
+              hayMonedaExtranjera: resumen.hayMonedaExtranjera,
+            } satisfies ResumenCartera
+          }
+          textos={{
+            total: "Total a pagar",
+            detalle: (n) => `Se le debe a ${n} ${n === 1 ? "proveedor" : "proveedores"}`,
+            vacio: "Ningún proveedor con saldo pendiente",
+          }}
+        />
+      ) : resumenFallo ? null : (
+        <EsqueletoCartera />
+      )}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <FiltroSelector

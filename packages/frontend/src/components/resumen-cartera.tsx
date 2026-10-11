@@ -1,16 +1,31 @@
 import { Esqueleto, Tarjeta } from "@erp/design-system";
 import { CircleCheck, CircleSlash, Info, TriangleAlert } from "lucide-react";
-import { formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
+import { formatearImporte, formatearPorcentaje } from "../lib/formato.js";
 
 export type Semaforo = "ok" | "alerta" | "sin_datos";
 
+/**
+ * El resumen de una cartera de cuenta corriente, sirva para cobrar o para
+ * pagar. Las dos pantallas miden lo mismo —cuánto hay en juego y cuánto de eso
+ * depende de una sola contraparte— aunque el riesgo que describen sea distinto:
+ * en clientes es que no te paguen, en proveedores es depender de uno solo.
+ */
 export interface ResumenCartera {
-  totalACobrar: string;
-  deudores: number;
+  total: string;
+  contrapartes: number;
   concentracion: { clave: string; porcentaje: string } | null;
   umbralConcentracion: string;
   semaforo: Semaforo;
   hayMonedaExtranjera: boolean;
+}
+
+export interface TextosCartera {
+  /** "Total a cobrar" / "Total a pagar". */
+  total: string;
+  /** Qué dice abajo del número cuando hay contrapartes. */
+  detalle: (cuantas: number) => string;
+  /** Qué dice cuando no hay ninguna. */
+  vacio: string;
 }
 
 /**
@@ -23,7 +38,13 @@ const ESTADO = {
   sin_datos: { Icono: CircleSlash, etiqueta: "Sin datos", clase: "text-muted-foreground" },
 } as const;
 
-export function ResumenClientes({ resumen }: { resumen: ResumenCartera }) {
+export function TarjetasCartera({
+  resumen,
+  textos,
+}: {
+  resumen: ResumenCartera;
+  textos: TextosCartera;
+}) {
   const { Icono, etiqueta, clase } = ESTADO[resumen.semaforo];
   const concentracion = resumen.concentracion;
 
@@ -32,15 +53,13 @@ export function ResumenClientes({ resumen }: { resumen: ResumenCartera }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <Tarjeta className="p-4">
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Total a cobrar
+            {textos.total}
           </p>
           <p className="mt-2 text-2xl font-semibold text-foreground tabular">
-            {formatearImporte(resumen.totalACobrar)}
+            {formatearImporte(resumen.total)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {resumen.deudores === 0
-              ? "Ningún cliente con saldo pendiente"
-              : `${resumen.deudores} ${resumen.deudores === 1 ? "cliente adeuda" : "clientes adeudan"} este total`}
+            {resumen.contrapartes === 0 ? textos.vacio : textos.detalle(resumen.contrapartes)}
           </p>
         </Tarjeta>
 
@@ -76,13 +95,13 @@ export function ResumenClientes({ resumen }: { resumen: ResumenCartera }) {
   );
 }
 
-export function EsqueletoResumen() {
+export function EsqueletoCartera() {
   return (
     <div
       className="mb-4 grid gap-3 sm:grid-cols-2"
       role="status"
       aria-busy="true"
-      aria-label="Cargando resumen de cartera"
+      aria-label="Cargando resumen"
     >
       <Esqueleto className="h-[104px] w-full" />
       <Esqueleto className="h-[104px] w-full" />

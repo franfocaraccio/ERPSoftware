@@ -40,3 +40,23 @@ Clic en la razón social del listado → `/proveedores/{id}`.
 
 Es la base de la proyección de egresos del panel: el sistema asume que una
 compra recibida hoy se paga dentro de esa cantidad de días.
+
+## Total a pagar y concentración
+
+Arriba del listado hay dos tarjetas:
+
+- **Total a pagar**: la suma de los saldos pendientes de todos los proveedores
+  que matchean los filtros activos — no de la página que estás viendo.
+- **Mayor concentración**: qué porcentaje del total se lleva el proveedor más
+  grande, y cuál es.
+
+Acá la concentración mide un riesgo distinto al de clientes. No es que no te
+paguen: es **dependencia**. Si el proveedor que concentra la mitad de tus
+compras aumenta, te cambia las condiciones o cierra, no tenés de dónde comprar.
+
+Cuando supera el umbral de la empresa, la tarjeta pasa a **Atención** y el
+porcentaje de esa fila se marca. El umbral se configura en Parámetros y es el
+mismo que usa la pantalla de Clientes.
+
+Los importes son **solo en pesos**. Si hay compras en otra moneda aparece un
+aviso debajo de las tarjetas: no se suman monedas distintas.

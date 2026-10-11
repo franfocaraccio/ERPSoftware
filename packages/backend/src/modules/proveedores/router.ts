@@ -5,6 +5,7 @@ import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import {
   proveedorActualizarSchema,
   proveedoresListarSchema,
+  proveedoresResumenSchema,
   proveedorInputSchema,
 } from "./schema.js";
 import {
@@ -12,11 +13,17 @@ import {
   crearProveedor,
   listarProveedores,
   obtenerProveedor,
+  resumenProveedores,
 } from "./service.js";
 
 export const proveedoresRouter = router({
   listar: tenantProcedure.input(proveedoresListarSchema).query(({ ctx, input }) => {
     return listarProveedores(ctx, input);
+  }),
+
+  /** Total a pagar y concentración de la cartera, para la tarjeta de arriba. */
+  resumen: tenantProcedure.input(proveedoresResumenSchema).query(({ ctx, input }) => {
+    return resumenProveedores(ctx, input);
   }),
 
   exportar: tenantProcedure

@@ -53,6 +53,15 @@ export const proveedoresListarSchema = z.object({
   tamanoPagina: z.number().int().min(1).max(100).default(20),
 });
 
+/**
+ * Los mismos filtros del listado, sin paginación ni orden: el resumen de arriba
+ * mira todos los proveedores que matchean, no la página que se está viendo.
+ */
+export const proveedoresResumenSchema = z.object({
+  busqueda: z.string().trim().max(100).optional(),
+  condicionIva: z.enum(condicionesIva).optional(),
+});
+
 export type ProveedorInput = z.infer<typeof proveedorInputSchema>;
 export type ProveedorActualizar = z.infer<typeof proveedorActualizarSchema>;
 export type ProveedoresListar = z.infer<typeof proveedoresListarSchema>;

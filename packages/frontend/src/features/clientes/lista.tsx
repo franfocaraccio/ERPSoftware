@@ -22,6 +22,11 @@ import {
   FiltroSelector,
 } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import {
+  EsqueletoCartera,
+  type ResumenCartera,
+  TarjetasCartera,
+} from "../../components/resumen-cartera.js";
 import { useModoLectura } from "../../components/sesion.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import {
@@ -34,7 +39,6 @@ import {
 } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
-import { EsqueletoResumen, type ResumenCartera, ResumenClientes } from "./resumen.js";
 
 interface FilaCliente {
   id: string;
@@ -314,9 +318,25 @@ export function ListaClientes() {
       {/* Si el resumen falla, el listado sigue siendo útil: se omiten las
           tarjetas en vez de dejar un esqueleto girando para siempre. */}
       {resumen ? (
-        <ResumenClientes resumen={resumen as ResumenCartera} />
+        <TarjetasCartera
+          resumen={
+            {
+              total: resumen.totalACobrar,
+              contrapartes: resumen.deudores,
+              concentracion: resumen.concentracion,
+              umbralConcentracion: resumen.umbralConcentracion,
+              semaforo: resumen.semaforo,
+              hayMonedaExtranjera: resumen.hayMonedaExtranjera,
+            } satisfies ResumenCartera
+          }
+          textos={{
+            total: "Total a cobrar",
+            detalle: (n) => `${n} ${n === 1 ? "cliente adeuda" : "clientes adeudan"} este total`,
+            vacio: "Ningún cliente con saldo pendiente",
+          }}
+        />
       ) : resumenFallo ? null : (
-        <EsqueletoResumen />
+        <EsqueletoCartera />
       )}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
