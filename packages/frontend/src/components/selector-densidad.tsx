@@ -19,6 +19,9 @@ const ICONO: Record<Densidad, typeof Rows3> = {
  * verdad necesita tabindex rotativo y manejo de flechas, y con dos opciones no
  * paga ese costo. Así cada botón es un tab-stop común y el lector de pantalla
  * anuncia cuál está activo.
+ *
+ * El contenedor es un `fieldset` con `legend` y no un `div role="group"`: el
+ * elemento nativo ya tiene esa semántica y no hay que declararla a mano.
  */
 export function SelectorDensidad({
   valor,
@@ -28,11 +31,8 @@ export function SelectorDensidad({
   onCambio: (densidad: Densidad) => void;
 }) {
   return (
-    <div
-      role="group"
-      aria-label="Densidad de la tabla"
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface-muted p-0.5"
-    >
+    <fieldset className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface-muted p-0.5">
+      <legend className="sr-only">Densidad de la tabla</legend>
       {DENSIDADES.map((densidad) => {
         const Icono = ICONO[densidad];
         const activo = valor === densidad;
@@ -57,6 +57,6 @@ export function SelectorDensidad({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
