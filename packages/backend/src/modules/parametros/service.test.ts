@@ -26,12 +26,14 @@ describe("parametros service (integración, RLS activo)", () => {
       umbralMoraDias: 45,
       margenObjetivo: "35.00",
       minimoOperativo: "800000.00",
+      umbralConcentracion: "15.00",
     });
 
     expect(guardado.umbralMoraDias).toBe(45);
     // Los decimales viajan como string: nunca se convierten a number.
     expect(guardado.margenObjetivo).toBe("35.00");
     expect(guardado.minimoOperativo).toBe("800000.00");
+    expect(guardado.umbralConcentracion).toBe("15.00");
     expect(await obtenerParametros(tenantA)).toEqual(guardado);
   });
 
@@ -40,6 +42,7 @@ describe("parametros service (integración, RLS activo)", () => {
       umbralMoraDias: 30,
       margenObjetivo: null,
       minimoOperativo: "500000.00",
+      umbralConcentracion: "25.00",
     });
 
     const leido = await obtenerParametros(tenantA);

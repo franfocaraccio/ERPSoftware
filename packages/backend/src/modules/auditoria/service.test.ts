@@ -24,6 +24,7 @@ beforeAll(async () => {
     umbralMoraDias: 40,
     margenObjetivo: "30.00",
     minimoOperativo: null,
+    umbralConcentracion: "20.00",
   });
 });
 

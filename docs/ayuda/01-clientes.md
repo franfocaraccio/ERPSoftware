@@ -38,7 +38,50 @@ crear no aparece — un cliente nuevo nace activo.
 - **Estado**: activo, inactivo o en mora.
 
 Las columnas Razón social, CUIT, Condición IVA, Límite de crédito y Estado se
-pueden ordenar haciendo clic en el encabezado.
+pueden ordenar haciendo clic en el encabezado. Saldo, Próx. vencimiento y
+Concentración no se ordenan: se calculan al leer, no se guardan en una columna.
+
+## Cuánto te debe cada cliente
+
+El listado muestra tres columnas que no se cargan a mano, se calculan solas:
+
+| Columna | Qué es |
+|---|---|
+| Saldo | Lo facturado menos lo cobrado. En negativo = el cliente tiene saldo a favor |
+| Próx. vencimiento | La fecha de vencimiento más cercana **en el futuro** de sus comprobantes impagos |
+| Concentración | Qué porcentaje del total a cobrar representa ese cliente |
+
+El saldo cuenta solo los comprobantes en estado **Enviada** o **Aprobada**: un
+borrador todavía no se le reclamó a nadie y un rechazado ya no se reclama.
+
+El vencimiento de cada comprobante es su fecha de emisión más los días de la
+condición de venta.
+
+## Total a cobrar y concentración
+
+Arriba del listado hay dos tarjetas:
+
+- **Total a cobrar**: la suma de los saldos deudores de todos los clientes que
+  matchean los filtros activos — no de la página que estás viendo. Si filtrás
+  por Monotributo, el total es el de los monotributistas.
+- **Mayor concentración**: qué porcentaje del total se lleva el cliente más
+  grande, y cuál es.
+
+La concentración mide **riesgo**. Si un solo cliente concentra el 40% de lo que
+te deben y no te paga, no perdés un cobro: perdés casi la mitad de tu cuenta
+corriente. Diez clientes con la misma plata repartida es mucho menos riesgoso.
+
+Cuando el cliente más grande supera el umbral de la empresa, la tarjeta pasa a
+**Atención** y el porcentaje de esa fila se marca en el listado. El umbral se
+configura en [Parámetros](/parametros) y por defecto es 20%.
+
+## Clientes en dólares
+
+Los importes de las tarjetas y de la columna Saldo son **solo en pesos**. Si
+hay comprobantes en otra moneda, aparece un aviso debajo de las tarjetas.
+
+No se suman las monedas a propósito: un total que mezcla pesos y dólares es un
+número que no existe.
 
 ## Límite de crédito
 

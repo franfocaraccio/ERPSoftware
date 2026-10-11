@@ -1,3 +1,5 @@
+import { participacion } from "@erp/core/kpis";
+import { Money } from "@erp/core/money";
 import {
   Boton,
   clasesBoton,
@@ -11,7 +13,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { Plus, Search, Users } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import {
   ariaSort,
@@ -26,10 +28,13 @@ import {
   etiquetaCondicionIva,
   etiquetaEstado,
   formatearCuit,
+  formatearFecha,
   formatearImporte,
+  formatearPorcentaje,
 } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { EsqueletoResumen, type ResumenCartera, ResumenClientes } from "./resumen.js";
 
 interface FilaCliente {
   id: string;
@@ -39,6 +44,21 @@ interface FilaCliente {
   email: string | null;
   limiteCredito: string | null;
   estado: string;
+  saldo: string;
+  proximoVencimiento: string | null;
+  tieneMonedaExtranjera: boolean;
+}
+
+/**
+ * La fila de la tabla: el cliente más cuánto pesa dentro del total a cobrar.
+ *
+ * La concentración no viene del servidor porque es relativa al total de los
+ * filtros activos, que lo trae el resumen: se arma acá, donde conviven los dos.
+ */
+interface FilaConPeso extends FilaCliente {
+  /** % del total a cobrar. null si no debe nada o no hay total que repartir. */
+  concentracion: string | null;
+  concentracionAlerta: boolean;
 }
 
 const TONO_ESTADO = {
@@ -65,11 +85,17 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaCliente>[] = [
   },
   { encabezado: "Email", valor: (c) => c.email, tipo: "texto", ancho: 28 },
   { encabezado: "Límite de crédito", valor: (c) => c.limiteCredito, tipo: "dinero" },
+  { encabezado: "Saldo", valor: (c) => c.saldo, tipo: "dinero" },
+  { encabezado: "Próx. vencimiento", valor: (c) => c.proximoVencimiento, tipo: "fecha" },
   { encabezado: "Estado", valor: (c) => etiquetaEstado(c.estado), tipo: "texto", ancho: 12 },
 ];
+// El % de concentración no va al archivo a propósito: es relativo al total de
+// los filtros con los que se exportó, y dentro de una planilla que alguien abre
+// un mes después ese denominador ya no se ve por ningún lado. Con la columna
+// Saldo, quien lo necesite lo calcula.
 
 const features = tableFeatures({});
-const helper = createColumnHelper<typeof features, FilaCliente>();
+const helper = createColumnHelper<typeof features, FilaConPeso>();
 
 const columnas = helper.columns([
   helper.accessor("razonSocial", {
@@ -112,6 +138,51 @@ const columnas = helper.columns([
       </span>
     ),
   }),
+  helper.accessor("saldo", {
+    header: "Saldo",
+    meta: { alineado: "derecha" },
+    cell: (info) => {
+      const valor = info.getValue();
+      const debe = valor !== "0.00" && !valor.startsWith("-");
+      return (
+        <span
+          className={cn(
+            "block text-right tabular",
+            debe ? "font-medium text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {formatearImporte(valor)}
+        </span>
+      );
+    },
+  }),
+  helper.accessor("proximoVencimiento", {
+    meta: { secundaria: true },
+    header: "Próx. vencimiento",
+    cell: (info) => (
+      <span className="tabular text-muted-foreground">{formatearFecha(info.getValue())}</span>
+    ),
+  }),
+  helper.accessor("concentracion", {
+    header: "Concentración",
+    meta: { alineado: "derecha" },
+    cell: (info) => {
+      const valor = info.getValue();
+      if (valor === null) {
+        return <span className="block text-right text-muted-foreground">—</span>;
+      }
+      const texto = formatearPorcentaje(valor);
+      return (
+        <span className="block text-right">
+          {info.row.original.concentracionAlerta ? (
+            <Insignia tono="advertencia">{texto}</Insignia>
+          ) : (
+            <span className="tabular text-muted-foreground">{texto}</span>
+          )}
+        </span>
+      );
+    },
+  }),
   helper.accessor("estado", {
     header: "Estado",
     cell: (info) => {
@@ -141,6 +212,9 @@ const ETIQUETA_COLUMNA: Record<string, string> = {
   cuit: "CUIT",
   condicionIva: "Condición IVA",
   limiteCredito: "Límite de crédito",
+  saldo: "Saldo",
+  proximoVencimiento: "Próx. vencimiento",
+  concentracion: "Concentración",
   estado: "Estado",
 };
 
@@ -159,23 +233,50 @@ export function ListaClientes() {
   // Difiere el filtrado para no disparar una request por tecla.
   const busquedaDiferida = useDeferredValue(busqueda);
 
+  /** Los mismos filtros alimentan el listado y el resumen: si divergen, el
+   * porcentaje de cada fila se calcularía contra un total que no es el suyo. */
+  const filtros = {
+    busqueda: busquedaDiferida || undefined,
+    ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+  };
+
   const { data, isPending, isError, refetch } = useQuery(
     trpc.clientes.listar.queryOptions({
-      busqueda: busquedaDiferida || undefined,
-      ...(condicionIva ? { condicionIva: condicionIva as "exento" } : {}),
+      ...filtros,
       orden: orden as "razonSocial",
-
       direccion,
-
       pagina: 1,
       tamanoPagina: 50,
     }),
   );
 
+  const { data: resumen, isError: resumenFallo } = useQuery(
+    trpc.clientes.resumen.queryOptions(filtros),
+  );
+
+  const filas = useMemo<FilaConPeso[]>(() => {
+    const items = (data?.items as FilaCliente[] | undefined) ?? SIN_DATOS;
+    const total = resumen ? Money.desdeString(resumen.totalACobrar, "ARS") : null;
+    const umbral = resumen ? Number(resumen.umbralConcentracion) : null;
+
+    return items.map((cliente) => {
+      const saldo = Money.desdeString(cliente.saldo, "ARS");
+      // Un cliente con saldo a favor no concentra nada: no tiene sentido
+      // decir que pesa -3% del total por cobrar.
+      const concentracion = total && saldo.esPositivo() ? participacion(saldo, total) : null;
+      return {
+        ...cliente,
+        concentracion,
+        concentracionAlerta:
+          concentracion !== null && umbral !== null && Number(concentracion) > umbral,
+      };
+    });
+  }, [data?.items, resumen]);
+
   const table = useTable({
     features,
     columns: columnas,
-    data: (data?.items as FilaCliente[] | undefined) ?? SIN_DATOS,
+    data: filas,
   });
 
   /**
@@ -213,6 +314,14 @@ export function ListaClientes() {
           )
         }
       />
+
+      {/* Si el resumen falla, el listado sigue siendo útil: se omiten las
+          tarjetas en vez de dejar un esqueleto girando para siempre. */}
+      {resumen ? (
+        <ResumenClientes resumen={resumen as ResumenCartera} />
+      ) : resumenFallo ? null : (
+        <EsqueletoResumen />
+      )}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <FiltroSelector

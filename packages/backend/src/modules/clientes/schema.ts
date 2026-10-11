@@ -55,6 +55,16 @@ export const clientesListarSchema = z.object({
   tamanoPagina: z.number().int().min(1).max(100).default(20),
 });
 
+/**
+ * Los mismos filtros del listado, sin paginación ni orden: el resumen de arriba
+ * mira todos los clientes que matchean, no la página que se está viendo.
+ */
+export const clientesResumenSchema = z.object({
+  busqueda: z.string().trim().max(100).optional(),
+  condicionIva: z.enum(condicionesIva).optional(),
+  estado: z.enum(estadosCliente).optional(),
+});
+
 export type ClienteInput = z.infer<typeof clienteInputSchema>;
 export type ClienteActualizar = z.infer<typeof clienteActualizarSchema>;
 export type ClientesListar = z.infer<typeof clientesListarSchema>;

@@ -24,6 +24,11 @@ export const parametrosGuardarSchema = z.object({
   margenObjetivo: porcentajeSchema.nullable(),
   /** Piso de caja de la proyección a 13 semanas, en pesos. Vacío = sin piso. */
   minimoOperativo: importeSchema.nullable(),
+  /**
+   * % del total por cobrar que un solo cliente puede concentrar antes de que
+   * la pantalla lo marque. No es nullable: sin umbral no hay semáforo.
+   */
+  umbralConcentracion: porcentajeSchema,
 });
 
 export type ParametrosGuardar = z.infer<typeof parametrosGuardarSchema>;

@@ -28,6 +28,13 @@ const schema = z.object({
   minimoOperativo: z
     .string()
     .refine((v) => v === "" || decimal.test(v), "Usá números, con hasta dos decimales"),
+  // A diferencia de los dos anteriores, este no puede quedar vacío: sin umbral
+  // la pantalla de clientes no tendría contra qué marcar la concentración.
+  umbralConcentracion: z
+    .string()
+    .refine((v) => decimal.test(v), "Usá números, con hasta dos decimales")
+    .refine((v) => Number(v.replace(",", ".")) > 0, "Tiene que ser mayor a 0")
+    .refine((v) => Number(v.replace(",", ".")) <= 100, "No puede superar 100%"),
 });
 
 /** La coma es lo natural al escribir en castellano; el borde espera punto. */
@@ -56,6 +63,7 @@ export function Parametros() {
       umbralMoraDias: String(data?.umbralMoraDias ?? 60),
       margenObjetivo: data?.margenObjetivo ?? "",
       minimoOperativo: data?.minimoOperativo ?? "",
+      umbralConcentracion: data?.umbralConcentracion ?? "20",
     },
     validators: { onBlur: schema },
     onSubmit: async ({ value }) => {
@@ -63,10 +71,13 @@ export function Parametros() {
         umbralMoraDias: Number(value.umbralMoraDias),
         margenObjetivo: aDecimal(value.margenObjetivo),
         minimoOperativo: aDecimal(value.minimoOperativo),
+        umbralConcentracion: value.umbralConcentracion.trim().replace(",", "."),
       });
       await queryClient.invalidateQueries({ queryKey: trpc.parametros.pathKey() });
       // El panel se lee con estos umbrales: sus semáforos cambian con esto.
       await queryClient.invalidateQueries({ queryKey: trpc.financiero.pathKey() });
+      // El resumen de clientes compara la concentración contra este umbral.
+      await queryClient.invalidateQueries({ queryKey: trpc.clientes.pathKey() });
       setGuardado(true);
     },
   });
@@ -102,7 +113,7 @@ export function Parametros() {
     <>
       <EncabezadoPagina
         titulo="Parámetros"
-        descripcion="Los umbrales con los que el panel decide qué está en rango y qué no."
+        descripcion="Los umbrales con los que el sistema decide qué está en rango y qué no."
       />
 
       <Tarjeta className="max-w-2xl p-5">
@@ -194,6 +205,36 @@ export function Parametros() {
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
                     />
+                  </div>
+                )}
+              </Campo>
+            )}
+          </form.Field>
+
+          <form.Field name="umbralConcentracion">
+            {(field) => (
+              <Campo
+                etiqueta="Umbral de concentración"
+                requerido
+                ayuda="Cuánto puede representar un solo cliente dentro del total a cobrar antes de que la pantalla lo marque. Si uno solo te debe más que esto y no paga, el golpe es grande."
+                error={
+                  field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
+                }
+              >
+                {({ id, describedBy, invalido }) => (
+                  <div className="flex items-center gap-2">
+                    <Entrada
+                      id={id}
+                      inputMode="decimal"
+                      placeholder="20"
+                      className="max-w-32"
+                      aria-describedby={describedBy}
+                      invalido={invalido}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                    />
+                    <span className="text-sm text-muted-foreground">%</span>
                   </div>
                 )}
               </Campo>

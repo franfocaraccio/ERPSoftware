@@ -2,12 +2,28 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
-import { clienteActualizarSchema, clienteInputSchema, clientesListarSchema } from "./schema.js";
-import { actualizarCliente, crearCliente, listarClientes, obtenerCliente } from "./service.js";
+import {
+  clienteActualizarSchema,
+  clienteInputSchema,
+  clientesListarSchema,
+  clientesResumenSchema,
+} from "./schema.js";
+import {
+  actualizarCliente,
+  crearCliente,
+  listarClientes,
+  obtenerCliente,
+  resumenClientes,
+} from "./service.js";
 
 export const clientesRouter = router({
   listar: tenantProcedure.input(clientesListarSchema).query(({ ctx, input }) => {
     return listarClientes(ctx, input);
+  }),
+
+  /** Total a cobrar y concentración de cartera, para la tarjeta de arriba. */
+  resumen: tenantProcedure.input(clientesResumenSchema).query(({ ctx, input }) => {
+    return resumenClientes(ctx, input);
   }),
 
   exportar: tenantProcedure
