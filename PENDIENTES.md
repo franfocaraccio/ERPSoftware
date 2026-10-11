@@ -11,7 +11,9 @@ Diez puntos revisados contra el código. Tres no eran trabajo sino preguntas con
 respuesta, y dos chocan con una decisión ya tomada.
 
 **Hecho:** saldo y próximo vencimiento por cliente, total a cobrar y
-concentración de cartera con umbral configurable por empresa.
+concentración de cartera con umbral configurable por empresa; lo mismo del lado
+de proveedores (total a pagar y dependencia del proveedor más grande); y el
+dólar oficial del BCRA en el panel.
 
 **Ya estaba resuelto, sin trabajo:**
 
@@ -25,22 +27,17 @@ concentración de cartera con umbral configurable por empresa.
   `aprobada` solo; además `aprobada` no tiene salida, porque un comprobante con
   CAE es inmutable.
 
-**Pendiente, chico:**
-
-- **Total a pagar y concentración en proveedores.** Es el gemelo de lo que se
-  hizo en clientes y el saldo por proveedor ya se calcula: falta sumar y poner
-  la tarjeta. Reusa `concentracionMaxima` de `core`.
-- **Cotización del dólar del BCRA.** Un fetch con cache. La trampa conocida es
-  el certificado SSL del BCRA, que Node suele rechazar; y hay que decidir qué
-  cotización se muestra (oficial, mayorista).
-
 **Pendiente, mediano:**
 
-- **La tabla de stock se corta.** El pedido venía como "poner el zoom al 80%",
-  pero eso baja el texto a 12,8px y achica los botones por debajo del tamaño
-  táctil. La tabla tiene nueve columnas: lo que corresponde es un selector de
-  densidad y esconder columnas secundarias en pantallas angostas, guardado por
-  usuario — que es lo que el pedido quería decir con "que cada uno lo ajuste".
+- **Las tablas se cortan.** El pedido venía como "poner el zoom al 80%", pero
+  eso baja el texto a 12,8px y achica los botones por debajo del tamaño táctil.
+  Lo que corresponde es un selector de densidad y esconder columnas secundarias
+  en pantallas angostas, guardado por usuario — que es lo que el pedido quería
+  decir con "que cada uno lo ajuste".
+  - Stock sigue con nueve columnas y es el caso que ella reportó.
+  - En clientes y proveedores se ganó aire sacando Email y Rubro de la tabla
+    (siguen en el export), pero es una mitigación, no el arreglo: en clientes
+    la columna Estado todavía queda recortada a 1512px.
 
 **Pendiente, grande:**
 
@@ -53,12 +50,8 @@ concentración de cartera con umbral configurable por empresa.
   tarea. Aparte: en el extracto lo difícil no es leer el PDF sino **conciliar**
   cada línea contra el movimiento ya cargado.
 
-## Dos problemas transversales encontrados al hacer esto
+## Un problema transversal pendiente
 
-- **Proveedores suma dólares como si fueran pesos.** `listarProveedores` arma el
-  saldo con `Money.desdeString(..., "ARS")` sobre la suma de todos los
-  comprobantes, pero `comprobantes_compra` tiene columna `moneda`. El patrón
-  correcto quedó en `clientes/service.ts` (`agregadosDe`).
 - **Las notas de crédito suman en vez de restar** en el DSO, la proyección de
   caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
   único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
