@@ -101,45 +101,81 @@ export function margenBrutoPorcentual(ventas: Money, costoVentas: Money): string
 }
 
 /**
- * Concentración de riesgo en cheques: qué porcentaje de la cartera corresponde
- * al librador más grande. Un solo librador concentrando mucho es riesgo.
+ * Qué porcentaje del total representa un importe.
+ *
+ * Devuelve null cuando no hay total contra el cual comparar: "no hay nada por
+ * cobrar" y "este cliente no pesa nada" son cosas distintas y la UI las
+ * muestra distinto.
  */
-export function concentracionLibrador(
-  cheques: readonly { librador: string; importe: Money }[],
-): { librador: string; porcentaje: string } | null {
-  if (cheques.length === 0) {
-    return null;
-  }
-  const moneda = cheques[0]?.importe.moneda ?? "ARS";
-  const porLibrador = new Map<string, Money>();
-  for (const cheque of cheques) {
-    const acumulado = porLibrador.get(cheque.librador) ?? Money.cero(moneda);
-    porLibrador.set(cheque.librador, acumulado.sumar(cheque.importe));
+export function participacion(importe: Money, total: Money): string | null {
+  const ratio = dividir(importe, total, 6);
+  return ratio === null
+    ? null
+    : new Decimal(ratio).times(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2);
+}
+
+export interface Concentracion {
+  clave: string;
+  porcentaje: string;
+}
+
+/**
+ * Concentración de riesgo: qué porcentaje del total se lleva la clave más
+ * grande. Sirve para cheques (por librador), clientes (por cuánto nos deben) y
+ * proveedores (por cuánto les debemos): el riesgo es el mismo, que una sola
+ * contraparte pese demasiado.
+ *
+ * Los importes de una misma clave se acumulan antes de comparar — tres
+ * comprobantes del mismo cliente son un solo riesgo, no tres chicos.
+ *
+ * Los saldos a favor quedan afuera: no son plata por cobrar, y restarlos del
+ * total haría que los demás parezcan concentrar más de lo que concentran.
+ */
+export function concentracionMaxima(
+  items: readonly { clave: string; importe: Money }[],
+): Concentracion | null {
+  const moneda = items[0]?.importe.moneda ?? "ARS";
+  const porClave = new Map<string, Money>();
+  for (const item of items) {
+    const acumulado = porClave.get(item.clave) ?? Money.cero(moneda);
+    porClave.set(item.clave, acumulado.sumar(item.importe));
   }
 
-  const total = Money.sumarTodos([...porLibrador.values()], moneda);
-  if (total.esCero()) {
+  const deudores = [...porClave.entries()].filter(([, importe]) => importe.esPositivo());
+  if (deudores.length === 0) {
     return null;
   }
 
-  let mayor: { librador: string; importe: Money } | null = null;
-  for (const [librador, importe] of porLibrador) {
+  const total = Money.sumarTodos(
+    deudores.map(([, importe]) => importe),
+    moneda,
+  );
+
+  let mayor: { clave: string; importe: Money } | null = null;
+  for (const [clave, importe] of deudores) {
     if (!mayor || importe.mayorQue(mayor.importe)) {
-      mayor = { librador, importe };
+      mayor = { clave, importe };
     }
   }
   if (!mayor) {
     return null;
   }
 
-  const ratio = dividir(mayor.importe, total, 4);
-  return {
-    librador: mayor.librador,
-    porcentaje:
-      ratio === null
-        ? "0.00"
-        : new Decimal(ratio).times(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toFixed(2),
-  };
+  const porcentaje = participacion(mayor.importe, total);
+  return porcentaje === null ? null : { clave: mayor.clave, porcentaje };
+}
+
+/**
+ * Concentración de la cartera de cheques por librador. Es `concentracionMaxima`
+ * con el nombre que usa el dominio de tesorería.
+ */
+export function concentracionLibrador(
+  cheques: readonly { librador: string; importe: Money }[],
+): { librador: string; porcentaje: string } | null {
+  const maxima = concentracionMaxima(
+    cheques.map((cheque) => ({ clave: cheque.librador, importe: cheque.importe })),
+  );
+  return maxima === null ? null : { librador: maxima.clave, porcentaje: maxima.porcentaje };
 }
 
 /** Estar exactamente en el umbral todavía se considera aceptable. */

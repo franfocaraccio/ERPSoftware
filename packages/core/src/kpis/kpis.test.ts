@@ -3,11 +3,13 @@ import { Money } from "../money/index.js";
 import {
   cicloConversionEfectivo,
   concentracionLibrador,
+  concentracionMaxima,
   diasRotacionStock,
   dpo,
   dso,
   liquidezCorriente,
   margenBrutoPorcentual,
+  participacion,
   semaforoDe,
 } from "./kpis.js";
 
@@ -130,6 +132,90 @@ describe("concentracionLibrador", () => {
 
   it("sin cheques devuelve null", () => {
     expect(concentracionLibrador([])).toBeNull();
+  });
+});
+
+describe("participacion", () => {
+  it("es qué porcentaje del total representa un importe", () => {
+    expect(participacion(ars("25000"), ars("100000"))).toBe("25.00");
+  });
+
+  it("redondea a dos decimales", () => {
+    // 1/3 = 33.333...%
+    expect(participacion(ars("10000"), ars("30000"))).toBe("33.33");
+  });
+
+  it("un importe que es todo el total da 100", () => {
+    expect(participacion(ars("50000"), ars("50000"))).toBe("100.00");
+  });
+
+  it("sin total no se puede dividir: devuelve null", () => {
+    // Distinto de "0.00": no hay nada por cobrar, no es que este cliente no pese.
+    expect(participacion(ars("0"), ars("0"))).toBeNull();
+  });
+
+  it("un importe en cero pesa cero", () => {
+    expect(participacion(ars("0"), ars("100000"))).toBe("0.00");
+  });
+});
+
+describe("concentracionMaxima", () => {
+  it("devuelve la clave más grande y cuánto pesa", () => {
+    expect(
+      concentracionMaxima([
+        { clave: "Ferretería MyH", importe: ars("60000") },
+        { clave: "Otro", importe: ars("40000") },
+      ]),
+    ).toEqual({ clave: "Ferretería MyH", porcentaje: "60.00" });
+  });
+
+  it("acumula los importes de la misma clave antes de comparar", () => {
+    // Tres comprobantes del mismo cliente son un solo riesgo, no tres chicos.
+    const r = concentracionMaxima([
+      { clave: "ACME", importe: ars("30000") },
+      { clave: "ACME", importe: ars("30000") },
+      { clave: "Otro", importe: ars("40000") },
+    ]);
+    expect(r).toEqual({ clave: "ACME", porcentaje: "60.00" });
+  });
+
+  it("ignora los saldos a favor: no son plata por cobrar", () => {
+    // El cliente que pagó de más no resta del total ni compite por el máximo.
+    const r = concentracionMaxima([
+      { clave: "Debe", importe: ars("75000") },
+      { clave: "Pagó de más", importe: ars("-25000") },
+      { clave: "Otro", importe: ars("25000") },
+    ]);
+    expect(r).toEqual({ clave: "Debe", porcentaje: "75.00" });
+  });
+
+  it("un solo deudor concentra el 100%", () => {
+    expect(concentracionMaxima([{ clave: "Único", importe: ars("1000") }])).toEqual({
+      clave: "Único",
+      porcentaje: "100.00",
+    });
+  });
+
+  it("sin items devuelve null", () => {
+    expect(concentracionMaxima([])).toBeNull();
+  });
+
+  it("con todo en cero no hay concentración que medir", () => {
+    expect(
+      concentracionMaxima([
+        { clave: "A", importe: ars("0") },
+        { clave: "B", importe: ars("0") },
+      ]),
+    ).toBeNull();
+  });
+
+  it("con todos los saldos a favor tampoco hay nada por cobrar", () => {
+    expect(
+      concentracionMaxima([
+        { clave: "A", importe: ars("-500") },
+        { clave: "B", importe: ars("-900") },
+      ]),
+    ).toBeNull();
   });
 });
 
