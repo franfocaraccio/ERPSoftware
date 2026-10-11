@@ -68,7 +68,7 @@ describe("proveedores service (integración, RLS activo)", () => {
       await tx.insert(comprobantesCompra).values({
         tenantId: tenantA.tenantId,
         proveedorId,
-        fechaRecepcion: "2026-08-01",
+        fechaRecepcion: enDias(0),
         condicionPagoDias: 30,
         total: "121000.00",
       });
@@ -78,7 +78,7 @@ describe("proveedores service (integración, RLS activo)", () => {
         .returning();
       await tx.insert(movimientos).values({
         tenantId: tenantA.tenantId,
-        fecha: "2026-08-10",
+        fecha: enDias(0),
         cuentaId: cuenta?.id ?? "",
         tipo: "egreso",
         medioPago: "transferencia",
@@ -94,8 +94,10 @@ describe("proveedores service (integración, RLS activo)", () => {
       tamanoPagina: 20,
     });
     expect(conSaldo[0]?.saldoAPagar).toBe("100000.00");
-    // Recepción 2026-08-01 + 30 días de plazo.
-    expect(conSaldo[0]?.proximoVencimiento).toBe("2026-08-31");
+    // Recepción de hoy + 30 días de plazo. La fecha va relativa a propósito:
+    // con una fija, el vencimiento deja de ser futuro cuando pasa el día y el
+    // `filter (where ... >= current_date)` de la query lo excluye con razón.
+    expect(conSaldo[0]?.proximoVencimiento).toBe(enDias(30));
   });
 
   it("los ingresos no descuentan del saldo a pagar", async () => {
@@ -111,7 +113,7 @@ describe("proveedores service (integración, RLS activo)", () => {
       const [cuenta] = await tx.select().from(cuentas).limit(1);
       await tx.insert(movimientos).values({
         tenantId: tenantA.tenantId,
-        fecha: "2026-08-11",
+        fecha: enDias(0),
         cuentaId: cuenta?.id ?? "",
         tipo: "ingreso",
         medioPago: "transferencia",
