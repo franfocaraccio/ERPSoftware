@@ -29,15 +29,21 @@ dólar oficial del BCRA en el panel.
 
 **Pendiente, mediano:**
 
-- **Las tablas se cortan.** El pedido venía como "poner el zoom al 80%", pero
-  eso baja el texto a 12,8px y achica los botones por debajo del tamaño táctil.
-  Lo que corresponde es un selector de densidad y esconder columnas secundarias
-  en pantallas angostas, guardado por usuario — que es lo que el pedido quería
-  decir con "que cada uno lo ajuste".
-  - Stock sigue con nueve columnas y es el caso que ella reportó.
-  - En clientes y proveedores se ganó aire sacando Email y Rubro de la tabla
-    (siguen en el export), pero es una mitigación, no el arreglo: en clientes
-    la columna Estado todavía queda recortada a 1512px.
+- **Falta llevar el selector de densidad al resto de las tablas.** Ya está hecho
+  en **stock**, que era el caso que ella reportó: en modo compacto entran las
+  nueve columnas sin scroll horizontal (medido a 1512px: cómoda se pasa 126px,
+  compacta cero). El componente es `components/selector-densidad.tsx` y el
+  estado `lib/densidad.ts`; enchufarlo a una tabla es importar `useDensidad`,
+  poner el selector y reemplazar el padding fijo por `clasesCelda` /
+  `clasesEncabezado`.
+  - Faltan clientes, proveedores, tesorería, comprobantes e historial.
+  - En clientes y proveedores se había ganado aire sacando Email y Rubro de la
+    tabla (siguen en el export). Con el selector puesto se puede revisar si
+    conviene devolverlas.
+  - El `meta.ancha` de `lib/tabla.ts` corta los textos libres con puntos
+    suspensivos. Sin eso, una sola descripción larga empuja las columnas de la
+    derecha fuera de la pantalla en cualquier densidad. Conviene marcarlo en
+    toda columna de texto libre que se agregue.
 
 **Pendiente, grande:**
 
