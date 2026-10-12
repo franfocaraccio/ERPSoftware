@@ -18,8 +18,26 @@ app.use(
   }),
 );
 
+/** Momento de arranque, para saber hace cuánto está vivo este proceso. */
+const INICIADO = new Date().toISOString();
+
+/**
+ * Estado del proceso, con la versión que está corriendo.
+ *
+ * El `ok` solo no alcanza: un backend viejo responde que está perfecto. Esto
+ * pasó de verdad — una corrida de CI cancelada dejó a Railway sin deployar dos
+ * commits, y desde afuera no había forma de notarlo salvo probando endpoint por
+ * endpoint hasta encontrar un 404.
+ *
+ * `RAILWAY_GIT_COMMIT_SHA` la inyecta la plataforma. Fuera de Railway no existe
+ * y queda en "desconocida", que es honesto: no la inventamos.
+ */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({
+    ok: true,
+    version: process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? "desconocida",
+    iniciado: INICIADO,
+  });
 });
 
 // BetterAuth va ANTES de cualquier body parser: necesita el stream crudo.

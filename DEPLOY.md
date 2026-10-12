@@ -448,6 +448,47 @@ binario y lo deja en el PATH antes de que turbo arranque.
 
 ---
 
+### Problema 6 — El backend se quedó sin deployar sin que nadie se enterara
+
+**Estado: detectado el 12 de octubre de 2026. Falta revisar los watch paths.**
+
+Dos commits de backend —el resumen de proveedores con su arreglo de monedas, y
+el dólar del BCRA— quedaron en `main` con el CI en verde pero **nunca llegaron a
+Railway**. El frontend sí deployó, así que la pantalla llamaba a
+`cotizaciones.dolar` y el servidor contestaba `404 No procedure found`.
+
+Dos cosas se combinaron:
+
+1. **Una corrida de CI cancelada.** Los dos commits se pushearon juntos y
+   segundos después se pusheó otro encima, lo que canceló esa corrida. Con
+   *Wait for CI* encendido, Railway no deploya si el CI no termina en success —
+   y `cancelled` no es success.
+2. **Los watch paths.** Todos los commits siguientes tocaron solo frontend y
+   documentación, fuera de `packages/backend/**` y `packages/core/**`, así que
+   Railway los marcó *Skipped* y nunca hubo otro disparador.
+
+Hay algo que **todavía no cierra**: en el historial de Railway, el commit del
+dólar figura como *Skipped — No changes to watched files*, pero ese commit sí
+tocó `packages/backend/src/modules/cotizaciones/` y
+`packages/backend/src/trpc/router.ts`. Conviene revisar el patrón de los watch
+paths en Settings; si no se puede dejar andando con confianza, es preferible
+sacarlos: un build de más cuesta centavos, un backend viejo cuesta una tarde.
+
+**Lo que no hay que hacer:** apretar *Redeploy* esperando que traiga lo último.
+Redeploy reconstruye **el mismo commit** que ya está activo. Para traer `main`
+hay que pushear algo que caiga dentro de los watch paths, o deployar a mano
+desde el panel eligiendo el commit.
+
+**Cómo se detecta ahora:** `/health` devuelve la versión que está corriendo.
+
+```bash
+curl -s https://erpbackend-production-2438.up.railway.app/health
+```
+
+Si el `version` no coincide con el último commit de `main`, el backend está
+viejo. Antes esto solo se notaba probando endpoint por endpoint hasta encontrar
+un 404.
+
 ## 5. El error más común de esta configuración
 
 Las variables de entorno se cargan en **dos lugares distintos**: las del
