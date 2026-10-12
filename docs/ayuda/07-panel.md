@@ -39,15 +39,23 @@ Los umbrales que deciden si un semáforo está en ok o en alerta se configuran e
 Si un indicador se ve siempre en alerta, lo primero a revisar es el umbral en
 `/parametros`.
 
-## Dólar oficial
+## Cotizaciones del dólar
 
-Arriba a la derecha del panel aparece la cotización del **dólar oficial**, con
-**compra** y **venta**, y la fecha del dato al lado.
+Arriba a la derecha del panel aparecen el **dólar oficial** y el **blue**, cada
+uno con su **compra** y su **venta**, y a la derecha la **variación** del día
+con una flecha: roja hacia abajo si bajó, verde hacia arriba si subió, y una
+raya si quedó igual.
 
-Esa fecha importa: el oficial se mueve una vez por día hábil, así que un lunes a
-la mañana los valores son los del viernes. Es informativo — **el sistema no lo
-usa para convertir ningún importe**: un comprobante en dólares se guarda en
-dólares y no se mezcla con los pesos.
+La fecha de arriba es la del oficial, que se publica una vez por día hábil. Por
+eso un lunes a la mañana ese valor es el del viernes, mientras el blue cotiza
+durante toda la rueda.
 
-Si la cotización no se pudo traer, el recuadro aparece igual con guiones y dice
-"Sin conexión". No es un error del sistema.
+Los datos salen de Ámbito. Su venta del oficial es **exactamente** la que
+publica el BCRA, hasta el centavo; la compra la releva Ámbito, porque el BCRA no
+la publica.
+
+Es informativo: **el sistema no lo usa para convertir ningún importe**. Un
+comprobante en dólares se guarda en dólares y no se mezcla con los pesos.
+
+Si alguna cotización no se pudo traer, en su fila dice "Sin datos" y la otra se
+muestra igual. No es un error del sistema.

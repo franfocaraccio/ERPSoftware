@@ -1,116 +1,184 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { dolarOficial, limpiarCache } from "./dolar.js";
+import { cotizacionesDolar, limpiarCache } from "./dolar.js";
 
 /** Una respuesta con la forma real que devuelve la fuente. */
-function respuesta(compra: string, venta: string, fecha = "09/10/2026 - 15:50"): Response {
+function respuesta(opciones: {
+  compra?: string;
+  venta?: string;
+  fecha?: string;
+  variacion?: string;
+  clase?: string;
+}): Response {
   return new Response(
     JSON.stringify({
-      compra,
-      venta,
-      fecha,
-      variacion: "-0,14%",
-      "class-variacion": "down",
+      compra: opciones.compra ?? "1483,80",
+      venta: opciones.venta ?? "1537,18",
+      fecha: opciones.fecha ?? "09/10/2026 - 15:50",
+      variacion: opciones.variacion ?? "-0,14%",
+      "class-variacion": opciones.clase ?? "down",
       valor_cierre_ant: "1539,30",
     }),
     { status: 200 },
   );
 }
 
-const traerQue = (r: () => Promise<Response>) => vi.fn(r) as unknown as typeof fetch;
+/** Responde distinto según la plaza, mirando la URL. */
+function fuente(porPlaza: { oficial: () => Promise<Response>; blue: () => Promise<Response> }) {
+  const f: typeof fetch = async (url) =>
+    String(url).includes("informal") ? porPlaza.blue() : porPlaza.oficial();
+  return f;
+}
+
+const OK = () => Promise.resolve(respuesta({}));
 
 beforeEach(() => {
   limpiarCache();
 });
 
-describe("dolarOficial", () => {
-  it("devuelve las dos puntas en formato decimal", async () => {
-    const traer = traerQue(async () => respuesta("1483,80", "1537,18"));
-    // Entra con coma decimal y sale con punto, como string: los decimales no se
-    // operan como number en ningún momento.
-    expect(await dolarOficial(Date.now, traer)).toEqual({
+describe("cotizacionesDolar", () => {
+  it("trae las dos plazas, con sus puntas y su variación", async () => {
+    const traer = fuente({
+      oficial: () => Promise.resolve(respuesta({})),
+      blue: () =>
+        Promise.resolve(
+          respuesta({ compra: "1520,00", venta: "1540,00", variacion: "0,00%", clase: "equal" }),
+        ),
+    });
+
+    const r = await cotizacionesDolar(Date.now, traer);
+    // Entra con coma decimal y sale con punto, como string.
+    expect(r.oficial).toEqual({
       compra: "1483.80",
       venta: "1537.18",
       fecha: "2026-10-09",
+      variacion: "-0.14",
+      tendencia: "baja",
     });
+    expect(r.blue?.venta).toBe("1540.00");
+    expect(r.blue?.tendencia).toBe("igual");
   });
 
-  it("saca el punto de miles", async () => {
-    const traer = traerQue(async () => respuesta("1.483,80", "1.537,18"));
-    const r = await dolarOficial(Date.now, traer);
-    expect(r?.compra).toBe("1483.80");
-    expect(r?.venta).toBe("1537.18");
+  it("traduce las tres tendencias", async () => {
+    for (const [clase, esperada] of [
+      ["up", "sube"],
+      ["down", "baja"],
+      ["equal", "igual"],
+    ] as const) {
+      limpiarCache();
+      const traer = fuente({
+        oficial: () => Promise.resolve(respuesta({ clase })),
+        blue: OK,
+      });
+      expect((await cotizacionesDolar(Date.now, traer)).oficial?.tendencia).toBe(esperada);
+    }
+  });
+
+  it("una clase desconocida no tira la cotización", async () => {
+    // El importe sigue siendo bueno; la flecha es un agregado.
+    const traer = fuente({
+      oficial: () => Promise.resolve(respuesta({ clase: "sideways" })),
+      blue: OK,
+    });
+    const r = await cotizacionesDolar(Date.now, traer);
+    expect(r.oficial?.venta).toBe("1537.18");
+    expect(r.oficial?.tendencia).toBe("igual");
+  });
+
+  it("saca el punto de miles y el signo de porcentaje", async () => {
+    const traer = fuente({
+      oficial: () => Promise.resolve(respuesta({ compra: "1.483,80", variacion: "-1,25%" })),
+      blue: OK,
+    });
+    const r = await cotizacionesDolar(Date.now, traer);
+    expect(r.oficial?.compra).toBe("1483.80");
+    expect(r.oficial?.variacion).toBe("-1.25");
   });
 
   it("convierte la fecha a ISO sin construir un Date", async () => {
     // Construir un Date con la fecha la correría un día por la zona horaria.
-    const traer = traerQue(async () => respuesta("1000,00", "1100,00", "01/02/2026 - 09:00"));
-    expect((await dolarOficial(Date.now, traer))?.fecha).toBe("2026-02-01");
+    const traer = fuente({
+      oficial: () => Promise.resolve(respuesta({ fecha: "01/02/2026 - 09:00" })),
+      blue: OK,
+    });
+    expect((await cotizacionesDolar(Date.now, traer)).oficial?.fecha).toBe("2026-02-01");
   });
 
   it("se identifica al llamar: sin User-Agent la fuente responde 403", async () => {
     let enviados: Record<string, string> | undefined;
     const traer: typeof fetch = async (_url, opciones) => {
-      enviados = opciones?.headers as Record<string, string> | undefined;
-      return respuesta("1483,80", "1537,18");
+      enviados ??= opciones?.headers as Record<string, string> | undefined;
+      return respuesta({});
     };
-    await dolarOficial(Date.now, traer);
+    await cotizacionesDolar(Date.now, traer);
     expect(enviados?.["User-Agent"]).toBeTruthy();
   });
 
-  it("no vuelve a consultar mientras la cotización siga fresca", async () => {
-    const traer = vi.fn(async () => respuesta("1483,80", "1537,18"));
-    const reloj = () => 1_000_000;
-    await dolarOficial(reloj, traer as unknown as typeof fetch);
-    await dolarOficial(reloj, traer as unknown as typeof fetch);
-    expect(traer).toHaveBeenCalledTimes(1);
+  it("si falla una plaza, la otra se muestra igual", async () => {
+    const traer = fuente({
+      oficial: OK,
+      blue: () => Promise.reject(new Error("ECONNRESET")),
+    });
+    const r = await cotizacionesDolar(Date.now, traer);
+    expect(r.oficial?.venta).toBe("1537.18");
+    expect(r.blue).toBeNull();
   });
 
-  it("vuelve a consultar cuando pasó la vigencia", async () => {
-    const traer = vi.fn(async () => respuesta("1483,80", "1537,18"));
-    let ahora = 1_000_000;
-    await dolarOficial(() => ahora, traer as unknown as typeof fetch);
-    ahora += 61 * 60 * 1000;
-    await dolarOficial(() => ahora, traer as unknown as typeof fetch);
+  it("si un importe viene con formato raro, esa plaza queda en null y la otra no", async () => {
+    const traer = fuente({
+      oficial: () => Promise.resolve(respuesta({ venta: "mil quinientos" })),
+      blue: OK,
+    });
+    const r = await cotizacionesDolar(Date.now, traer);
+    expect(r.oficial).toBeNull();
+    expect(r.blue?.venta).toBe("1537.18");
+  });
+
+  it("no vuelve a consultar mientras las cotizaciones sigan frescas", async () => {
+    const traer = vi.fn(async () => respuesta({}));
+    const reloj = () => 1_000_000;
+    await cotizacionesDolar(reloj, traer as unknown as typeof fetch);
+    await cotizacionesDolar(reloj, traer as unknown as typeof fetch);
+    // Dos llamadas de la primera vuelta —una por plaza— y ninguna de la segunda.
     expect(traer).toHaveBeenCalledTimes(2);
   });
 
-  it("si la fuente no contesta devuelve null en vez de romper el panel", async () => {
-    const traer = traerQue(async () => {
-      throw new Error("ECONNRESET");
-    });
-    expect(await dolarOficial(Date.now, traer)).toBeNull();
-  });
-
-  it("si la fuente responde 403 devuelve null", async () => {
-    const traer = traerQue(async () => new Response("Forbidden", { status: 403 }));
-    expect(await dolarOficial(Date.now, traer)).toBeNull();
-  });
-
-  it("si el importe viene con un formato raro no inventa un número", async () => {
-    // Preferimos no mostrar cotización antes que mostrar basura con signo peso.
-    const traer = traerQue(async () => respuesta("mil cuatrocientos", "1537,18"));
-    expect(await dolarOficial(Date.now, traer)).toBeNull();
-  });
-
-  it("si falta una de las dos puntas tampoco inventa", async () => {
-    const traer = traerQue(
-      async () => new Response(JSON.stringify({ venta: "1537,18", fecha: "09/10/2026" })),
-    );
-    expect(await dolarOficial(Date.now, traer)).toBeNull();
+  it("vuelve a consultar cuando pasó la vigencia", async () => {
+    const traer = vi.fn(async () => respuesta({}));
+    let ahora = 1_000_000;
+    await cotizacionesDolar(() => ahora, traer as unknown as typeof fetch);
+    ahora += 31 * 60 * 1000;
+    await cotizacionesDolar(() => ahora, traer as unknown as typeof fetch);
+    expect(traer).toHaveBeenCalledTimes(4);
   });
 
   it("ante una caída posterior sigue mostrando la última cotización conocida", async () => {
     let ahora = 1_000_000;
-    const traer = vi
-      .fn()
-      .mockResolvedValueOnce(respuesta("1483,80", "1537,18"))
-      .mockRejectedValueOnce(new Error("ETIMEDOUT"));
+    let caer = false;
+    const traer: typeof fetch = async () => {
+      if (caer) {
+        throw new Error("ETIMEDOUT");
+      }
+      return respuesta({});
+    };
 
-    await dolarOficial(() => ahora, traer as unknown as typeof fetch);
-    ahora += 61 * 60 * 1000;
+    await cotizacionesDolar(() => ahora, traer);
+    caer = true;
+    ahora += 31 * 60 * 1000;
     // Con su fecha a la vista, un dato de ayer es mejor que un guion.
-    expect((await dolarOficial(() => ahora, traer as unknown as typeof fetch))?.venta).toBe(
-      "1537.18",
-    );
+    expect((await cotizacionesDolar(() => ahora, traer)).oficial?.venta).toBe("1537.18");
+  });
+
+  it("con las dos plazas caídas no cachea el vacío", async () => {
+    let intentos = 0;
+    const traer: typeof fetch = async () => {
+      intentos++;
+      throw new Error("ECONNRESET");
+    };
+    const reloj = () => 1_000_000;
+
+    await cotizacionesDolar(reloj, traer);
+    await cotizacionesDolar(reloj, traer);
+    // Conviene reintentar en la próxima visita, no esperar media hora.
+    expect(intentos).toBe(4);
   });
 });
