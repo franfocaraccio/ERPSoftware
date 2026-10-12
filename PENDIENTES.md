@@ -29,17 +29,16 @@ dólar oficial con compra y venta en el panel.
 
 **Pendiente, mediano:**
 
-- **La densidad de las tablas quedó resuelta**, pero conviene mirarla con Jesi
-  en su pantalla antes de darla por cerrada. El selector está en las ocho
-  tablas (clientes, proveedores, stock, movimientos, cheques, comprobantes de
-  venta y de compra, e historial) y la elección se guarda por persona y por
-  tabla.
-  - Medido a 1512px en modo compacto: entran todas sin scroll horizontal menos
-    **clientes**, que se pasa 35px. Es la única con nueve columnas y texto
-    largo —razón social, email— a la vez. En modo cómodo se pasa 233px.
-  - Si molesta, la palanca es el título **CONCENTRACIÓN**: es una sola palabra
-    que no puede partirse y reserva 126px para mostrar un porcentaje. Acortarlo
-    cierra la diferencia, pero es una decisión de redacción, no técnica.
+- **Falta el selector de columnas en cinco tablas.** Está en clientes,
+  proveedores y stock, que son las tres que usan TanStack Table y donde el
+  problema realmente aparece (ocho y nueve columnas). Las otras cinco
+  —movimientos, cheques, comprobantes de venta y de compra, e historial— son
+  markup plano: implementarlo ahí significa condicionar cada `<th>` y cada
+  `<td>` a mano, con el riesgo de que encabezado y celda se desincronicen. No
+  urge: medidas a 1512px en modo compacto, las cinco entran sin scroll.
+  - La densidad sí está en las ocho.
+  - Conviene mirarlo con Jesi en su pantalla antes de darlo por cerrado: el
+    punto era que ella dejara de necesitar el zoom.
   - El `meta.ancha` de `lib/tabla.ts` corta los textos libres con puntos
     suspensivos. Sin eso, una sola descripción larga empuja las columnas de la
     derecha fuera de la pantalla en cualquier densidad. Conviene marcarlo en

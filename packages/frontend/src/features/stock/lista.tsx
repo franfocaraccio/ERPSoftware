@@ -9,14 +9,21 @@ import {
 } from "@erp/design-system";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
+import {
+  columnVisibilityFeature,
+  createColumnHelper,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
 import { Boxes, Plus, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { ariaSort, type Direccion, EncabezadoOrdenable } from "../../components/filtros.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { SelectorColumnas } from "../../components/selector-columnas.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { aVisibilidad, useColumnasEscondidas } from "../../lib/columnas.js";
 import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
@@ -36,11 +43,13 @@ interface FilaProducto {
   margenBruto: string | null;
 }
 
-const features = tableFeatures({});
+const features = tableFeatures({ columnVisibilityFeature });
 const helper = createColumnHelper<typeof features, FilaProducto>();
 
 const columnas = helper.columns([
   helper.accessor("sku", {
+    // Sin ella la tabla no dice de qué fila está hablando.
+    enableHiding: false,
     meta: { secundaria: true },
     header: "SKU",
     cell: (info) => (
@@ -177,6 +186,7 @@ export function ListaStock() {
   const [soloReponer, setSoloReponer] = useState(false);
   // Stock es la tabla con más columnas: es la que motivó el selector.
   const [densidad, setDensidad] = useDensidad("stock");
+  const [escondidas, setEscondidas] = useColumnasEscondidas("stock");
   const busquedaDiferida = useDeferredValue(busqueda);
 
   const { data, isPending, isError, refetch } = useQuery(
@@ -196,7 +206,29 @@ export function ListaStock() {
     features,
     columns: columnas,
     data: (data?.items as FilaProducto[] | undefined) ?? SIN_DATOS,
+    state: { columnVisibility: aVisibilidad(escondidas) },
   });
+
+  /**
+   * Las columnas que ofrece el selector. La etiqueta sale del `header` de la
+   * propia columna, no de un mapa aparte: así no puede quedar desincronizada de
+   * lo que la tabla muestra. `ETIQUETA_COLUMNA` existe para el menú de orden y
+   * no cubre todas las columnas.
+   */
+  const columnasElegibles = table.getAllColumns().map((columna) => ({
+    id: columna.id,
+    etiqueta:
+      typeof columna.columnDef.header === "string"
+        ? columna.columnDef.header
+        : (ETIQUETA_COLUMNA[columna.id] ?? columna.id),
+    visible: columna.getIsVisible(),
+    sePuedeEsconder: columna.getCanHide(),
+  }));
+
+  const alternarColumna = (id: string) =>
+    setEscondidas(
+      escondidas.includes(id) ? escondidas.filter((otra) => otra !== id) : [...escondidas, id],
+    );
 
   /** Todo lo que matchea los filtros activos, no la página visible. */
   async function traerParaExportar() {
@@ -266,6 +298,11 @@ export function ListaStock() {
               </span>
             </p>
           )}
+          <SelectorColumnas
+            columnas={columnasElegibles}
+            onAlternar={alternarColumna}
+            onMostrarTodas={() => setEscondidas([])}
+          />
           <SelectorDensidad valor={densidad} onCambio={setDensidad} />
         </div>
       </div>
@@ -371,7 +408,7 @@ export function ListaStock() {
                     key={row.id}
                     className="border-b border-border/60 transition-colors duration-150 last:border-0 hover:bg-surface-muted/60"
                   >
-                    {row.getAllCells().map((cell) => (
+                    {row.getVisibleCells().map((cell) => (
                       <td
                         key={cell.id}
                         className={cn(

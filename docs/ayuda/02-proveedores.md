@@ -63,7 +63,15 @@ aviso debajo de las tarjetas: no se suman monedas distintas.
 
 ## Si la tabla no te entra en la pantalla
 
-Arriba a la derecha de la tabla hay dos botones que cambian la **densidad**:
+Arriba a la derecha de la tabla hay dos controles.
+
+**Elegir columnas** (el ícono de columnas): tildás las que querés ver y
+destildás las que no te interesan. El número al lado del ícono te avisa cuántas
+tenés escondidas, para que no te olvides de que la tabla tiene más datos de los
+que estás viendo. La columna que identifica la fila no se puede esconder: sin
+ella la tabla no diría de qué está hablando.
+
+**Densidad**, con dos opciones:
 
 - **Cómoda**: como viene por defecto.
 - **Compacta**: menos aire entre columnas y filas, y los títulos de columna se
@@ -74,5 +82,5 @@ El tamaño de la letra **no cambia** en ninguno de los dos: lo único que se ach
 es el espacio alrededor. Por eso conviene esto antes que bajar el zoom del
 navegador, que sí achica el texto y los botones.
 
-La elección se guarda en tu navegador y es **tuya**: cada persona tiene la suya,
-y es independiente en cada pantalla.
+Las dos elecciones se guardan en tu navegador y son **tuyas**: cada persona
+tiene las suyas, y son independientes en cada pantalla.
