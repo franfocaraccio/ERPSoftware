@@ -22,6 +22,7 @@ import { impuestos } from "../../db/schema/impuestos.js";
 import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { totalConSigno } from "../_comunes/comprobantes.js";
 import { obtenerParametros } from "./parametros.js";
 
 const ARS = "ARS" as const;
@@ -95,10 +96,12 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     );
 
     // --- Ventas y cobranzas ---
+    // Las notas de crédito restan, acá y en los otros dos lugares de este
+    // archivo que suman comprobantes de venta. Ver `totalConSigno`.
     const [ventas] = await tx
       .select({
-        totalPeriodo: sql<string>`coalesce(sum(case when ${comprobantesVenta.fechaEmision} >= ${hace30} then ${comprobantesVenta.total} else 0 end), 0)`,
-        totalGeneral: sql<string>`coalesce(sum(${comprobantesVenta.total}), 0)`,
+        totalPeriodo: sql<string>`coalesce(sum(case when ${comprobantesVenta.fechaEmision} >= ${hace30} then ${totalConSigno()} else 0 end), 0)`,
+        totalGeneral: sql<string>`coalesce(sum(${totalConSigno()}), 0)`,
       })
       .from(comprobantesVenta);
 
@@ -273,7 +276,9 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const cobrosFacturas = await tx
       .select({
         fecha: sql<string>`to_char(${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day', 'YYYY-MM-DD')`,
-        importe: comprobantesVenta.total,
+        // Negada, no excluida: si se excluyera, la proyección mostraría que se
+        // cobra la factura completa. Una semana puede quedar en negativo.
+        importe: totalConSigno(),
       })
       .from(comprobantesVenta);
 
@@ -310,7 +315,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const ventasPorMes = await tx
       .select({
         mes: sql<string>`to_char(date_trunc('month', ${comprobantesVenta.fechaEmision}), 'YYYY-MM')`,
-        total: sql<string>`coalesce(sum(${comprobantesVenta.total}), 0)`,
+        total: sql<string>`coalesce(sum(${totalConSigno()}), 0)`,
       })
       .from(comprobantesVenta)
       .groupBy(sql`date_trunc('month', ${comprobantesVenta.fechaEmision})`)

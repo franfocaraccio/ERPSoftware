@@ -55,13 +55,19 @@ dólar oficial con compra y venta en el panel.
   no es leer el PDF sino **conciliar** cada línea contra el movimiento ya
   cargado.
 
-## Un problema transversal pendiente
+## Dos cosas sueltas del panel financiero
 
-- **Las notas de crédito suman en vez de restar** en el DSO, la proyección de
-  caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
-  único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
-  cliente hoy le aumenta las ventas. En clientes ya se resta. Listo para
-  trabajar: `docs/handoff/tareas.md`, tarea 1.
+Salieron de arreglar el signo de las notas de crédito y no se tocaron ahí a
+propósito: mueven todos los KPIs a la vez y mezclarlas hubiera vuelto el diff
+imposible de verificar.
+
+- **`financiero/service.ts` no filtra por estado.** Cuenta comprobantes en
+  `borrador`, así que un presupuesto a medio tipear entra en el DSO y en las
+  ventas del mes. Clientes ya usa `ESTADOS_QUE_DEBEN = ["enviada", "aprobada"]`.
+- **`financiero/service.ts` no filtra por moneda.** Suma pesos y dólares en el
+  mismo total y después lo trata como ARS. Es el mismo bug que ya se corrigió en
+  proveedores y en clientes; en dev se ve con una factura de US$ 900 sumada como
+  si fueran pesos.
 
 ## Postergado
 

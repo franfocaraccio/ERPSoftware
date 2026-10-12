@@ -12,7 +12,7 @@ Las tareas son cuatro, y el orden importa:
 
 | # | Tarea | Depende de | Tamaño |
 |---|---|---|---|
-| 1 | Las notas de crédito suman en vez de restar | nada | chica, cerrada |
+| 1 | ~~Las notas de crédito suman en vez de restar~~ | — | **hecha** el 12/10/2026 |
 | 2 | Adjuntar archivos (Supabase Storage) | nada | mediana |
 | 3 | Leer extractos bancarios y conciliar | tarea 2 | grande |
 | 4 | Leer comprobantes de pago | tarea 2 | mediana, con una pregunta abierta |
@@ -93,7 +93,21 @@ procedimiento es:
 
 ---
 
-## Tarea 1 — Las notas de crédito suman en vez de restar
+## Tarea 1 — Las notas de crédito suman en vez de restar — HECHA
+
+**Resuelta el 12 de octubre de 2026.** El signo vive ahora en un solo lugar,
+`modules/_comunes/comprobantes.ts` (`totalConSigno`), y lo usan tanto
+`financiero/service.ts` —en los tres lugares— como `clientes/service.ts`, que
+antes tenía el `case` copiado a mano. Esa copia es lo que permitió que un lado
+quedara bien y el otro mal.
+
+`modules/financiero/service.test.ts` es el primer test del módulo: seis casos,
+los dos mutantes del helper quedan detectados.
+
+Medido en dev con una nota de crédito de 100.000: las ventas de octubre pasaron
+de 530.900 a 430.900 y los cobros de la segunda semana de 120.000 a 20.000.
+
+Lo que sigue abajo queda como registro de cómo estaba el problema.
 
 ### Objetivo
 
