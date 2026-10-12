@@ -16,11 +16,23 @@ const FORMATOS_MONEDA = {
   }),
 } as const;
 
-export function formatearImporte(valor: string | null, moneda: "ARS" | "USD" = "ARS"): string {
-  if (valor === null) {
+export function formatearImporte(
+  valor: string | null | undefined,
+  moneda: "ARS" | "USD" = "ARS",
+): string {
+  // El vacío es dato faltante, no cero: `Number("")` da 0 y mostrar "$ 0,00"
+  // donde no hay importe es una mentira silenciosa.
+  if (valor === null || valor === undefined || valor.trim() === "") {
     return "—";
   }
-  return FORMATOS_MONEDA[moneda].format(Number(valor));
+  const n = Number(valor);
+  // Un "$ NaN" en pantalla es peor que un guion: parece un importe y no lo es.
+  // Pasa cuando el servidor manda una forma distinta a la que el bundle espera
+  // —durante un deploy a medias, por ejemplo— y ahí el guion dice la verdad.
+  if (Number.isNaN(n)) {
+    return "—";
+  }
+  return FORMATOS_MONEDA[moneda].format(n);
 }
 
 const ETIQUETAS_CONDICION_IVA: Record<string, string> = {
