@@ -46,18 +46,22 @@ dólar oficial con compra y venta en el panel.
 
 **Pendiente, grande:**
 
-- **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR,
-  y `CLAUDE.md` dice explícitamente "No implementar el módulo de IA (voz/OCR) —
-  fuera de alcance". Si se quieren, es una conversación de alcance, no una
-  tarea. Aparte: en el extracto lo difícil no es leer el PDF sino **conciliar**
-  cada línea contra el movimiento ya cargado.
+- **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR.
+  **Fran lo habilitó el 12 de octubre de 2026**: se hace. El alcance, el estado
+  verificado del código, las decisiones ya tomadas y cómo verificarlo están en
+  `docs/handoff/tareas.md` (tareas 2, 3 y 4). Dos cosas que conviene saber antes
+  de arrancar: **no existe ninguna forma de subir un archivo** a la aplicación
+  todavía, así que hay una tarea previa de adjuntos; y en el extracto lo difícil
+  no es leer el PDF sino **conciliar** cada línea contra el movimiento ya
+  cargado.
 
 ## Un problema transversal pendiente
 
 - **Las notas de crédito suman en vez de restar** en el DSO, la proyección de
   caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
   único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
-  cliente hoy le aumenta las ventas. En clientes ya se resta.
+  cliente hoy le aumenta las ventas. En clientes ya se resta. Listo para
+  trabajar: `docs/handoff/tareas.md`, tarea 1.
 
 ## Postergado
 

@@ -81,7 +81,12 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 - No usar Next.js, Server Actions ni SSR.
 - No usar `supabase-js` desde el frontend. Supabase es Postgres + Storage accedido solo desde el backend.
 - No usar `@afipsdk/afip.js` (requiere access_token de un servicio pago).
-- No implementar el módulo de IA (voz/OCR) — fuera de alcance.
+- No implementar el módulo de **voz** — fuera de alcance.
+- El **OCR** dejó de estar fuera de alcance el 12 de octubre de 2026 (decisión de
+  Fran): leer extractos bancarios y comprobantes subidos se va a hacer. El alcance,
+  las decisiones ya tomadas y los riesgos están en `docs/handoff/tareas.md`.
 - No inventar APIs de librerías: si no estás seguro de una firma de BetterAuth, tRPC, Drizzle o la librería de ARCA, decirlo y verificarla en la documentación antes de escribir código.
 
 Ver `AGENTS.md` para el resumen del dominio y `.agents/skills/` para patrones por tecnología.
+Las tareas pendientes, listas para trabajarse por separado, están en
+`docs/handoff/tareas.md`; el estado general del proyecto, en `PENDIENTES.md`.
