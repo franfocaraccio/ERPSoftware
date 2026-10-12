@@ -13,7 +13,7 @@ respuesta, y dos chocan con una decisión ya tomada.
 **Hecho:** saldo y próximo vencimiento por cliente, total a cobrar y
 concentración de cartera con umbral configurable por empresa; lo mismo del lado
 de proveedores (total a pagar y dependencia del proveedor más grande); y el
-dólar oficial del BCRA en el panel.
+dólar oficial con compra y venta en el panel.
 
 **Ya estaba resuelto, sin trabajo:**
 

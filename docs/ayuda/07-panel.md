@@ -41,11 +41,13 @@ Si un indicador se ve siempre en alerta, lo primero a revisar es el umbral en
 
 ## Dólar oficial
 
-Arriba a la derecha del panel aparece la cotización del **dólar oficial** que
-publica el BCRA, con la fecha del dato al lado.
+Arriba a la derecha del panel aparece la cotización del **dólar oficial**, con
+**compra** y **venta**, y la fecha del dato al lado.
 
-Esa fecha importa: el BCRA publica una vez por día hábil, así que un lunes a la
-mañana el valor es el del viernes. Es informativo — el sistema no lo usa para
-convertir ningún importe.
+Esa fecha importa: el oficial se mueve una vez por día hábil, así que un lunes a
+la mañana los valores son los del viernes. Es informativo — **el sistema no lo
+usa para convertir ningún importe**: un comprobante en dólares se guarda en
+dólares y no se mezcla con los pesos.
 
-Si el BCRA no responde, el recuadro no aparece. No es un error del sistema.
+Si la cotización no se pudo traer, el recuadro aparece igual con guiones y dice
+"Sin conexión". No es un error del sistema.
