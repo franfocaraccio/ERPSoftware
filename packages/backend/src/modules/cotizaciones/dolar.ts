@@ -3,49 +3,88 @@ import { z } from "zod";
 /**
  * Cotización del dólar oficial, con sus dos puntas.
  *
- * **Por qué no es el BCRA.** La primera versión leía la variable 4 del BCRA,
- * "tipo de cambio minorista (promedio vendedor)". Ese dato es un promedio de la
- * punta vendedora: devuelve un solo número y no tiene compra, no porque falte
- * en la respuesta sino porque el BCRA no publica las dos puntas. Mostrar compra
- * y venta exige una fuente que las releve de las casas de cambio.
+ * **De dónde sale.** La API del BCRA publica un solo número: la variable 4 es
+ * el "tipo de cambio minorista (promedio vendedor)", un promedio de la punta
+ * vendedora. No hay compra ausente de la respuesta — no existe en esa serie.
  *
- * El costo del cambio es la procedencia: `dolarapi.com` es un agregador público
- * y gratuito, no un organismo oficial. Para un dato informativo al costado del
- * panel —nada del sistema convierte importes con esto— el intercambio cierra.
- * Si alguna vez se usa para valuar comprobantes, hay que volver a una fuente
- * oficial y asumir que será un solo valor.
+ * Ámbito releva las dos puntas y su **venta es exactamente la del BCRA**:
+ * 1537,18 contra 1537,18 para el 09/10/2026, hasta el centavo. O sea que esto
+ * no resigna la cifra oficial, le suma la compra que el BCRA no publica. Su
+ * endpoint `/dolar/bcra/variacion` devuelve estos mismos valores.
+ *
+ * Si alguna vez hace falta otra punta, es cambiar esta constante:
+ * `/dolar/mayorista/variacion` da el A3500 (y su venta también coincide con el
+ * BCRA), `/dolarnacion/variacion` el del Banco Nación, `/dolar/informal` el
+ * blue.
  */
-const URL_DOLAR = "https://dolarapi.com/v1/dolares/oficial";
+const URL_DOLAR = "https://mercados.ambito.com/dolar/oficial/variacion";
+
+/**
+ * Ámbito rechaza con 403 los pedidos sin User-Agent, y `fetch` de Node no manda
+ * ninguno. No nos hacemos pasar por un navegador: alcanza con identificarse, y
+ * decir quién llama es lo correcto igual.
+ */
+const USER_AGENT = "ERP-PyME/1.0 (cotizacion dolar oficial)";
+
+/** Cuánto esperamos antes de rendirnos. El panel no puede colgarse. */
+const TIMEOUT_MS = 8000;
+
+/**
+ * Cuánto se considera fresca una cotización. El oficial se mueve una vez por
+ * día hábil, así que consultar seguido no aporta y suma una dependencia externa
+ * en el camino de cada request.
+ */
+const VIGENCIA_MS = 60 * 60 * 1000;
+
+/**
+ * "1.537,18" → "1537.18".
+ *
+ * Los importes llegan con formato argentino: punto de miles y coma decimal.
+ * Devuelve el string normalizado, nunca un `number`: el valor sigue siendo
+ * decimal y convertirlo a punto flotante acá reintroduce el error que el
+ * proyecto evita en todos lados.
+ */
+function aDecimal(valor: string): string {
+  const normalizado = valor.trim().replace(/\./g, "").replace(",", ".");
+  if (!/^-?\d+(\.\d+)?$/.test(normalizado)) {
+    throw new Error(`Importe con formato inesperado: ${valor}`);
+  }
+  return normalizado;
+}
+
+/** "09/10/2026 - 15:50" → "2026-10-09", que es el formato del resto del sistema. */
+function aIso(valor: string): string {
+  const [dia, mes, anio] = valor.trim().slice(0, 10).split("/");
+  if (!dia || !mes || !anio || anio.length !== 4) {
+    throw new Error(`Fecha con formato inesperado: ${valor}`);
+  }
+  return `${anio}-${mes}-${dia}`;
+}
 
 /**
  * La respuesta pasa por Zod antes de tocar nada, como todo input externo. Si
- * cambian la forma, preferimos no mostrar cotización antes que mostrar
- * cualquier cosa.
+ * cambian la forma —o el formato de los números— preferimos no mostrar
+ * cotización antes que mostrar cualquier cosa.
  */
-const respuestaSchema = z.object({
-  compra: z.number(),
-  venta: z.number(),
-  fechaActualizacion: z.string(),
-});
+const respuestaSchema = z
+  .object({
+    compra: z.string(),
+    venta: z.string(),
+    fecha: z.string(),
+  })
+  .transform((d) => ({
+    compra: aDecimal(d.compra),
+    venta: aDecimal(d.venta),
+    fecha: aIso(d.fecha),
+  }));
 
 export interface Cotizacion {
   /** Los valores como string: los decimales no viajan ni se operan como number. */
   compra: string;
   venta: string;
-  /** Cuándo se actualizó la cotización, en ISO. */
+  /** Día de la cotización, en ISO. El oficial se publica por día hábil. */
   fecha: string;
 }
-
-/**
- * Cuánto se considera fresca una cotización.
- *
- * El oficial se mueve una vez por día hábil, así que consultar seguido no
- * aporta nada y suma una dependencia externa en el camino de cada request.
- */
-const VIGENCIA_MS = 60 * 60 * 1000;
-
-/** Cuánto esperamos antes de rendirnos. El panel no puede colgarse. */
-const TIMEOUT_MS = 8000;
 
 interface Cacheado {
   cotizacion: Cotizacion;
@@ -80,20 +119,16 @@ export async function dolarOficial(
   }
 
   try {
-    const respuesta = await traer(URL_DOLAR, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const respuesta = await traer(URL_DOLAR, {
+      headers: { "User-Agent": USER_AGENT },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
     if (!respuesta.ok) {
       console.error(`[dolar] la fuente respondió ${respuesta.status}`);
       return cache?.cotizacion ?? null;
     }
 
-    const datos = respuestaSchema.parse(await respuesta.json());
-    const cotizacion: Cotizacion = {
-      // JSON no tiene decimales exactos, así que los números llegan como float
-      // y se fijan acá. A partir de estos strings cualquier cuenta va con Money.
-      compra: datos.compra.toFixed(2),
-      venta: datos.venta.toFixed(2),
-      fecha: datos.fechaActualizacion,
-    };
+    const cotizacion = respuestaSchema.parse(await respuesta.json());
     cache = { cotizacion, expira: ahora() + VIGENCIA_MS };
     return cotizacion;
   } catch (error) {
