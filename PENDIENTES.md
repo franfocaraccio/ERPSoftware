@@ -46,9 +46,6 @@ dólar oficial con compra y venta en el panel.
 
 **Pendiente, grande:**
 
-- **Mails automáticos de saldos próximos a vencer.** Necesita pg-boss, que no
-  existe todavía, la key de Resend, y decisiones de producto: a quién, cada
-  cuánto, quién lo apaga.
 - **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR,
   y `CLAUDE.md` dice explícitamente "No implementar el módulo de IA (voz/OCR) —
   fuera de alcance". Si se quieren, es una conversación de alcance, no una
@@ -61,6 +58,15 @@ dólar oficial con compra y venta en el panel.
   caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
   único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
   cliente hoy le aumenta las ventas. En clientes ya se resta.
+
+## Postergado
+
+- **Mails automáticos de saldos próximos a vencer.** Decisión de Fran del 12 de
+  octubre de 2026: se retoma cuando haya dominio propio, no antes. Y es la
+  secuencia correcta: un recordatorio de pago mandado desde una dirección que no
+  es la de la empresa va a spam o, peor, parece una estafa. Cuando se retome,
+  falta pg-boss (no está instalado), la key de Resend, y decidir a quién se le
+  manda, cada cuánto y quién lo apaga.
 
 ## Descartado
 
