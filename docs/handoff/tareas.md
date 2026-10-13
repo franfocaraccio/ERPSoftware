@@ -14,16 +14,14 @@ se investigó —y lo bloqueado, lo postergado y lo descartado— vive en
 de ese archivo. Y vale en los dos sentidos: **una línea y el link, nunca el
 contenido repetido.**
 
-Eran cuatro: la 1 está hecha, la 2 se descartó, y las dos que quedan **no
-dependen una de la otra**, así que se pueden tomar en cualquier orden o en
-paralelo.
+Eran cuatro: dos están hechas, la 2 se descartó, y **queda sólo la 3**.
 
 | # | Tarea | Depende de | Tamaño |
 |---|---|---|---|
 | 1 | ~~Las notas de crédito suman en vez de restar~~ | — | **hecha** el 12/10/2026 |
 | 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
 | 3 | Leer extractos bancarios y conciliar | nada | grande |
-| 4 | Leer facturas de proveedor | nada | mediana, plan acordado |
+| 4 | ~~Leer facturas de proveedor~~ | — | **hecha** el 12/10/2026 |
 
 Las tareas 3 y 4 son el "OCR". **La tarea 2 se descartó** (12 de octubre de
 2026, decisión de Fran): la aplicación **no guarda los archivos ni permite
@@ -428,7 +426,54 @@ Con extractos reales en la mano:
 
 ---
 
-## Tarea 4 — Leer facturas de proveedor
+## Tarea 4 — Leer facturas de proveedor — HECHA
+
+**Terminada el 12 de octubre de 2026.** Andando de punta a punta y verificada
+en el navegador con las facturas reales de Fran.
+
+Qué quedó:
+
+- `core/invoicing/lectura.ts` — `revisarTotalesLeidos`, que verifica que el
+  total cierre según la letra. Es donde vive la regla de que en una B o una C
+  el IVA va incluido.
+- `modules/comprobantes/lectura.ts` — los normalizadores (importes, fechas,
+  CUIT, numeración), el esquema que el modelo tiene que devolver, el prompt y
+  `interpretar`, que arma la propuesta. Todo puro y con 26 tests.
+- `modules/comprobantes/lectura-ruta.ts` — la ruta Express, con tope propio de
+  consumo y el tipo de archivo validado por contenido.
+- `features/comprobantes/compras.tsx` — el botón, el aviso de reparos y el
+  formulario precargado.
+- `scripts/probar-lectura.mts` — para volver a verificar contra archivos reales
+  sin pasar por la aplicación.
+
+**Lo que el papel enseñó y el plan no sabía.** Las tres facturas rompieron una
+suposición cada una, y las tres reglas están en el prompt:
+
+1. Un PDF de ARCA puede traer el mismo comprobante tres veces (ORIGINAL,
+   DUPLICADO, TRIPLICADO). Sumarlos daba el triple.
+2. Una B imprime "IVA contenido" por el régimen de transparencia fiscal (ley
+   27.743), que **ya está adentro** del total. Sumarlo cargaba 1.382 pesos de
+   más.
+3. El modelo tomaba como razón social el **logo del software** que imprimió el
+   PDF, y como concepto la palabra "FACTURA". Las dos cosas se arreglaron
+   diciéndolo explícitamente en el prompt y se volvieron a verificar.
+
+### Lo que quedó pendiente, y es de Fran
+
+- **Una factura A de un proveedor real.** La A que se usó es la muestra de demo
+  de un software contable. Las A reales son las que más varían entre
+  proveedores y son el caso principal.
+- **Detectar que la factura la emitió la propia empresa.** Sale de la factura C
+  de Fran, que es una venta suya. No se puede hacer: **la empresa no tiene CUIT
+  guardado** en ninguna tabla. Decisión de Fran del 12/10/2026: no se agrega por
+  ahora. Cuando se agregue —y hace falta igual para la Fase 3, porque WSAA y
+  WSFEv1 no andan sin él— la decisión ya está tomada: **avisar y dejar seguir**,
+  no bloquear.
+- **Todo asume pesos.** Decisión de Fran: el tipo de cambio no se modela. Una
+  factura en moneda extranjera se carga con sus números pero sin registro de a
+  qué cambio.
+
+Lo que sigue abajo es el plan original, como registro.
 
 ### Objetivo
 

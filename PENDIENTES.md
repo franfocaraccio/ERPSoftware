@@ -75,11 +75,12 @@ dólar oficial con compra y venta en el panel.
 
 **Pendiente, grande:**
 
-- **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR.
-  **Fran lo habilitó el 12 de octubre de 2026**: se hace. Listo para trabajar en
-  `docs/handoff/tareas.md`, tareas 3 y 4. La aplicación **no guarda** los archivos
-  (se leen y se descartan), así que no hay una tarea previa de adjuntos: la
-  tarea 2 se descartó el 12 de octubre de 2026.
+- **Leer extractos bancarios.** Es lo único que queda de OCR: leer facturas de
+  proveedor ya está hecho y andando. Listo para trabajar en
+  `docs/handoff/tareas.md`, tarea 3. La aplicación **no guarda** los archivos
+  (se leen y se descartan).
+- **Falta una factura A de un proveedor real** para terminar de probar la
+  lectura. La que se usó es una muestra de demo. Es de Fran.
 
 ## Dos cosas sueltas del panel financiero
 
