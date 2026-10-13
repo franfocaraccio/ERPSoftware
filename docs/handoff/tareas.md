@@ -8,7 +8,9 @@ tareas sin leer las otras y sin reconstruir el contexto. Cada sección es
 autocontenida: objetivo, estado real, archivos, decisiones ya tomadas,
 restricciones y cómo verificar.
 
-Las tareas son cuatro, y el orden importa:
+Eran cuatro: la 1 está hecha, la 2 se descartó, y las dos que quedan **no
+dependen una de la otra**, así que se pueden tomar en cualquier orden o en
+paralelo.
 
 | # | Tarea | Depende de | Tamaño |
 |---|---|---|---|
@@ -26,7 +28,7 @@ referencias a la tarea 2 que queden más abajo con esto en mente.
 
 ---
 
-## Reglas que valen para las cuatro tareas
+## Reglas que valen para todas las tareas
 
 Son las de `CLAUDE.md`, repetidas acá sólo donde estas tareas las tocan de
 cerca. Ante una contradicción, manda `CLAUDE.md`.
@@ -385,6 +387,12 @@ abstracto.
   anotado que si el backend escala hay que moverlo a Postgres.
 - **Audit log** de cada movimiento creado por esta vía, con la marca de que vino
   de un extracto y de quién lo confirmó.
+- **El hash del extracto, no el extracto.** Como la aplicación no guarda los
+  archivos (la tarea 2 se descartó), no queda nada contra qué comparar para
+  saber si un extracto ya se procesó. Hay que registrar el **SHA-256** del
+  archivo leído —es lo que ya decidió la tarea 4 para las facturas— y mirarlo
+  antes de proponer movimientos. Sin eso, el test de "subir dos veces no
+  duplica" no se puede cumplir.
 
 ### Preguntas que hay que contestar antes de diseñar la conciliación
 
@@ -414,7 +422,7 @@ Con extractos reales en la mano:
 
 ---
 
-## Tarea 4 — Leer comprobantes de pago
+## Tarea 4 — Leer facturas de proveedor
 
 ### Objetivo
 
