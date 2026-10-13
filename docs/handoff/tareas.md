@@ -8,6 +8,12 @@ tareas sin leer las otras y sin reconstruir el contexto. Cada sección es
 autocontenida: objetivo, estado real, archivos, decisiones ya tomadas,
 restricciones y cómo verificar.
 
+**Acá entra sólo lo que ya tiene el plan armado.** Lo que falta pero todavía no
+se investigó —y lo bloqueado, lo postergado y lo descartado— vive en
+`PENDIENTES.md`, una línea por cosa. El reparto completo está en el encabezado
+de ese archivo. Y vale en los dos sentidos: **una línea y el link, nunca el
+contenido repetido.**
+
 Eran cuatro: la 1 está hecha, la 2 se descartó, y las dos que quedan **no
 dependen una de la otra**, así que se pueden tomar en cualquier orden o en
 paralelo.

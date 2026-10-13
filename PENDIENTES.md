@@ -5,11 +5,34 @@ falta; lo que no está, está hecho.
 
 Fase 1 y Fase 2 no tienen nada pendiente.
 
-**Este archivo es el inventario: una línea por cosa, con el por qué y quién la
-bloquea.** Las instrucciones para trabajar una tarea —archivos, decisiones ya
-tomadas, cómo verificarla— viven en `docs/handoff/tareas.md`, una sección por
-tarea. Si algo tiene sección allá, acá va **una línea y el link, nunca el
-contenido repetido**: lo que se cuenta dos veces se actualiza una sola.
+## Cómo se reparte con `docs/handoff/tareas.md`
+
+**Acá va todo lo que falta, una línea por cosa**, con el por qué y quién lo
+bloquea: lo que se nos ocurrió, lo que pidió Jesi, lo bloqueado, lo postergado y
+lo descartado.
+
+**Allá va sólo lo que ya tiene el plan armado**, una sección por tarea con el
+estado verificado del código, los archivos, las decisiones tomadas y cómo
+verificarla.
+
+Lo que mueve algo de acá para allá **no es empezar a trabajarlo, es haber hecho
+el pensamiento**. Una tarea puede estar allá meses sin que nadie la toque. Si se
+promueve antes de investigarla, `tareas.md` se vuelve otro inventario y no sirve
+para lo único que tiene que servir: que alguien se siente y la haga.
+
+El ciclo:
+
+| Momento | Dónde vive |
+|---|---|
+| Se nos ocurre, o lo pide Jesi | acá, una línea |
+| Bloqueado, postergado o descartado | acá, con el por qué |
+| Decidimos hacerlo y se armó el plan | pasa a `tareas.md`; acá queda una línea y el link |
+| Alguien lo está haciendo | `tareas.md` |
+| Terminado | queda en `tareas.md` marcado HECHA, y sale de acá |
+| Se terminaron todas las tareas vivas | `tareas.md` se borra entero |
+
+Una regla que vale en los dos sentidos: **una línea y el link, nunca el
+contenido repetido.** Lo que se cuenta dos veces se actualiza una sola.
 
 ## Pedidos de Jesi (11 de octubre de 2026)
 
