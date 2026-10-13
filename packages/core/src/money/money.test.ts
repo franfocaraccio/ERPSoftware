@@ -157,3 +157,19 @@ describe("Money.sumarTodos", () => {
     ).toThrow(MonedaDistintaError);
   });
 });
+
+describe("convertir", () => {
+  it("pasa dólares a pesos con la cotización, redondeado al centavo", () => {
+    const pesos = Money.desdeString("100.50", "USD").convertir("ARS", "1483.80");
+    expect(pesos.moneda).toBe("ARS");
+    expect(pesos.aStringFiscal()).toBe("149121.90");
+  });
+
+  it("redondea la mitad hacia arriba", () => {
+    expect(Money.desdeString("0.01", "USD").convertir("ARS", "0.5").aStringFiscal()).toBe("0.01");
+  });
+
+  it("rechaza una cotización que no es un número", () => {
+    expect(() => Money.desdeString("1", "USD").convertir("ARS", "mil")).toThrow();
+  });
+});

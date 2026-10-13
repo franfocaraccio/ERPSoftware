@@ -4,11 +4,12 @@ import { Link } from "@tanstack/react-router";
 import { LayoutDashboard, Lock, Wallet } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
-import { formatearImporte } from "../../lib/formato.js";
+import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 import { DolarOficial } from "./dolar.js";
 import type { FilaProyeccion } from "./graficos.js";
 import { EsqueletoKpis, type Kpi, TarjetaKpi } from "./kpis.js";
+import { AlertasCaja, LecturaDelMes } from "./lectura.js";
 
 // Recharts pesa cerca de la mitad del bundle y solo se usa acá: se carga
 // aparte, así el resto de los módulos no lo arrastran.
@@ -29,15 +30,21 @@ function EsqueletoGrafico() {
 /** Saldos por cuenta: el dato que la especificación pide ver primero. */
 function SaldosPorCuenta({
   cuentas,
+  consolidado,
 }: {
   cuentas: { nombre: string; moneda: string; saldo: string }[];
+  /** Lo calcula el servidor: acá no se suman importes con `number`. */
+  consolidado: {
+    dolares: string;
+    cotizacion: string | null;
+    fechaCotizacion: string | null;
+    total: string;
+  };
 }) {
   if (cuentas.length === 0) {
     return null;
   }
-  const totalArs = cuentas
-    .filter((c) => c.moneda === "ARS")
-    .reduce((acc, c) => acc + Number(c.saldo), 0);
+  const hayDolares = consolidado.dolares !== "0.00";
 
   return (
     <Tarjeta className="p-5">
@@ -46,10 +53,17 @@ function SaldosPorCuenta({
         <p className="text-xs text-muted-foreground">
           Consolidado en pesos{" "}
           <span className="tabular font-medium text-foreground">
-            {formatearImporte(totalArs.toFixed(2))}
+            {formatearImporte(consolidado.total)}
           </span>
         </p>
       </div>
+      {hayDolares && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          {consolidado.cotizacion
+            ? `Incluye ${formatearImporte(consolidado.dolares, "USD")} al dólar oficial comprador de ${formatearImporte(consolidado.cotizacion)}${consolidado.fechaCotizacion ? ` (${formatearFecha(consolidado.fechaCotizacion)})` : ""}.`
+            : "No incluye los dólares: no se pudo traer la cotización."}
+        </p>
+      )}
       <ul className="divide-y divide-border">
         {cuentas.map((c) => {
           const negativo = c.saldo.startsWith("-");
@@ -153,6 +167,8 @@ export function Panel() {
         </Tarjeta>
       ) : (
         <div className="space-y-4">
+          <AlertasCaja alertas={data.alertas} />
+          <LecturaDelMes />
           <section aria-label="Indicadores">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {(data.kpis as Kpi[]).map((kpi) => (
@@ -173,13 +189,15 @@ export function Panel() {
               <GraficoSaldoProyectado
                 datos={data.proyeccion as FilaProyeccion[]}
                 minimoOperativo={data.minimoOperativo}
+                cobrosVencidos={data.cobrosVencidos}
+                pagosVencidos={data.pagosVencidos}
               />
               <GraficoFlujoSemanal datos={data.proyeccion as FilaProyeccion[]} />
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
               <GraficoVentas datos={data.ventasPorMes} />
-              <SaldosPorCuenta cuentas={data.saldoPorCuenta} />
+              <SaldosPorCuenta cuentas={data.saldoPorCuenta} consolidado={data.consolidado} />
             </div>
           </Suspense>
         </div>

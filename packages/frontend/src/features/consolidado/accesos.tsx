@@ -1,6 +1,7 @@
 import {
   Boton,
   Campo,
+  Casilla,
   DialogoConfirmacion,
   Entrada,
   Esqueleto,
@@ -13,15 +14,27 @@ import { Eye, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { BotonCopiarLink, LinkInvitacion } from "../../components/link-invitacion.js";
+import { formatearFechaHora } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
-function fechaHora(valor: string | Date): string {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date(valor));
-}
+/** Los módulos que se pueden incluir en un link. Los mismos que acepta el backend. */
+const MODULOS = [
+  { id: "panel", etiqueta: "Panel" },
+  { id: "clientes", etiqueta: "Clientes" },
+  { id: "proveedores", etiqueta: "Proveedores" },
+  { id: "stock", etiqueta: "Stock" },
+  { id: "tesoreria", etiqueta: "Tesorería" },
+  { id: "impuestos", etiqueta: "Impuestos" },
+  { id: "comprobantes", etiqueta: "Comprobantes" },
+  { id: "resultados", etiqueta: "Resultados" },
+] as const;
+
+type Modulo = (typeof MODULOS)[number]["id"];
+
+const ETIQUETA_MODULO = Object.fromEntries(MODULOS.map((m) => [m.id, m.etiqueta])) as Record<
+  string,
+  string
+>;
 
 export function Accesos() {
   const trpc = useTRPC();
@@ -32,6 +45,7 @@ export function Accesos() {
   const revocar = useMutation(trpc.consolidado.revocar.mutationOptions());
 
   const [descripcion, setDescripcion] = useState("");
+  const [modulos, setModulos] = useState<Set<Modulo>>(new Set(MODULOS.map((m) => m.id)));
   const [creando, setCreando] = useState(false);
   const [reciente, setReciente] = useState<{ link: string; descripcion: string } | null>(null);
   const [aRevocar, setARevocar] = useState<{ id: string; descripcion: string } | null>(null);
@@ -39,10 +53,15 @@ export function Accesos() {
   const refrescar = () => queryClient.invalidateQueries({ queryKey: trpc.consolidado.pathKey() });
 
   const generar = async () => {
-    const creado = await crear.mutateAsync({ descripcion: descripcion.trim() });
+    const creado = await crear.mutateAsync({
+      descripcion: descripcion.trim(),
+      // Todos marcados = sin alcance: ve todo, como los links de antes.
+      modulos: modulos.size === MODULOS.length ? null : [...modulos],
+    });
     await refrescar();
     setReciente({ link: creado.link, descripcion: creado.descripcion });
     setDescripcion("");
+    setModulos(new Set(MODULOS.map((m) => m.id)));
     setCreando(false);
   };
 
@@ -71,9 +90,9 @@ export function Accesos() {
       <Tarjeta className="mb-4 flex items-start gap-2.5 border-warning/40 bg-warning-subtle p-4">
         <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <p className="text-sm text-foreground">
-          Cualquiera que tenga el link ve toda la información de la empresa —facturación, márgenes y
-          saldos— sin necesidad de contraseña. Dura {horas ?? 48} horas y podés cortarlo antes desde
-          acá.
+          Cualquiera que tenga el link ve la información de los módulos que elijas —facturación,
+          márgenes y saldos— sin necesidad de contraseña. Dura {horas ?? 48} horas y podés cortarlo
+          antes desde acá.
         </p>
       </Tarjeta>
 
@@ -95,6 +114,28 @@ export function Accesos() {
               )}
             </Campo>
 
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium text-foreground">Qué puede ver</legend>
+              <div className="grid gap-2 sm:grid-cols-4">
+                {MODULOS.map((m) => (
+                  <Casilla
+                    key={m.id}
+                    etiqueta={m.etiqueta}
+                    checked={modulos.has(m.id)}
+                    onChange={(e) => {
+                      const nuevos = new Set(modulos);
+                      if (e.target.checked) {
+                        nuevos.add(m.id);
+                      } else {
+                        nuevos.delete(m.id);
+                      }
+                      setModulos(nuevos);
+                    }}
+                  />
+                ))}
+              </div>
+            </fieldset>
+
             {crear.isError && (
               <p role="alert" className="text-sm text-danger">
                 No se pudo generar: {crear.error.message}
@@ -108,7 +149,7 @@ export function Accesos() {
               <Boton
                 tamano="sm"
                 cargando={crear.isPending}
-                disabled={descripcion.trim() === ""}
+                disabled={descripcion.trim() === "" || modulos.size === 0}
                 onClick={() => void generar()}
               >
                 Generar
@@ -159,10 +200,16 @@ export function Accesos() {
                   {acceso.vencido && <Insignia tono="neutro">Vencido</Insignia>}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {acceso.vencido ? "Venció" : "Vence"} {fechaHora(acceso.expira)} ·{" "}
+                  {acceso.vencido ? "Venció" : "Vence"} {formatearFechaHora(acceso.expira)} ·{" "}
                   {acceso.ultimoUso
-                    ? `último uso ${fechaHora(acceso.ultimoUso)}`
+                    ? `último uso ${formatearFechaHora(acceso.ultimoUso)}`
                     : "todavía no lo usaron"}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Ve:{" "}
+                  {acceso.modulos
+                    ? acceso.modulos.map((m) => ETIQUETA_MODULO[m] ?? m).join(", ")
+                    : "todos los módulos"}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">

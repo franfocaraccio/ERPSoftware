@@ -68,8 +68,8 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 
 1. Compras en tabla propia (`comprobantes_compra`), separada de facturación de ventas.
 2. Fase 1 incluye comprobantes de venta con carga manual (sin ARCA/CAE); Fase 3 suma la emisión electrónica sobre el mismo schema.
-3. `stock_actual` es editable a mano en Fase 1 (sin tabla de movimientos de stock).
-4. `costo_unitario` es carga manual en Fase 1 (sin política última compra / promedio ponderado).
+3. ~~`stock_actual` editable a mano~~ **Reemplazada el 12/10/2026:** el stock se mueve con una tabla de movimientos (venta confirmada descuenta, nota de crédito devuelve, compra con ítems suma, ajustes manuales). Ver `docs/handoff/tareas.md`, tarea 10.
+4. ~~`costo_unitario` manual~~ **Reemplazada el 12/10/2026:** costo por promedio ponderado, recalculado con cada compra. Ver tarea 10.
 5. Impuestos: un único `importe_pagado` por registro (sin N pagos por obligación).
 6. Monedas: un movimiento hereda la moneda de su cuenta; cheques e impuestos siempre ARS.
 7. Tabla `parametros` por tenant desde Fase 1 (umbral de mora/DSO, margen objetivo, mínimo operativo).

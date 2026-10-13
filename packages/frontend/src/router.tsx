@@ -10,6 +10,7 @@ import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
 import { Login } from "./features/auth/login.js";
 import { Recuperar } from "./features/auth/recuperar.js";
 import { Restablecer } from "./features/auth/restablecer.js";
+import { FichaCliente } from "./features/clientes/ficha.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
@@ -23,8 +24,10 @@ import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Landing } from "./features/landing/landing.js";
 import { Panel } from "./features/panel/panel.js";
 import { Parametros, ParametrosSinPermiso } from "./features/parametros/formulario.js";
+import { FichaProveedor } from "./features/proveedores/ficha.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
+import { Resultados } from "./features/resultados/pagina.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
 import { ListaStock } from "./features/stock/lista.js";
 import { Tesoreria } from "./features/tesoreria/index.js";
@@ -195,9 +198,19 @@ const rutaClienteNuevo = createRoute({
   ),
 });
 
-const rutaClienteEditar = createRoute({
+/** La ficha: saldo, antigüedad, mora y crédito. Se puede ver en modo lectura. */
+const rutaClienteFicha = createRoute({
   getParentRoute: () => rutaApp,
   path: "/clientes/$clienteId",
+  component: function VerCliente() {
+    const { clienteId } = rutaClienteFicha.useParams();
+    return <FichaCliente clienteId={clienteId} />;
+  },
+});
+
+const rutaClienteEditar = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/clientes/$clienteId/editar",
   component: function EditarCliente() {
     const { clienteId } = rutaClienteEditar.useParams();
     return (
@@ -224,9 +237,18 @@ const rutaProveedorNuevo = createRoute({
   ),
 });
 
-const rutaProveedorEditar = createRoute({
+const rutaProveedorFicha = createRoute({
   getParentRoute: () => rutaApp,
   path: "/proveedores/$proveedorId",
+  component: function VerProveedor() {
+    const { proveedorId } = rutaProveedorFicha.useParams();
+    return <FichaProveedor proveedorId={proveedorId} />;
+  },
+});
+
+const rutaProveedorEditar = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/proveedores/$proveedorId/editar",
   component: function EditarProveedor() {
     const { proveedorId } = rutaProveedorEditar.useParams();
     return (
@@ -272,14 +294,35 @@ const rutaImpuestos = createRoute({
   component: ListaImpuestos,
 });
 
+const TIPOS_IMPUESTO = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
+
+/**
+ * `?tipo=iva&periodo=AAAA-MM` llega desde "Registrar pago" de una posición de
+ * IVA calculada: el formulario arranca con eso completo.
+ */
 const rutaImpuestoNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/impuestos/nueva",
-  component: () => (
-    <SoloEscritura>
-      <FormularioImpuesto />
-    </SoloEscritura>
-  ),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tipo?: (typeof TIPOS_IMPUESTO)[number] | undefined; periodo?: string | undefined } => ({
+    tipo: TIPOS_IMPUESTO.find((t) => t === search.tipo),
+    periodo:
+      typeof search.periodo === "string" && /^\d{4}-\d{2}$/.test(search.periodo)
+        ? search.periodo
+        : undefined,
+  }),
+  component: function NuevoImpuesto() {
+    const { tipo, periodo } = rutaImpuestoNuevo.useSearch();
+    return (
+      <SoloEscritura>
+        <FormularioImpuesto
+          {...(tipo ? { tipoInicial: tipo } : {})}
+          {...(periodo ? { periodoInicial: periodo } : {})}
+        />
+      </SoloEscritura>
+    );
+  },
 });
 
 const rutaImpuestoEditar = createRoute({
@@ -326,6 +369,12 @@ const rutaComprobanteDetalle = createRoute({
   },
 });
 
+const rutaResultados = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/resultados",
+  component: Resultados,
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaLanding,
   rutaLogin,
@@ -342,9 +391,11 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaAccesos,
     rutaClientes,
     rutaClienteNuevo,
+    rutaClienteFicha,
     rutaClienteEditar,
     rutaProveedores,
     rutaProveedorNuevo,
+    rutaProveedorFicha,
     rutaProveedorEditar,
     rutaStock,
     rutaProductoNuevo,
@@ -356,6 +407,7 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaComprobantes,
     rutaComprobanteNuevo,
     rutaComprobanteDetalle,
+    rutaResultados,
   ]),
 ]);
 

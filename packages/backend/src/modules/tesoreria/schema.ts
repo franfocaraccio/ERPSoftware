@@ -37,11 +37,28 @@ export const movimientoInputSchema = z
     clienteId: z.uuid().nullable().optional(),
     proveedorId: z.uuid().nullable().optional(),
     chequeId: z.uuid().nullable().optional(),
+    /** En qué se gastó o de dónde entró. Sólo sin contraparte. */
+    categoriaId: z.uuid().nullable().optional(),
     conciliado: z.boolean().default(false),
+    /**
+     * Qué comprobantes cancela y por cuánto. Lo que no se imputa queda a
+     * cuenta de la contraparte. Las reglas (misma contraparte, no de más)
+     * las valida el service.
+     */
+    imputaciones: z
+      .array(z.object({ comprobanteId: z.uuid(), importe: importePositivo }))
+      .max(200)
+      .default([]),
   })
   .refine((m) => !(m.clienteId && m.proveedorId), {
     message: "Un movimiento no puede ser de un cliente y un proveedor a la vez",
     path: ["proveedorId"],
+  })
+  .refine((m) => !(m.categoriaId && (m.clienteId || m.proveedorId)), {
+    // Un cobro o un pago a una contraparte cancela un comprobante, que ya
+    // cuenta en resultados: categorizarlo lo contaría dos veces.
+    message: "Un cobro o pago a un cliente o proveedor no lleva categoría",
+    path: ["categoriaId"],
   })
   .refine((m) => m.medioPago !== "cheque" || Boolean(m.chequeId), {
     message: "Si el medio de pago es cheque, hay que vincular el cheque",
@@ -106,8 +123,14 @@ export const chequesListarSchema = z.object({
 
 export type CuentaInput = z.infer<typeof cuentaInputSchema>;
 export type CuentaActualizar = z.infer<typeof cuentaActualizarSchema>;
-export type MovimientoInput = z.infer<typeof movimientoInputSchema>;
-export type MovimientoActualizar = z.infer<typeof movimientoActualizarSchema>;
+/**
+ * Lo que recibe el service. Las imputaciones son opcionales, como en la API:
+ * sin ellas, todo el movimiento queda a cuenta.
+ */
+export type MovimientoInput = Omit<z.infer<typeof movimientoInputSchema>, "imputaciones"> & {
+  imputaciones?: z.infer<typeof movimientoInputSchema>["imputaciones"];
+};
+export type MovimientoActualizar = { id: string; datos: MovimientoInput };
 export type MovimientosListar = z.infer<typeof movimientosListarSchema>;
 export type ChequeInput = z.infer<typeof chequeInputSchema>;
 export type ChequeActualizar = z.infer<typeof chequeActualizarSchema>;

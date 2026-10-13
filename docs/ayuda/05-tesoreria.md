@@ -27,8 +27,8 @@ Cada movimiento es un ingreso o un egreso sobre una cuenta.
 | Medio de pago | Sí | Efectivo, Transferencia o Cheque |
 | Concepto | No | Hasta 300 caracteres |
 | Importe | Sí | **Siempre positivo**: el signo lo pone el tipo |
-| Cliente | No | |
-| Proveedor | No | |
+| Contraparte | No | Un cliente o un proveedor |
+| Categoría | No | Sólo sin contraparte: en qué se gastó o de dónde entró, para el estado de resultados (ver `/resultados`) |
 | Cheque | Condicional | Obligatorio si el medio de pago es Cheque |
 | Conciliado | No | Tilde |
 
@@ -38,6 +38,24 @@ Cada movimiento es un ingreso o un egreso sobre una cuenta.
    otro, o ninguno.
 2. Si el medio de pago es **Cheque**, hay que vincular el cheque. Sin eso no
    guarda.
+
+### Imputar un cobro o un pago
+
+Cuando el movimiento es un **ingreso de un cliente** o un **egreso a un
+proveedor**, aparece la lista de sus comprobantes pendientes. Ahí se escribe
+cuánto cancela de cada uno:
+
+- Se puede repartir entre **varias** facturas y pagar **parte** de una.
+- **Repartir automáticamente** completa los importes empezando por lo que vence
+  antes.
+- Lo que no se imputa queda **a cuenta** del cliente o proveedor. Está
+  permitido: el sistema lo aplica a sus comprobantes más viejos al calcular
+  saldos, y se ve en su ficha.
+- No se puede imputar más que el importe del movimiento, ni más de lo que le
+  queda a cada comprobante.
+
+Si el medio de pago es **Cheque**, al elegir el cheque se completan solos el
+importe y el cliente que lo libró.
 
 ### Filtros
 
@@ -70,6 +88,20 @@ Si no indicás librador —ni cliente ni nombre libre— da error.
   registra a quién se lo endosaste ni genera un egreso automático.
 
 Los cheques son siempre en pesos.
+
+### Depositar o endosar desde la lista
+
+Los cheques **En cartera** tienen en su fila los botones **Depositar** y
+**Endosar**, que cambian el estado sin abrir el formulario.
+
+### Plazo para presentarlos
+
+Un cheque se puede presentar al banco hasta **30 días después de su fecha de
+pago**. Pasado ese plazo, el banco lo rechaza.
+
+En la columna de cobro, un cheque vencido muestra cuántos días quedan para
+presentarlo, en rojo cuando faltan 7 o menos. Si hay cheques en cartera que
+caducan en los próximos 7 días, la pantalla lo avisa arriba de la lista.
 
 ### Filtros
 

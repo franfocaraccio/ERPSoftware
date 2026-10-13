@@ -1,6 +1,6 @@
 import { Esqueleto, Tarjeta } from "@erp/design-system";
 import { CircleCheck, CircleSlash, TriangleAlert } from "lucide-react";
-import { formatearImporte } from "../../lib/formato.js";
+import { formatearCantidad, formatearImporte } from "../../lib/formato.js";
 
 export type Semaforo = "ok" | "alerta" | "sin_datos";
 
@@ -11,6 +11,27 @@ export interface Kpi {
   unidad: "moneda" | "dias" | "porcentaje" | "ratio" | "conteo";
   semaforo: Semaforo;
   detalle: string;
+  /** Los números con los que se calcula. */
+  desglose: {
+    etiqueta: string;
+    valor: string;
+    unidad: "moneda" | "dias" | "cantidad" | "conteo";
+  }[];
+  /** Por qué no hay valor. */
+  motivoSinDatos: string | null;
+}
+
+function formatearComponente(c: Kpi["desglose"][number]): string {
+  switch (c.unidad) {
+    case "moneda":
+      return formatearImporte(c.valor);
+    case "dias":
+      return `${c.valor} días`;
+    case "cantidad":
+      return formatearCantidad(c.valor);
+    default:
+      return c.valor;
+  }
 }
 
 /**
@@ -69,6 +90,25 @@ export function TarjetaKpi({ kpi }: { kpi: Kpi }) {
       </div>
       <p className="mt-2 text-2xl font-semibold text-foreground">{formatearValor(kpi)}</p>
       <p className="mt-1 text-xs text-muted-foreground">{kpi.detalle}</p>
+      {/* "Sin datos" dice qué falta: un guion solo no le sirve a nadie. */}
+      {kpi.motivoSinDatos && (
+        <p className="mt-1 text-xs text-muted-foreground italic">{kpi.motivoSinDatos}</p>
+      )}
+      {kpi.desglose.length > 0 && (
+        <details className="mt-2 text-xs">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+            Cómo se calcula
+          </summary>
+          <dl className="mt-1.5 space-y-0.5">
+            {kpi.desglose.map((c) => (
+              <div key={c.etiqueta} className="flex justify-between gap-2">
+                <dt className="text-muted-foreground">{c.etiqueta}</dt>
+                <dd className="tabular text-foreground">{formatearComponente(c)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
     </Tarjeta>
   );
 }

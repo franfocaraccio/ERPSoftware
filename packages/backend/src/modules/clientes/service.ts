@@ -1,4 +1,5 @@
-import { saldoCuentaCorriente } from "@erp/core/balances";
+import { enMora, saldoCuentaCorriente } from "@erp/core/balances";
+import { hoyEnArgentina } from "@erp/core/dates";
 import { type Concentracion, concentracionMaxima, type Semaforo, semaforoDe } from "@erp/core/kpis";
 import { Money } from "@erp/core/money";
 import { and, count, eq, ilike, inArray, or, type SQL, sql, sum } from "drizzle-orm";
@@ -7,8 +8,13 @@ import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
-import { totalConSigno } from "../_comunes/comprobantes.js";
+import { ESTADOS_QUE_DEBEN, totalConSigno } from "../_comunes/comprobantes.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import {
+  primerVencimientoImpago,
+  type SaldosCuentaCorriente,
+  saldosCuentaCorriente,
+} from "../cuenta-corriente/saldos.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ClienteActualizar, ClienteInput, ClientesListar } from "./schema.js";
 
@@ -18,7 +24,15 @@ export type Cliente = typeof clientes.$inferSelect;
 export interface ClienteConSaldo extends Cliente {
   /** Lo que el cliente debe, en pesos. Negativo = tiene saldo a favor. */
   saldo: string;
+  /** Vencimiento de la deuda impaga más vieja. Puede estar en el pasado. */
   proximoVencimiento: string | null;
+  /**
+   * Tiene deuda vencida hace más días que el umbral de Parámetros. Calculado:
+   * no depende del `estado` guardado.
+   */
+  enMora: boolean;
+  /** El saldo supera el límite de crédito. Se avisa; no bloquea nada. */
+  excedeLimite: boolean;
   /**
    * Tiene comprobantes en otra moneda, que NO entran en `saldo`. Mezclar pesos
    * y dólares en un solo número sería mentir; la pantalla lo avisa en vez de
@@ -40,15 +54,6 @@ export interface ResumenClientes {
   hayMonedaExtranjera: boolean;
 }
 
-/**
- * Estados de comprobante que son deuda real.
- *
- * Un borrador todavía no se le reclamó a nadie y un rechazado ya no se
- * reclama. Proveedores no necesita este filtro porque las compras no tienen
- * máquina de estados.
- */
-const ESTADOS_QUE_DEBEN = ["enviada", "aprobada"] as const;
-
 interface Actor {
   tenantId: string;
   usuarioId: string;
@@ -57,7 +62,7 @@ interface Actor {
 /** Los filtros de la pantalla. Compartidos por el listado y el resumen de arriba. */
 export type FiltrosClientes = Pick<ClientesListar, "busqueda" | "condicionIva" | "estado">;
 
-function filtrosDe(input: FiltrosClientes): SQL | undefined {
+function filtrosDe(input: FiltrosClientes, moraIds?: ReadonlySet<string>): SQL | undefined {
   // Los tres filtros se combinan. `condicionIva` y `estado` llegaban al
   // service y no se usaban en ninguna condición: la pantalla ofrecía los dos
   // desplegables y elegir cualquiera de ellos no cambiaba nada.
@@ -74,10 +79,31 @@ function filtrosDe(input: FiltrosClientes): SQL | undefined {
   if (input.condicionIva) {
     condiciones.push(eq(clientes.condicionIva, input.condicionIva));
   }
-  if (input.estado) {
+  if (input.estado === "en_mora") {
+    // La mora no es una columna: es el conjunto que calculó la cuenta corriente.
+    const ids = [...(moraIds ?? [])];
+    condiciones.push(ids.length > 0 ? inArray(clientes.id, ids) : sql`false`);
+  } else if (input.estado) {
     condiciones.push(eq(clientes.estado, input.estado));
   }
   return condiciones.length > 0 ? and(...condiciones) : undefined;
+}
+
+/**
+ * Los clientes en mora: con algo impago vencido hace más días que el umbral
+ * de la empresa. Sale de la misma cuenta corriente que el saldo.
+ */
+function clientesEnMora(cc: SaldosCuentaCorriente, umbralDias: number): Set<string> {
+  const hoy = hoyEnArgentina();
+  const porCliente = new Map<string, typeof cc.comprobantes>();
+  for (const c of cc.comprobantes) {
+    porCliente.set(c.contraparteId, [...(porCliente.get(c.contraparteId) ?? []), c]);
+  }
+  return new Set(
+    [...porCliente.entries()]
+      .filter(([, propios]) => enMora(propios, hoy, umbralDias))
+      .map(([id]) => id),
+  );
 }
 
 /**
@@ -85,13 +111,14 @@ function filtrosDe(input: FiltrosClientes): SQL | undefined {
  * el saldo vive en `core`.
  *
  * Sobre monedas: la suma de importes se filtra a pesos con un `filter` y no con
- * un `where`, para que el próximo vencimiento siga mirando todos los
- * comprobantes. Una factura en dólares tiene fecha de vencimiento aunque su
- * importe no entre en el saldo en pesos.
+ * un `where`, para poder contar además los comprobantes en otra moneda y
+ * avisar que existen.
  *
  * Sobre notas de crédito: restan en vez de sumar, y el por qué está en
- * `totalConSigno`, que es de donde sale el signo. El `min` del próximo
- * vencimiento las excluye aparte: una nota de crédito no tiene fecha de cobro.
+ * `totalConSigno`, que es de donde sale el signo.
+ *
+ * El vencimiento que muestra la lista no sale de acá: es el de la deuda
+ * impaga más vieja, y se calcula aparte (`vencimientoImpagoClientes`).
  */
 function agregadosDe(tx: TenantTx) {
   const facturado = tx
@@ -103,18 +130,6 @@ function agregadosDe(tx: TenantTx) {
       otraMoneda: sql<number>`count(*) filter (
         where ${comprobantesVenta.moneda} <> 'ARS'
       )`.as("otra_moneda"),
-      /**
-       * El `filter` es lo que hace que esto sea el PRÓXIMO vencimiento: sin él
-       * `min` devuelve el más viejo, que siempre está vencido en cuanto el
-       * cliente tiene alguna factura con historia.
-       */
-      proximo: sql<string | null>`min(
-        ${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day'
-      ) filter (where
-        ${comprobantesVenta.clase} <> 'nota_credito'
-        and ${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day'
-        >= current_date
-      )`.as("proximo_vencimiento"),
     })
     .from(comprobantesVenta)
     .where(inArray(comprobantesVenta.estado, [...ESTADOS_QUE_DEBEN]))
@@ -149,7 +164,10 @@ export async function listarClientes(
   input: ClientesListar,
 ): Promise<{ items: ClienteConSaldo[]; total: number }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = filtrosDe(input);
+    const { umbralMoraDias } = await leerParametros(tx, tenantId);
+    const cc = await saldosCuentaCorriente(tx, "ventas");
+    const moraIds = clientesEnMora(cc, umbralMoraDias);
+    const filtro = filtrosDe(input, moraIds);
     const { facturado, cobrado } = agregadosDe(tx);
 
     const filas = await tx
@@ -158,7 +176,6 @@ export async function listarClientes(
         facturado: facturado.total,
         cobrado: cobrado.total,
         otraMoneda: facturado.otraMoneda,
-        proximo: facturado.proximo,
       })
       .from(clientes)
       .leftJoin(facturado, eq(facturado.clienteId, clientes.id))
@@ -181,12 +198,20 @@ export async function listarClientes(
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
-    const items: ClienteConSaldo[] = filas.map((fila) => ({
-      ...fila.cliente,
-      saldo: saldoDe(fila.facturado, fila.cobrado).aStringFiscal(),
-      proximoVencimiento: fila.proximo ? String(fila.proximo).slice(0, 10) : null,
-      tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
-    }));
+    const vencimientos = primerVencimientoImpago(cc.comprobantes);
+    const items: ClienteConSaldo[] = filas.map((fila) => {
+      const saldo = saldoDe(fila.facturado, fila.cobrado);
+      return {
+        ...fila.cliente,
+        saldo: saldo.aStringFiscal(),
+        proximoVencimiento: vencimientos.get(fila.cliente.id) ?? null,
+        enMora: moraIds.has(fila.cliente.id),
+        excedeLimite:
+          fila.cliente.limiteCredito !== null &&
+          saldo.mayorQue(Money.desdeString(fila.cliente.limiteCredito, "ARS")),
+        tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
+      };
+    });
 
     const [fila] = await tx.select({ total: count() }).from(clientes).where(filtro);
     return { items, total: fila?.total ?? 0 };
@@ -204,8 +229,12 @@ export async function resumenClientes(
   input: FiltrosClientes,
 ): Promise<ResumenClientes> {
   return withTenant(actor.tenantId, async (tx) => {
-    const { umbralConcentracion } = await leerParametros(tx, actor.tenantId);
-    const filtro = filtrosDe(input);
+    const { umbralConcentracion, umbralMoraDias } = await leerParametros(tx, actor.tenantId);
+    const moraIds =
+      input.estado === "en_mora"
+        ? clientesEnMora(await saldosCuentaCorriente(tx, "ventas"), umbralMoraDias)
+        : undefined;
+    const filtro = filtrosDe(input, moraIds);
     const { facturado, cobrado } = agregadosDe(tx);
 
     const filas = await tx

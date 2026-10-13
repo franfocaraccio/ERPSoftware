@@ -21,6 +21,8 @@ export interface AccesoConsolidado {
   vencido: boolean;
   /** Solo se devuelve al crearlo y al listarlo para quien administra. */
   link: string;
+  /** Null = todos los módulos. */
+  modulos: string[] | null;
 }
 
 function urlFrontend(): string {
@@ -35,7 +37,11 @@ export function linkConsolidado(tenantId: string, token: string): string {
   return `${urlFrontend()}/consolidado/${tenantId}/${token}`;
 }
 
-export async function crearAcceso(actor: Actor, descripcion: string): Promise<AccesoConsolidado> {
+export async function crearAcceso(
+  actor: Actor,
+  descripcion: string,
+  modulos: string[] | null = null,
+): Promise<AccesoConsolidado> {
   // 32 bytes de aleatoriedad criptográfica: el token es lo único que separa a
   // un desconocido de todos los datos de la empresa.
   const token = randomBytes(32).toString("hex");
@@ -50,6 +56,7 @@ export async function crearAcceso(actor: Actor, descripcion: string): Promise<Ac
         descripcion,
         creadoPor: actor.usuarioId,
         expira,
+        modulos,
       })
       .returning();
 
@@ -64,7 +71,7 @@ export async function crearAcceso(actor: Actor, descripcion: string): Promise<Ac
       registroId: creado.id,
       accion: "alta",
       // El token no va al audit log: es una credencial viva.
-      detalle: { descripcion, expira: expira.toISOString() },
+      detalle: { descripcion, expira: expira.toISOString(), modulos },
     });
 
     return {
@@ -75,6 +82,7 @@ export async function crearAcceso(actor: Actor, descripcion: string): Promise<Ac
       ultimoUso: null,
       vencido: false,
       link: linkConsolidado(actor.tenantId, token),
+      modulos: creado.modulos,
     };
   });
 }
@@ -97,6 +105,7 @@ export async function listarAccesos(actor: Actor): Promise<AccesoConsolidado[]> 
       ultimoUso: f.ultimoUso,
       vencido: f.expira.getTime() <= ahora,
       link: linkConsolidado(actor.tenantId, f.token),
+      modulos: f.modulos,
     }));
   });
 }
@@ -130,6 +139,7 @@ export interface AccesoVigente {
   accesoId: string;
   descripcion: string;
   expira: Date;
+  modulos: string[] | null;
 }
 
 /**
@@ -162,6 +172,7 @@ export async function validarToken(tenantId: string, token: string): Promise<Acc
       accesoId: fila.id,
       descripcion: fila.descripcion,
       expira: fila.expira,
+      modulos: fila.modulos,
     };
   });
 }

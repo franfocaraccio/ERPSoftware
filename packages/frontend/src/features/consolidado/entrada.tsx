@@ -32,7 +32,9 @@ export function EntradaConsolidado({ tenantId, token }: { tenantId: string; toke
     guardarAcceso({ tenantId, token });
     // Carga completa: el cliente tRPC toma el token del storage al armar cada
     // request, así que conviene arrancar de cero con el acceso ya guardado.
-    window.location.assign("/panel");
+    // Si el link no incluye el panel, entra al primer módulo que sí incluye.
+    const modulos = data?.modulos;
+    window.location.assign(!modulos || modulos.includes("panel") ? "/panel" : `/${modulos[0]}`);
   };
 
   return (

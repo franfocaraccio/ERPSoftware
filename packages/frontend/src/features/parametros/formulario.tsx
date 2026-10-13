@@ -1,4 +1,12 @@
-import { Boton, Campo, Entrada, Esqueleto, EstadoVacio, Tarjeta } from "@erp/design-system";
+import {
+  Boton,
+  Campo,
+  Entrada,
+  Esqueleto,
+  EstadoVacio,
+  Selector,
+  Tarjeta,
+} from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, SlidersHorizontal } from "lucide-react";
@@ -35,6 +43,11 @@ const schema = z.object({
     .refine((v) => decimal.test(v), "Usá números, con hasta dos decimales")
     .refine((v) => Number(v.replace(",", ".")) > 0, "Tiene que ser mayor a 0")
     .refine((v) => Number(v.replace(",", ".")) <= 100, "No puede superar 100%"),
+  regimenFiscal: z.enum(["responsable_inscripto", "monotributo"]),
+  diaVencimientoIva: z
+    .string()
+    .regex(/^\d+$/, "Un día del mes")
+    .refine((v) => Number(v) >= 1 && Number(v) <= 28, "Entre 1 y 28"),
 });
 
 /** La coma es lo natural al escribir en castellano; el borde espera punto. */
@@ -64,6 +77,8 @@ export function Parametros() {
       margenObjetivo: data?.margenObjetivo ?? "",
       minimoOperativo: data?.minimoOperativo ?? "",
       umbralConcentracion: data?.umbralConcentracion ?? "20",
+      regimenFiscal: data?.regimenFiscal ?? ("responsable_inscripto" as const),
+      diaVencimientoIva: String(data?.diaVencimientoIva ?? 20),
     },
     validators: { onBlur: schema },
     onSubmit: async ({ value }) => {
@@ -72,7 +87,11 @@ export function Parametros() {
         margenObjetivo: aDecimal(value.margenObjetivo),
         minimoOperativo: aDecimal(value.minimoOperativo),
         umbralConcentracion: value.umbralConcentracion.trim().replace(",", "."),
+        regimenFiscal: value.regimenFiscal,
+        diaVencimientoIva: Number(value.diaVencimientoIva),
       });
+      // El régimen decide qué impuestos se calculan y se muestran.
+      await queryClient.invalidateQueries({ queryKey: trpc.impuestos.pathKey() });
       await queryClient.invalidateQueries({ queryKey: trpc.parametros.pathKey() });
       // El panel se lee con estos umbrales: sus semáforos cambian con esto.
       await queryClient.invalidateQueries({ queryKey: trpc.financiero.pathKey() });
@@ -129,7 +148,7 @@ export function Parametros() {
               <Campo
                 etiqueta="Umbral de mora"
                 requerido
-                ayuda="Días de cobro promedio a partir de los cuales el indicador pasa a rojo. Si cobrás a 30 días, un umbral de 45 te avisa cuando se está estirando."
+                ayuda="Días de atraso a partir de los cuales un cliente queda en mora, y el DSO del panel pasa a rojo. Si cobrás a 30 días, un umbral de 45 te avisa cuando se está estirando."
                 error={
                   field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
                 }
@@ -240,6 +259,65 @@ export function Parametros() {
               </Campo>
             )}
           </form.Field>
+
+          <form.Field name="regimenFiscal">
+            {(field) => (
+              <Campo
+                etiqueta="Régimen fiscal"
+                requerido
+                ayuda="Decide qué impuestos se cargan. Un Responsable Inscripto liquida IVA (que el sistema calcula con los comprobantes) y Ganancias; un monotributista paga su cuota."
+              >
+                {({ id, describedBy }) => (
+                  <Selector
+                    id={id}
+                    aria-describedby={describedBy}
+                    className="max-w-72"
+                    value={field.state.value}
+                    onChange={(e) =>
+                      field.handleChange(e.target.value as "responsable_inscripto" | "monotributo")
+                    }
+                  >
+                    <option value="responsable_inscripto">Responsable Inscripto</option>
+                    <option value="monotributo">Monotributo</option>
+                  </Selector>
+                )}
+              </Campo>
+            )}
+          </form.Field>
+
+          <form.Subscribe selector={(s) => s.values.regimenFiscal}>
+            {(regimen) =>
+              regimen === "responsable_inscripto" ? (
+                <form.Field name="diaVencimientoIva">
+                  {(field) => (
+                    <Campo
+                      etiqueta="Día de vencimiento del IVA"
+                      requerido
+                      ayuda="Del mes siguiente al período. Depende de la terminación del CUIT: miralo en el calendario de vencimientos de ARCA."
+                      error={
+                        field.state.meta.isBlurred
+                          ? primerError(field.state.meta.errors)
+                          : undefined
+                      }
+                    >
+                      {({ id, describedBy, invalido }) => (
+                        <Entrada
+                          id={id}
+                          inputMode="numeric"
+                          className="max-w-24"
+                          aria-describedby={describedBy}
+                          invalido={invalido}
+                          value={field.state.value}
+                          onChange={(e) => field.handleChange(e.target.value)}
+                          onBlur={field.handleBlur}
+                        />
+                      )}
+                    </Campo>
+                  )}
+                </form.Field>
+              ) : null
+            }
+          </form.Subscribe>
 
           {guardar.isError && (
             <p role="alert" className="text-sm text-danger">

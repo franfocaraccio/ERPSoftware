@@ -26,13 +26,19 @@ Pantalla en `/comprobantes`. Tiene dos partes: **comprobantes de venta** y
 
 Hace falta **al menos un ítem**. Cada uno lleva:
 
-- Producto (opcional, se puede elegir del stock o escribir la descripción libre)
+- Producto (opcional): se elige de la lista del stock. Al elegirlo se completan
+  solos la descripción y el precio, que se pueden cambiar. Si el ítem no es un
+  producto del stock, se deja en "Sin producto (texto libre)".
 - Descripción (obligatoria)
 - Cantidad (mayor a cero, hasta 3 decimales)
 - Precio unitario
 - Alícuota de IVA: 0, 2.5, 5, 10.5, 21, 27, exento o no gravado
 
 El neto, el IVA y el total los calcula el sistema agrupando por alícuota.
+
+Elegir el producto importa: es lo que permite calcular el **margen bruto** del
+panel. Un ítem de texto libre no tiene costo, así que no entra en el margen ni
+en la rotación de stock.
 
 ## Letra del comprobante
 
@@ -50,20 +56,62 @@ Solo la letra A discrimina IVA. En B y C el IVA va incluido en el total.
 Un comprobante pasa por estos estados:
 
 ```
-borrador  --emitir-->  enviada  --aprobar-->  aprobada
+borrador  --emitir-->  enviada  --confirmar-->  confirmada
                           |
                           --rechazar--> rechazada --corregir--> borrador
 ```
 
 - **Borrador**: es el único estado editable.
 - **Enviada**: ya salió, esperando respuesta.
-- **Aprobada**: estado final. **No se puede editar ni anular.** Una vez
-  aprobado, un comprobante se corrige únicamente emitiendo una nota de crédito
-  o de débito.
+- **Confirmada**: estado final. **No se puede editar ni anular.** Una vez
+  confirmado, un comprobante se corrige únicamente emitiendo una nota de
+  crédito o de débito. Al confirmarse, una factura descuenta del stock lo
+  vendido y una nota de crédito lo devuelve.
 - **Rechazada**: se puede volver a borrador con la acción "Corregir".
 
 Los botones de acción que aparecen en la pantalla dependen del estado: si no
 ves "Editar", es porque el comprobante ya no está en borrador.
+
+## Registrar el cobro desde la factura
+
+El detalle de una factura dice su estado de cobro, cuánto queda pendiente y
+cuándo vence. Si queda algo, el botón **Registrar cobro** registra el ingreso
+en Tesorería ya **imputado a esa factura**: se elige la cuenta, el medio
+(transferencia o efectivo) y el importe, que viene con lo pendiente. Si se
+cobra menos, la factura queda parcial. Un cobro con cheque se carga desde
+Tesorería, porque hay que elegir el cheque.
+
+## Compras: mercadería o gasto
+
+Al cargar una compra, el campo **Qué es** dice cómo entra en el estado de
+resultados:
+
+- **Mercadería para stock** (el valor por defecto): no es gasto del mes; cuenta
+  como costo cuando se vende el producto.
+- **Una categoría de gasto** (fletes, honorarios, servicios): es gasto del mes
+  de recepción, por su neto.
+
+Una compra de mercadería puede llevar sus **productos** (opcional): producto,
+cantidad y costo unitario sin IVA. Al guardarla suma al stock y recalcula el
+costo de cada producto por promedio ponderado (ver `/stock`). Los productos de
+una compra no se editan después: se corrige con un ajuste de stock.
+
+## Estado de cobro
+
+La lista de ventas tiene una columna **Cobro**, y la de compras una de **Pago**:
+
+| Estado | Qué significa |
+|---|---|
+| Pendiente | No se cobró nada y todavía no venció |
+| Parcial | Se cobró una parte; dice cuánto resta |
+| Vencida | Venció y queda algo por cobrar |
+| Cobrada / Pagada | No queda nada |
+
+El vencimiento es la fecha de emisión (o de recepción, en compras) más los días
+de la condición de venta o de pago. Lo cobrado sale de los movimientos de
+Tesorería: lo imputado a cada factura y, lo que no se imputó, aplicado a las
+más viejas primero. Un borrador, un rechazado o una nota de crédito no son
+deuda y muestran una raya.
 
 ## Facturación electrónica
 

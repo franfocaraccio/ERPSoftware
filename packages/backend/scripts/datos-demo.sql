@@ -50,7 +50,7 @@ begin
     (v_tenant, 'Corralón Belgrano SRL',     '30710000014', 'responsable_inscripto', 'admin@corralonbel.com.ar','1156789012', 'Cabildo 1875, CABA',              1500000.00, 'activo'),
     (v_tenant, 'Ferretería Industrial MyM', '30710000022', 'responsable_inscripto', 'ventas@mym.com.ar',       '1167890123', 'Ruta 8 km 34, Malvinas Argentinas',2000000.00, 'activo'),
     (v_tenant, 'Metalúrgica Pilar SA',      '30710000030', 'responsable_inscripto', 'pagos@metalpilar.com.ar', '2304445566', 'Parque Industrial Pilar',         4000000.00, 'activo'),
-    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@gmail.com',       '1178901234', 'San Martín 450, San Isidro',       800000.00, 'en_mora'),
+    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@gmail.com',       '1178901234', 'San Martín 450, San Isidro',       800000.00, 'activo'),
     (v_tenant, 'Construcciones Aráoz',      '30710000057', 'responsable_inscripto', 'info@araoz.com.ar',       '1189012345', 'Aráoz 1200, CABA',                1200000.00, 'activo');
 
   -- --- Proveedores ---------------------------------------------------------
@@ -81,6 +81,13 @@ begin
     ('HE-031', 'Taladro percutor 750W',           'Herramientas', 82000.00, 128000.00,  12,  8,  'Herramientas Global SA'),
     ('HE-032', 'Set de mechas HSS 19 piezas',     'Herramientas', 15600.00,  24900.00,  64, 20,  'Herramientas Global SA')
   ) as p(sku, descripcion, categoria, costo, precio, stock, minimo, proveedor);
+
+  -- El stock con el que arranca cada producto, como movimiento inicial: el
+  -- stock se mueve con movimientos y la historia tiene que cerrar.
+  insert into movimientos_stock (tenant_id, producto_id, fecha, tipo, cantidad, costo_unitario, motivo)
+  select v_tenant, id, v_hoy - 180, 'inicial', stock_actual, costo_unitario, 'Stock inicial de la demo'
+  from productos
+  where tenant_id = v_tenant and stock_actual <> 0;
 
   -- --- Comprobantes de venta ----------------------------------------------
   -- Las viejas alimentan el gráfico de evolución mensual. Las recientes, con
@@ -171,39 +178,64 @@ begin
 
   -- --- Movimientos ---------------------------------------------------------
   -- Definen el saldo de tesorería, que es el punto de partida de la
-  -- proyección. Quedan 1.173.000 en pesos entre las dos cuentas: alcanza para
-  -- operar y deja que alguna semana de la proyección se acerque al mínimo, que
-  -- es lo que hace interesante mirar el gráfico.
+  -- proyección.
+  --
+  -- Los cobros y pagos salen de comprobantes concretos, por su total con IVA y
+  -- con la contraparte cargada. Si fueran texto libre ("Cobranza Corralón
+  -- Belgrano"), el saldo del cliente o del proveedor no bajaría nunca: así se
+  -- veía la demo vieja, con Aceros del Plata debiendo todo lo comprado.
   insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado)
   select v_tenant, v_hoy - m.dias_atras,
          (select id from cuentas where tenant_id = v_tenant and nombre = m.cuenta),
          m.tipo::tipo_movimiento, m.medio::medio_pago, m.concepto, m.importe, m.dias_atras > 7
   from (values
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Saldo inicial',                    120, 3800000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Saldo inicial de caja',            120,  450000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Distribuidora del Sur',   112, 1240000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Aceros del Plata',            105, 1850000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                98,  320000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Corralón Belgrano',        91,  890000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           90, 1650000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Pinturas Litoral',             78,  940000.00),
-    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',                     74,   85000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Metalúrgica Pilar',        66, 1560000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           60, 1650000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'IVA período anterior',              56,  680000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                49,  270000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Ferretería MyM',           42, 1120000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Herramientas Global',          38, 1420000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Alquiler del depósito',             35,  520000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Construcciones Aráoz',     29,  760000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           30, 1650000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                22,  410000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Distribuidora del Sur',    15, 1380000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Aceros del Plata',             12, 1260000.00),
-    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',                      9,   92000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Corralón Belgrano',         5,  980000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Fletes Ruta 9',                      2,  210000.00)
+    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Saldo inicial',          180, 9500000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Saldo inicial de caja',  180,  450000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      98,  320000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 90, 1650000.00),
+    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',           74,   85000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 60, 1650000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      49,  270000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Alquiler del depósito',   35,  520000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 30, 1650000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      22,  410000.00),
+    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',            9,   92000.00)
   ) as m(cuenta, tipo, medio, concepto, dias_atras, importe);
+
+  -- Cobranzas: las facturas que ya vencieron, salvo dos que quedan impagas a
+  -- propósito (una de Obras y Servicios Norte, el cliente en mora, y otra
+  -- reciente) para que haya algo vencido que mirar.
+  insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado, cliente_id)
+  select v_tenant,
+         least(cv.fecha_emision + cv.condicion_venta_dias, v_hoy),
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         'ingreso', 'transferencia',
+         'Cobranza ' || c.razon_social || ' — factura ' || cv.numero,
+         cv.total,
+         cv.fecha_emision + cv.condicion_venta_dias < v_hoy - 7,
+         cv.cliente_id
+  from comprobantes_venta cv
+  join clientes c on c.id = cv.cliente_id
+  where cv.tenant_id = v_tenant
+    and cv.fecha_emision + cv.condicion_venta_dias <= v_hoy
+    and cv.numero not in (8, 11);
+
+  -- Pagos a proveedores: las compras ya vencidas, salvo una de Pinturas
+  -- Litoral que queda impaga y vencida.
+  insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado, proveedor_id)
+  select v_tenant,
+         cc.fecha_recepcion + cc.condicion_pago_dias,
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         'egreso', 'transferencia',
+         'Pago ' || p.razon_social || ' — ' || cc.numero_completo,
+         cc.total,
+         cc.fecha_recepcion + cc.condicion_pago_dias < v_hoy - 7,
+         cc.proveedor_id
+  from comprobantes_compra cc
+  join proveedores p on p.id = cc.proveedor_id
+  where cc.tenant_id = v_tenant
+    and cc.fecha_recepcion + cc.condicion_pago_dias <= v_hoy
+    and cc.numero_completo <> 'A-0002-00004587';
 
   -- --- Cheques en cartera --------------------------------------------------
   -- Entran a la proyección por su fecha de pago, y alimentan el KPI de
@@ -224,30 +256,123 @@ begin
   ) as ch(numero, librador, banco, emitido, paga_en, importe, estado);
 
   -- --- Impuestos -----------------------------------------------------------
-  -- Los que tienen saldo impago y vencimiento futuro entran a la proyección
-  -- como egresos. El vencido alimenta el KPI de obligaciones vencidas.
+  -- El IVA no se carga: lo calcula el sistema con los comprobantes (débito de
+  -- ventas menos crédito de compras). Cargarlo acá lo dejaría como histórico y
+  -- taparía el cálculo de esos meses.
+  --
+  -- IIBB: base = lo facturado en el mes (neto), al 3,5 %. Los meses viejos
+  -- quedan pagos por lo que resultó después de retenciones; el último vencido,
+  -- impago a propósito para el KPI de impuestos vencidos.
   insert into impuestos (tenant_id, tipo, periodo, base_imponible, alicuota, importe_pagado, fecha_vencimiento)
-  select v_tenant, i.tipo::tipo_impuesto,
-         date_trunc('month', v_hoy - i.periodo_atras * interval '1 month')::date,
-         i.base, i.alicuota, i.pagado, v_hoy + i.vence_en
+  select v_tenant, 'iibb', m.periodo, m.neto, 3.50, 0,
+         (m.periodo + interval '1 month' + interval '14 days')::date
+  from (
+    select date_trunc('month', fecha_emision)::date as periodo, sum(neto) as neto
+    from comprobantes_venta
+    where tenant_id = v_tenant
+    group by 1
+  ) m
+  where m.periodo >= date_trunc('month', v_hoy - interval '3 months');
+
+  -- Retenciones, percepciones y SIRCREB: restan del IIBB de su período.
+  insert into retenciones_iibb (tenant_id, fecha, periodo, tipo, agente, comprobante, importe)
+  select v_tenant, (i.periodo + interval '10 days')::date, i.periodo, r.tipo::tipo_retencion_iibb,
+         r.agente, r.comprobante, round(i.base_imponible * r.proporcion, 2)
+  from impuestos i
+  cross join (values
+    ('percepcion', 'Aceros del Plata SA',  'A-0003-00001402', 0.004),
+    ('retencion',  'Metalúrgica Pilar SA', 'CR-0002-00011', 0.006),
+    ('sircreb',    'Banco Nación',          null,           0.003)
+  ) as r(tipo, agente, comprobante, proporcion)
+  where i.tenant_id = v_tenant and i.tipo = 'iibb';
+
+  -- Los meses ya vencidos, pagos por lo que quedó después de retenciones,
+  -- salvo el último, que queda impago y vencido.
+  update impuestos i set importe_pagado = greatest(
+           round(i.base_imponible * i.alicuota / 100, 2)
+           - coalesce((select sum(r.importe) from retenciones_iibb r
+                       where r.tenant_id = v_tenant and r.periodo = i.periodo), 0), 0)
+  where i.tenant_id = v_tenant and i.tipo = 'iibb' and i.fecha_vencimiento < v_hoy
+    and i.periodo < (select max(periodo) from impuestos
+                     where tenant_id = v_tenant and tipo = 'iibb' and fecha_vencimiento < v_hoy);
+
+  -- IVA: los meses de hace más de dos meses están pagos. Se registra sólo el
+  -- pago (calculado = true); lo determinado lo calcula el sistema. El importe
+  -- es débito menos crédito del mes, que en estos primeros meses no arrastra
+  -- saldo a favor.
+  insert into impuestos (tenant_id, tipo, periodo, importe_pagado, fecha_vencimiento, calculado)
+  select v_tenant, 'iva', m.periodo, m.neto,
+         (m.periodo + interval '1 month' + interval '19 days')::date, true
+  from (
+    select p.periodo,
+           coalesce((select sum(iva) from comprobantes_venta
+                     where tenant_id = v_tenant and date_trunc('month', fecha_emision) = p.periodo), 0)
+         - coalesce((select sum(iva) from comprobantes_compra
+                     where tenant_id = v_tenant and date_trunc('month', fecha_recepcion) = p.periodo), 0)
+           as neto
+    from (select distinct date_trunc('month', fecha_emision)::date as periodo
+          from comprobantes_venta where tenant_id = v_tenant) p
+  ) m
+  where m.neto > 0 and m.periodo < date_trunc('month', v_hoy - interval '2 months');
+
+  -- Ganancias: un anticipo por importe, el que informa ARCA.
+  insert into impuestos (tenant_id, tipo, periodo, importe_fijo, concepto, importe_pagado, fecha_vencimiento)
+  values (v_tenant, 'ganancias', date_trunc('month', v_hoy)::date, 420000.00, 'Anticipo 5', 0,
+          (date_trunc('month', v_hoy) + interval '14 days')::date);
+
+  -- --- Categorías y gastos -------------------------------------------------
+  -- La misma lista inicial que crea la app (modules/resultados/service.ts).
+  insert into categorias (tenant_id, nombre, tipo, orden)
+  select v_tenant, c.nombre, c.tipo::tipo_categoria, c.orden
   from (values
-    ('iva',        3, 8200000.00, 21.00, 1722000.00, -68),
-    ('iva',        2, 7400000.00, 21.00, 1554000.00, -38),
-    ('iibb',       2, 7400000.00,  3.50,  259000.00, -34),
-    ('iva',        1, 9100000.00, 21.00,       0.00,  -6),
-    ('iibb',       1, 9100000.00,  3.50,       0.00,   4),
-    ('ganancias',  1, 4600000.00, 35.00,       0.00,  19),
-    ('iva',        0, 8800000.00, 21.00,       0.00,  26),
-    ('iibb',       0, 8800000.00,  3.50,       0.00,  34),
-    ('monotributo',0,  120000.00, 100.00,      0.00,  12)
-  ) as i(tipo, periodo_atras, base, alicuota, pagado, vence_en);
+    ('Sueldos y cargas sociales', 'gasto', 0),
+    ('Alquiler', 'gasto', 1),
+    ('Servicios (luz, gas, internet)', 'gasto', 2),
+    ('Fletes', 'gasto', 3),
+    ('Honorarios', 'gasto', 4),
+    ('Comisiones bancarias', 'gasto', 5),
+    ('Impuestos y tasas', 'gasto', 6),
+    ('Otros gastos', 'gasto', 7),
+    ('Intereses ganados', 'ingreso', 8),
+    ('Otros ingresos', 'ingreso', 9)
+  ) as c(nombre, tipo, orden)
+  on conflict do nothing;
+
+  -- Los gastos sin comprobante, con su categoría: es lo que los lleva al
+  -- estado de resultados.
+  update movimientos m set categoria_id = c.id
+  from categorias c
+  where m.tenant_id = v_tenant and c.tenant_id = v_tenant
+    and m.cliente_id is null and m.proveedor_id is null
+    and c.nombre = case m.concepto
+      when 'Sueldos' then 'Sueldos y cargas sociales'
+      when 'Alquiler del depósito' then 'Alquiler'
+      when 'Gastos varios' then 'Otros gastos'
+    end;
+
+  -- Los fletes son un servicio, no mercadería: gasto del mes.
+  update comprobantes_compra cc set categoria_id = c.id
+  from categorias c, proveedores p
+  where cc.tenant_id = v_tenant and c.tenant_id = v_tenant and p.id = cc.proveedor_id
+    and p.razon_social = 'Logística Ruta 9' and c.nombre = 'Fletes';
+
+  -- Sueldos y alquiler se repiten todos los meses: se proyectan en la caja.
+  insert into gastos_recurrentes (tenant_id, descripcion, categoria_id, cuenta_id, importe, dia_del_mes, desde)
+  select v_tenant, g.descripcion,
+         (select id from categorias where tenant_id = v_tenant and nombre = g.categoria),
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         g.importe, g.dia, v_hoy - 120
+  from (values
+    ('Sueldos', 'Sueldos y cargas sociales', 1650000.00, 30),
+    ('Alquiler del depósito', 'Alquiler', 520000.00, 5)
+  ) as g(descripcion, categoria, importe, dia);
 
   -- --- Parámetros ----------------------------------------------------------
   -- Sin una fila acá, el panel usa los valores por defecto y el mínimo
   -- operativo queda en null: el gráfico de saldo proyectado no dibuja la línea
   -- de referencia ni marca semanas en alerta.
-  insert into parametros (tenant_id, umbral_mora_dias, margen_objetivo, minimo_operativo)
-  values (v_tenant, 45, 32.00, 1500000.00)
+  insert into parametros (tenant_id, umbral_mora_dias, margen_objetivo, minimo_operativo, regimen_fiscal, dia_vencimiento_iva)
+  values (v_tenant, 45, 32.00, 1500000.00, 'responsable_inscripto', 20)
   on conflict do nothing;
 
   raise notice 'Datos de demo cargados en el tenant %', v_tenant;
@@ -271,9 +396,14 @@ $$;
 --     delete from movimientos             where tenant_id = v_tenant;
 --     delete from cheques                 where tenant_id = v_tenant;
 --     delete from impuestos               where tenant_id = v_tenant;
+--     delete from retenciones_iibb        where tenant_id = v_tenant;
+--     delete from gastos_recurrentes      where tenant_id = v_tenant;
+--     delete from imputaciones            where tenant_id = v_tenant;
+--     delete from movimientos_stock       where tenant_id = v_tenant;
 --     delete from productos               where tenant_id = v_tenant;
 --     delete from proveedores             where tenant_id = v_tenant;
 --     delete from clientes                where tenant_id = v_tenant;
 --     delete from cuentas                 where tenant_id = v_tenant;
 --     delete from parametros              where tenant_id = v_tenant;
+--     delete from categorias              where tenant_id = v_tenant;
 --   end $$;

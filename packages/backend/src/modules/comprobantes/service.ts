@@ -11,12 +11,17 @@ import {
 import { and, asc, count, eq } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
-import { comprobantesCompra } from "../../db/schema/compras.js";
+import { comprobantesCompra, itemsComprobanteCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
 import { proveedores } from "../../db/schema/proveedores.js";
+import { categorias } from "../../db/schema/resultados.js";
+import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { exigirPropios } from "../_comunes/pertenencia.js";
+import { type SaldosCuentaCorriente, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
+import { registrarMovimientoStock } from "../stock/movimientos.js";
 import type {
   CompraActualizar,
   CompraInput,
@@ -31,8 +36,26 @@ export type ComprobanteVenta = typeof comprobantesVenta.$inferSelect;
 export type ItemComprobante = typeof itemsComprobanteVenta.$inferSelect;
 export type ComprobanteCompra = typeof comprobantesCompra.$inferSelect;
 
+/**
+ * Cómo está de cobrado (o pagado) un comprobante. Null cuando no es deuda: un
+ * borrador, un rechazado, una nota de crédito o uno en otra moneda.
+ */
+export interface Cobranza {
+  vencimiento: string;
+  pendiente: string;
+  estado: "pendiente" | "parcial" | "cobrada" | "vencida";
+}
+
+function cobranzaDe(cc: SaldosCuentaCorriente, id: string): Cobranza | null {
+  const s = cc.comprobantes.find((c) => c.id === id);
+  return s
+    ? { vencimiento: s.vencimiento, pendiente: s.pendiente.aStringFiscal(), estado: s.estado }
+    : null;
+}
+
 export interface VentaConDerivados extends ComprobanteVenta {
   clienteRazonSocial: string;
+  cobranza: Cobranza | null;
   /** Para que el frontend renderice acciones sin conocer la máquina de estados. */
   availableEvents: EventoComprobante[];
   editable: boolean;
@@ -52,11 +75,16 @@ export class TransicionInvalidaError extends Error {
   }
 }
 
-function conDerivados(venta: ComprobanteVenta, clienteRazonSocial: string): VentaConDerivados {
+function conDerivados(
+  venta: ComprobanteVenta,
+  clienteRazonSocial: string,
+  cobranza: Cobranza | null,
+): VentaConDerivados {
   const estado = venta.estado as EstadoComprobante;
   return {
     ...venta,
     clienteRazonSocial,
+    cobranza,
     availableEvents: eventosDisponibles(estado),
     editable: esEditable(estado),
   };
@@ -106,8 +134,16 @@ export async function listarVentas(
 
     const [fila] = await tx.select({ total: count() }).from(comprobantesVenta).where(filtro);
 
+    // El saldo de cada factura depende de toda la cuenta de su cliente (lo no
+    // imputado se aplica FIFO), así que se calcula por cliente, no por fila.
+    const cc = await saldosCuentaCorriente(tx, "ventas", {
+      contraparteIds: [...new Set(filas.map((f) => f.venta.clienteId))],
+    });
+
     return {
-      items: filas.map(({ venta, cliente }) => conDerivados(venta, cliente)),
+      items: filas.map(({ venta, cliente }) =>
+        conDerivados(venta, cliente, cobranzaDe(cc, venta.id)),
+      ),
       total: fila?.total ?? 0,
     };
   });
@@ -131,7 +167,10 @@ export async function obtenerVenta(
       .from(itemsComprobanteVenta)
       .where(eq(itemsComprobanteVenta.comprobanteId, id))
       .orderBy(asc(itemsComprobanteVenta.orden));
-    return { ...conDerivados(fila.venta, fila.cliente), items };
+    const cc = await saldosCuentaCorriente(tx, "ventas", {
+      contraparteIds: [fila.venta.clienteId],
+    });
+    return { ...conDerivados(fila.venta, fila.cliente, cobranzaDe(cc, id)), items };
   });
 }
 
@@ -154,6 +193,13 @@ async function resolverCliente(
 export async function crearVenta(actor: Actor, input: VentaInput): Promise<ComprobanteVenta> {
   return withTenant(actor.tenantId, async (tx) => {
     const cliente = await resolverCliente(tx, input.clienteId);
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      input.items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     // Los totales los calcula core a partir de los ítems: nunca llegan del cliente.
     const calculo = calcularComprobante(input.items, input.moneda);
 
@@ -217,6 +263,13 @@ export async function actualizarVenta(
     }
 
     const cliente = await resolverCliente(tx, datos.clienteId);
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      datos.items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     const calculo = calcularComprobante(datos.items, datos.moneda);
 
     const [despues] = await tx
@@ -294,6 +347,28 @@ export async function transicionarVenta(
       return null;
     }
 
+    // Al confirmarse, la factura descuenta lo vendido y la nota de crédito
+    // devuelve lo devuelto. Una nota de débito no mueve mercadería.
+    if (resultado.siguiente === "aprobada" && despues.clase !== "nota_debito") {
+      const items = await tx
+        .select()
+        .from(itemsComprobanteVenta)
+        .where(eq(itemsComprobanteVenta.comprobanteId, id));
+      for (const item of items) {
+        if (!item.productoId) {
+          continue;
+        }
+        const esDevolucion = despues.clase === "nota_credito";
+        await registrarMovimientoStock(tx, actor, {
+          productoId: item.productoId,
+          tipo: esDevolucion ? "devolucion" : "venta",
+          cantidad: esDevolucion ? item.cantidad : `-${item.cantidad}`,
+          fecha: despues.fechaEmision,
+          comprobanteVentaId: id,
+        });
+      }
+    }
+
     await auditar(tx, actor, {
       tabla: "comprobantes_venta",
       registroId: id,
@@ -308,6 +383,8 @@ export async function transicionarVenta(
 
 export interface CompraConProveedor extends ComprobanteCompra {
   proveedorRazonSocial: string;
+  /** Cómo está de pagada. Null si está en otra moneda. */
+  cobranza: Cobranza | null;
 }
 
 export async function listarCompras(
@@ -347,10 +424,15 @@ export async function listarCompras(
 
     const [fila] = await tx.select({ total: count() }).from(comprobantesCompra).where(filtro);
 
+    const cc = await saldosCuentaCorriente(tx, "compras", {
+      contraparteIds: [...new Set(filas.map((f) => f.compra.proveedorId))],
+    });
+
     return {
       items: filas.map(({ compra, proveedor }) => ({
         ...compra,
         proveedorRazonSocial: proveedor,
+        cobranza: cobranzaDe(cc, compra.id),
       })),
       total: fila?.total ?? 0,
     };
@@ -376,6 +458,7 @@ function aColumnasCompra(input: CompraInput) {
     fechaRecepcion: input.fechaRecepcion,
     condicionPagoDias: input.condicionPagoDias,
     concepto: input.concepto ?? null,
+    categoriaId: input.categoriaId ?? null,
     moneda: input.moneda,
     neto: input.neto,
     iva: input.iva,
@@ -385,12 +468,58 @@ function aColumnasCompra(input: CompraInput) {
 
 export async function crearCompra(actor: Actor, input: CompraInput): Promise<ComprobanteCompra> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [input.proveedorId],
+      "Proveedor no encontrado",
+    );
+    await exigirPropios(
+      tx,
+      categorias,
+      categorias.id,
+      [input.categoriaId],
+      "Categoría no encontrada",
+    );
+    const items = input.items ?? [];
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     const [creada] = await tx
       .insert(comprobantesCompra)
       .values({ tenantId: actor.tenantId, ...aColumnasCompra(input) })
       .returning();
     if (!creada) {
       throw new Error("No se pudo registrar la compra");
+    }
+    if (items.length > 0) {
+      await tx.insert(itemsComprobanteCompra).values(
+        items.map((item, orden) => ({
+          tenantId: actor.tenantId,
+          comprobanteId: creada.id,
+          productoId: item.productoId,
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          costoUnitario: item.costoUnitario,
+          orden,
+        })),
+      );
+      // Entra al stock y pondera el costo, producto por producto.
+      for (const item of items) {
+        await registrarMovimientoStock(tx, actor, {
+          productoId: item.productoId,
+          tipo: "compra",
+          cantidad: item.cantidad,
+          costoUnitario: item.costoUnitario,
+          fecha: input.fechaRecepcion,
+          comprobanteCompraId: creada.id,
+        });
+      }
     }
     await auditar(tx, actor, {
       tabla: "comprobantes_compra",
@@ -416,6 +545,20 @@ export async function actualizarCompra(
     if (!antes) {
       return null;
     }
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [datos.proveedorId],
+      "Proveedor no encontrado",
+    );
+    await exigirPropios(
+      tx,
+      categorias,
+      categorias.id,
+      [datos.categoriaId],
+      "Categoría no encontrada",
+    );
     const [despues] = await tx
       .update(comprobantesCompra)
       .set(aColumnasCompra(datos))

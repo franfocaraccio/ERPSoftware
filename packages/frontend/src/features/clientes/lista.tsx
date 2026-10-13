@@ -35,6 +35,7 @@ import {
 import { SelectorColumnas } from "../../components/selector-columnas.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { CeldaVencimiento } from "../../components/vencimiento.js";
 import { aVisibilidad, useColumnasEscondidas } from "../../lib/columnas.js";
 import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
@@ -42,7 +43,6 @@ import {
   etiquetaCondicionIva,
   etiquetaEstado,
   formatearCuit,
-  formatearFecha,
   formatearImporte,
   formatearPorcentaje,
 } from "../../lib/formato.js";
@@ -59,7 +59,15 @@ interface FilaCliente {
   estado: string;
   saldo: string;
   proximoVencimiento: string | null;
+  /** Calculado: deuda vencida hace más que el umbral de Parámetros. */
+  enMora: boolean;
+  excedeLimite: boolean;
   tieneMonedaExtranjera: boolean;
+}
+
+/** Lo que se muestra como estado: la mora calculada gana sobre lo guardado. */
+function estadoVisible(c: Pick<FilaCliente, "estado" | "enMora">): string {
+  return c.enMora ? "en_mora" : c.estado;
 }
 
 /**
@@ -100,7 +108,12 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaCliente>[] = [
   { encabezado: "Límite de crédito", valor: (c) => c.limiteCredito, tipo: "dinero" },
   { encabezado: "Saldo", valor: (c) => c.saldo, tipo: "dinero" },
   { encabezado: "Próx. vencimiento", valor: (c) => c.proximoVencimiento, tipo: "fecha" },
-  { encabezado: "Estado", valor: (c) => etiquetaEstado(c.estado), tipo: "texto", ancho: 12 },
+  {
+    encabezado: "Estado",
+    valor: (c) => etiquetaEstado(estadoVisible(c)),
+    tipo: "texto",
+    ancho: 12,
+  },
 ];
 // El % de concentración no va al archivo a propósito: es relativo al total de
 // los filtros con los que se exportó, y dentro de una planilla que alguien abre
@@ -151,11 +164,19 @@ const columnas = helper.columns([
   helper.accessor("limiteCredito", {
     header: "Límite de crédito",
     meta: { alineado: "derecha", secundaria: true },
-    cell: (info) => (
-      <span className="block text-right tabular text-muted-foreground">
-        {formatearImporte(info.getValue())}
-      </span>
-    ),
+    cell: (info) =>
+      info.row.original.excedeLimite ? (
+        <span
+          className="block text-right font-medium tabular text-danger"
+          title="El saldo supera el límite de crédito"
+        >
+          {formatearImporte(info.getValue())} · superado
+        </span>
+      ) : (
+        <span className="block text-right tabular text-muted-foreground">
+          {formatearImporte(info.getValue())}
+        </span>
+      ),
   }),
   helper.accessor("saldo", {
     header: "Saldo",
@@ -178,9 +199,7 @@ const columnas = helper.columns([
   helper.accessor("proximoVencimiento", {
     meta: { secundaria: true },
     header: "Próx. vencimiento",
-    cell: (info) => (
-      <span className="tabular text-muted-foreground">{formatearFecha(info.getValue())}</span>
-    ),
+    cell: (info) => <CeldaVencimiento fecha={info.getValue()} />,
   }),
   helper.accessor("concentracion", {
     header: "Concentración",
@@ -205,7 +224,7 @@ const columnas = helper.columns([
   helper.accessor("estado", {
     header: "Estado",
     cell: (info) => {
-      const valor = info.getValue();
+      const valor = estadoVisible(info.row.original);
       return (
         <Insignia tono={TONO_ESTADO[valor as keyof typeof TONO_ESTADO] ?? "neutro"}>
           {etiquetaEstado(valor)}

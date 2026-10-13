@@ -9,7 +9,15 @@ export const condicionesIva = [
   "consumidor_final",
 ] as const;
 
+/** Los estados por los que se puede filtrar. "En mora" se calcula, no se guarda. */
 export const estadosCliente = ["activo", "inactivo", "en_mora"] as const;
+
+/**
+ * Los que se cargan a mano. La mora dejó de marcarse a mano el 12/10/2026: un
+ * cliente está en mora si tiene deuda vencida hace más que el umbral de
+ * Parámetros, y eso lo calcula el sistema.
+ */
+export const estadosEditables = ["activo", "inactivo"] as const;
 
 const importeSchema = z
   .string()
@@ -34,7 +42,7 @@ export const clienteInputSchema = z.object({
 export const clienteActualizarSchema = z.object({
   id: z.uuid(),
   datos: clienteInputSchema.extend({
-    estado: z.enum(estadosCliente),
+    estado: z.enum(estadosEditables),
   }),
 });
 

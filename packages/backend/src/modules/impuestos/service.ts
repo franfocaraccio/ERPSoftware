@@ -1,109 +1,100 @@
-import { hoyEnArgentina } from "@erp/core/dates";
 import { Money } from "@erp/core/money";
-import {
-  type EstadoImpuesto,
-  estadoImpuesto,
-  importeDeterminado,
-  saldoImpuesto,
-} from "@erp/core/tax";
-import { and, count, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
-import { impuestos } from "../../db/schema/impuestos.js";
-import { withTenant } from "../../db/tenant-db.js";
-import { filtroRango } from "../_comunes/fechas.js";
-import { aplicarOrden } from "../_comunes/orden.js";
-import type { ImpuestoActualizar, ImpuestoInput, ImpuestosListar } from "./schema.js";
+import { impuestos, retencionesIibb } from "../../db/schema/impuestos.js";
+import { type TenantTx, withTenant } from "../../db/tenant-db.js";
+import { leerParametros } from "../parametros/service.js";
+import { type Obligacion, obligacionesImpositivas, posicionIva } from "./obligaciones.js";
+import {
+  type ImpuestoActualizar,
+  type ImpuestoInput,
+  type ImpuestosListar,
+  type RetencionActualizar,
+  type RetencionInput,
+  TIPOS_POR_REGIMEN,
+} from "./schema.js";
 
 export type Impuesto = typeof impuestos.$inferSelect;
+export type Retencion = typeof retencionesIibb.$inferSelect;
+export type { Obligacion };
 
-/** Importe determinado, saldo y estado son derivados: se calculan al leer. */
-export interface ImpuestoConDerivados extends Impuesto {
-  importeDeterminado: string;
-  saldo: string;
-  estado: EstadoImpuesto;
+export class ImpuestoInvalidoError extends Error {
+  constructor(motivo: string) {
+    super(motivo);
+    this.name = "ImpuestoInvalidoError";
+  }
 }
 
-// "Hoy" es un concepto local: calcularlo en UTC marcaría vencido un impuesto
-// un día antes, a partir de las 21:00 hora argentina.
-const hoyISO = hoyEnArgentina;
-
-function conDerivados(impuesto: Impuesto, hoy: string): ImpuestoConDerivados {
-  // Los impuestos son siempre en ARS (decisión de modelado).
-  const base = Money.desdeString(impuesto.baseImponible, "ARS");
-  const pagado = Money.desdeString(impuesto.importePagado, "ARS");
-  const determinado = importeDeterminado(base, impuesto.alicuota);
-  return {
-    ...impuesto,
-    importeDeterminado: determinado.aStringFiscal(),
-    saldo: saldoImpuesto(determinado, pagado).aStringFiscal(),
-    estado: estadoImpuesto(determinado, pagado, impuesto.fechaVencimiento, hoy),
-  };
-}
-
+/**
+ * El listado es de obligaciones, no de filas: incluye las posiciones de IVA
+ * que calcula el sistema aunque no tengan una fila detrás. Por eso filtra,
+ * ordena y pagina en memoria: son decenas por empresa, no miles.
+ */
 export async function listarImpuestos(
   { tenantId }: Actor,
   input: ImpuestosListar,
 ): Promise<{
-  items: ImpuestoConDerivados[];
+  items: Obligacion[];
   total: number;
   totalAdeudado: string;
   cantidadVencidos: number;
 }> {
   return withTenant(tenantId, async (tx) => {
-    const condiciones = [];
-    if (input.tipo) {
-      condiciones.push(eq(impuestos.tipo, input.tipo));
-    }
-    // El rango cae sobre la fecha que eligió quien consulta: vencimiento o
-    // período. Las dos son columnas `date`, así que se comparan igual.
-    const columnaFecha =
-      input.campoFecha === "periodo" ? impuestos.periodo : impuestos.fechaVencimiento;
-    const rango = filtroRango(columnaFecha, input);
-    if (rango) {
-      condiciones.push(rango);
-    }
-    const filtro = condiciones.length > 0 ? and(...condiciones) : undefined;
+    const todas = await obligacionesImpositivas(tx, tenantId);
+    const fecha = (o: Obligacion) =>
+      input.campoFecha === "periodo" ? o.periodo : o.fechaVencimiento;
 
-    const filas = await tx
-      .select()
-      .from(impuestos)
-      .where(filtro)
-      .orderBy(
-        ...aplicarOrden(
-          {
-            fechaVencimiento: impuestos.fechaVencimiento,
-            periodo: impuestos.periodo,
-            tipo: impuestos.tipo,
-            baseImponible: impuestos.baseImponible,
-          },
-          input.orden,
-          input.direccion,
-          impuestos.createdAt,
-        ),
-      )
-      .limit(input.tamanoPagina)
-      .offset((input.pagina - 1) * input.tamanoPagina);
+    const filtradas = todas.filter(
+      (o) =>
+        (!input.tipo || o.tipo === input.tipo) &&
+        (!input.soloImpagos || o.estado !== "pagado") &&
+        (!input.desde || fecha(o) >= input.desde) &&
+        (!input.hasta || fecha(o) <= input.hasta),
+    );
 
-    const hoy = hoyISO();
-    // El estado depende de la fecha actual, así que el filtro de impagos se
-    // aplica sobre los derivados y no en SQL.
-    const derivados = filas.map((f) => conDerivados(f, hoy));
-    const items = input.soloImpagos ? derivados.filter((i) => i.estado !== "pagado") : derivados;
+    const clave = (o: Obligacion): string => {
+      switch (input.orden) {
+        case "periodo":
+          return o.periodo;
+        case "tipo":
+          return o.tipo;
+        case "importeDeterminado":
+          // Ordenar importes como texto exige que tengan el mismo largo.
+          return o.importeDeterminado.padStart(20, "0");
+        default:
+          return o.fechaVencimiento;
+      }
+    };
+    const signo = input.direccion === "asc" ? 1 : -1;
+    const ordenadas = [...filtradas].sort(
+      (a, b) => signo * clave(a).localeCompare(clave(b)) || a.id.localeCompare(b.id),
+    );
 
-    const [fila] = await tx.select({ total: count() }).from(impuestos).where(filtro);
-
-    const totalAdeudado = Money.sumarTodos(
-      items.map((i) => Money.desdeString(i.saldo, "ARS")),
-      "ARS",
-    ).aStringFiscal();
-
+    const inicio = (input.pagina - 1) * input.tamanoPagina;
     return {
-      items,
-      total: input.soloImpagos ? items.length : (fila?.total ?? 0),
-      totalAdeudado,
-      cantidadVencidos: items.filter((i) => i.estado === "vencido").length,
+      items: ordenadas.slice(inicio, inicio + input.tamanoPagina),
+      total: filtradas.length,
+      totalAdeudado: Money.sumarTodos(
+        filtradas.map((o) => Money.desdeString(o.saldo, "ARS")),
+        "ARS",
+      ).aStringFiscal(),
+      cantidadVencidos: filtradas.filter((o) => o.estado === "vencido").length,
     };
   });
+}
+
+/** La posición de IVA mes a mes, para mostrar de dónde sale lo calculado. */
+export async function obtenerPosicionIva(actor: Actor) {
+  return withTenant(actor.tenantId, async (tx) =>
+    (await posicionIva(tx)).map((p) => ({
+      periodo: p.periodo,
+      debito: p.cargo.aStringFiscal(),
+      credito: p.credito.aStringFiscal(),
+      saldoAFavorAnterior: p.saldoAFavorAnterior.aStringFiscal(),
+      aPagar: p.aPagar.aStringFiscal(),
+      saldoAFavorSiguiente: p.saldoAFavorSiguiente.aStringFiscal(),
+    })),
+  );
 }
 
 export async function obtenerImpuesto(actor: Actor, id: string): Promise<Impuesto | null> {
@@ -113,20 +104,37 @@ export async function obtenerImpuesto(actor: Actor, id: string): Promise<Impuest
   });
 }
 
+/** Que el tipo corresponda al régimen fiscal de la empresa. */
+async function exigirTipoDelRegimen(tx: TenantTx, tenantId: string, tipo: Impuesto["tipo"]) {
+  const { regimenFiscal } = await leerParametros(tx, tenantId);
+  const permitidos: readonly string[] = TIPOS_POR_REGIMEN[regimenFiscal];
+  if (!permitidos.includes(tipo)) {
+    throw new ImpuestoInvalidoError(
+      regimenFiscal === "monotributo"
+        ? "Un monotributista no liquida IVA ni Ganancias. Revisá el régimen en Parámetros."
+        : "Un Responsable Inscripto no paga monotributo. Revisá el régimen en Parámetros.",
+    );
+  }
+}
+
 function aColumnas(input: ImpuestoInput) {
   return {
     tipo: input.tipo,
-    // El período se normaliza al primer día del mes.
     periodo: `${input.periodo}-01`,
-    baseImponible: input.baseImponible,
-    alicuota: input.alicuota,
+    concepto: input.concepto ?? null,
+    baseImponible: input.baseImponible ?? null,
+    alicuota: input.alicuota ?? null,
+    importeFijo: input.importeFijo ?? null,
     importePagado: input.importePagado,
     fechaVencimiento: input.fechaVencimiento,
+    // Un IVA nuevo es siempre el pago de una posición calculada.
+    calculado: input.tipo === "iva",
   };
 }
 
 export async function crearImpuesto(actor: Actor, input: ImpuestoInput): Promise<Impuesto> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirTipoDelRegimen(tx, actor.tenantId, input.tipo);
     const [creado] = await tx
       .insert(impuestos)
       .values({ tenantId: actor.tenantId, ...aColumnas(input) })
@@ -153,10 +161,23 @@ export async function actualizarImpuesto(
     if (!antes) {
       return null;
     }
+    // Un IVA histórico (cargado a mano antes de que se calculara) se sigue
+    // pudiendo corregir tal como era; no se convierte en calculado al editarlo.
+    const historico = antes.tipo === "iva" && !antes.calculado;
+    if (!historico) {
+      await exigirTipoDelRegimen(tx, actor.tenantId, datos.tipo);
+    }
+    const columnas = historico
+      ? {
+          importePagado: datos.importePagado,
+          fechaVencimiento: datos.fechaVencimiento,
+          concepto: datos.concepto ?? null,
+        }
+      : aColumnas(datos);
     const [despues] = await tx
       .update(impuestos)
-      .set(aColumnas(datos))
-      .where(and(eq(impuestos.id, id)))
+      .set(columnas)
+      .where(eq(impuestos.id, id))
       .returning();
     if (!despues) {
       return null;
@@ -168,5 +189,93 @@ export async function actualizarImpuesto(
       detalle: { antes, despues },
     });
     return despues;
+  });
+}
+
+// --- Retenciones y percepciones de IIBB ---
+
+export async function listarRetenciones(actor: Actor): Promise<Retencion[]> {
+  return withTenant(actor.tenantId, (tx) =>
+    tx
+      .select()
+      .from(retencionesIibb)
+      .orderBy(desc(retencionesIibb.periodo), desc(retencionesIibb.fecha)),
+  );
+}
+
+function aColumnasRetencion(input: RetencionInput) {
+  return {
+    fecha: input.fecha,
+    periodo: `${input.periodo}-01`,
+    tipo: input.tipo,
+    agente: input.agente ?? null,
+    comprobante: input.comprobante ?? null,
+    importe: input.importe,
+  };
+}
+
+export async function crearRetencion(actor: Actor, input: RetencionInput): Promise<Retencion> {
+  return withTenant(actor.tenantId, async (tx) => {
+    const [creada] = await tx
+      .insert(retencionesIibb)
+      .values({ tenantId: actor.tenantId, ...aColumnasRetencion(input) })
+      .returning();
+    if (!creada) {
+      throw new Error("No se pudo registrar la retención");
+    }
+    // Reduce un impuesto a pagar: queda en el audit log.
+    await auditar(tx, actor, {
+      tabla: "retenciones_iibb",
+      registroId: creada.id,
+      accion: "alta",
+      detalle: { despues: creada },
+    });
+    return creada;
+  });
+}
+
+export async function actualizarRetencion(
+  actor: Actor,
+  { id, datos }: RetencionActualizar,
+): Promise<Retencion | null> {
+  return withTenant(actor.tenantId, async (tx) => {
+    const [antes] = await tx.select().from(retencionesIibb).where(eq(retencionesIibb.id, id));
+    if (!antes) {
+      return null;
+    }
+    const [despues] = await tx
+      .update(retencionesIibb)
+      .set(aColumnasRetencion(datos))
+      .where(eq(retencionesIibb.id, id))
+      .returning();
+    if (!despues) {
+      return null;
+    }
+    await auditar(tx, actor, {
+      tabla: "retenciones_iibb",
+      registroId: id,
+      accion: "modificacion",
+      detalle: { antes, despues },
+    });
+    return despues;
+  });
+}
+
+export async function eliminarRetencion(actor: Actor, id: string): Promise<boolean> {
+  return withTenant(actor.tenantId, async (tx) => {
+    const [borrada] = await tx
+      .delete(retencionesIibb)
+      .where(eq(retencionesIibb.id, id))
+      .returning();
+    if (!borrada) {
+      return false;
+    }
+    await auditar(tx, actor, {
+      tabla: "retenciones_iibb",
+      registroId: id,
+      accion: "baja",
+      detalle: { antes: borrada },
+    });
+    return true;
   });
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatearFecha, formatearImporte } from "./formato.js";
+import { formatearFecha, formatearFechaHora, formatearImporte } from "./formato.js";
 
 describe("formatearImporte", () => {
   it("formatea en pesos argentinos", () => {
@@ -54,5 +54,21 @@ describe("formatearFecha", () => {
   it("sin fecha muestra un guion", () => {
     expect(formatearFecha(null)).toBe("—");
     expect(formatearFecha("")).toBe("—");
+  });
+});
+
+describe("formatearFechaHora", () => {
+  it("usa dd/mm/aaaa y hora de 24 horas, en hora argentina", () => {
+    // 22:22 UTC son las 19:22 en Buenos Aires (UTC−3).
+    expect(formatearFechaHora("2026-10-12T22:22:00Z")).toBe("12/10/2026 19:22");
+  });
+
+  it("cambia de día según la hora argentina, no la UTC", () => {
+    // 01:30 UTC del 13 sigue siendo el 12 a las 22:30 en Argentina.
+    expect(formatearFechaHora("2026-10-13T01:30:00Z")).toBe("12/10/2026 22:30");
+  });
+
+  it("acepta un Date", () => {
+    expect(formatearFechaHora(new Date("2026-01-05T12:05:00Z"))).toBe("05/01/2026 09:05");
   });
 });

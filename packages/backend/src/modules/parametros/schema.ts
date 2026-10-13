@@ -29,6 +29,14 @@ export const parametrosGuardarSchema = z.object({
    * la pantalla lo marque. No es nullable: sin umbral no hay semáforo.
    */
   umbralConcentracion: porcentajeSchema,
+  /**
+   * Responsable Inscripto o Monotributo: decide qué impuestos se muestran y si
+   * el sistema calcula la posición de IVA. Si no viene, se conserva el que
+   * había.
+   */
+  regimenFiscal: z.enum(["responsable_inscripto", "monotributo"]).optional(),
+  /** Día del mes siguiente en que vence el IVA, según la terminación del CUIT. */
+  diaVencimientoIva: z.number().int().min(1).max(28).optional(),
 });
 
 export type ParametrosGuardar = z.infer<typeof parametrosGuardarSchema>;

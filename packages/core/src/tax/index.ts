@@ -5,3 +5,9 @@ export {
   importeDeterminado,
   saldoImpuesto,
 } from "./impuestos.js";
+export {
+  determinadoImpuesto,
+  type MesImpositivo,
+  type PosicionMes,
+  posicionMensual,
+} from "./posicion.js";

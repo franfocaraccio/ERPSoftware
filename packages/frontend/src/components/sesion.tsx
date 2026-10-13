@@ -5,6 +5,7 @@ import { Building2, Check, ChevronDown, LogOut, ShieldCheck } from "lucide-react
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { borrarAcceso, cabeceraAcceso, hayAccesoPorLink } from "../lib/acceso-consolidado.js";
 import { authClient, ETIQUETA_ROL, useSession } from "../lib/auth.js";
+import { formatearFechaHora } from "../lib/formato.js";
 import { useTRPC } from "../lib/trpc.js";
 
 /** Rutas que se ven sin sesión iniciada. */
@@ -177,6 +178,28 @@ export function SelectorOrganizacion() {
 }
 
 /**
+ * Las rutas del menú que puede ver un link de solo lectura con alcance, o null
+ * si puede ver todo (un miembro, o un link sin alcance). Es sólo navegación:
+ * quien controla de verdad es el backend, que rechaza el resto.
+ */
+export function useRutasPermitidas(): Set<string> | null {
+  const trpc = useTRPC();
+  const acceso = cabeceraAcceso();
+  const [tenantId = "", token = ""] = acceso
+    ? [acceso.slice(0, acceso.indexOf(":")), acceso.slice(acceso.indexOf(":") + 1)]
+    : [];
+  const { data } = useQuery({
+    ...trpc.consolidado.abrir.queryOptions({ tenantId, token }),
+    enabled: Boolean(acceso),
+    retry: false,
+  });
+  if (!acceso || !data?.modulos) {
+    return null;
+  }
+  return new Set(data.modulos.map((m) => `/${m}`));
+}
+
+/**
  * Aviso para quien entró por un link de acceso. Dice qué está viendo y hasta
  * cuándo: nadie debería tener que adivinar por qué no puede tocar nada.
  */
@@ -208,7 +231,7 @@ export function AvisoAccesoPorLink() {
           {data?.empresa ?? "Acceso de solo lectura"}
         </p>
         <p className="text-xs text-muted-foreground">
-          Solo lectura{data?.expira ? ` · vence ${formatearVencimiento(data.expira)}` : ""}
+          Solo lectura{data?.expira ? ` · vence ${formatearFechaHora(data.expira)}` : ""}
         </p>
       </div>
       <Boton variante="secundario" tamano="sm" onClick={salir}>
@@ -217,14 +240,6 @@ export function AvisoAccesoPorLink() {
       </Boton>
     </div>
   );
-}
-
-function formatearVencimiento(valor: string | Date): string {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date(valor));
 }
 
 /** Menú del usuario con su rol y el cierre de sesión. */

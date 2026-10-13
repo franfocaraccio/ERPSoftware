@@ -8,6 +8,7 @@ import { proveedores } from "../../db/schema/proveedores.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { primerVencimientoImpago, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ProveedorActualizar, ProveedoresListar, ProveedorInput } from "./schema.js";
 
@@ -16,6 +17,7 @@ export type Proveedor = typeof proveedores.$inferSelect;
 /** El saldo a pagar no se persiste: se calcula al leer. */
 export interface ProveedorConSaldo extends Proveedor {
   saldoAPagar: string;
+  /** Vencimiento de la deuda impaga más vieja. Puede estar en el pasado. */
   proximoVencimiento: string | null;
   /**
    * Tiene comprobantes en otra moneda, que NO entran en `saldoAPagar`. Sumar
@@ -61,9 +63,11 @@ function filtrosDe(input: FiltrosProveedores): SQL | undefined {
  * el saldo vive en `core`.
  *
  * Sobre monedas: la suma de importes se filtra a pesos con un `filter` y no con
- * un `where`, para que el próximo vencimiento siga mirando todos los
- * comprobantes. Una compra en dólares tiene fecha de vencimiento aunque su
- * importe no entre en el saldo en pesos.
+ * un `where`, para poder contar además las compras en otra moneda y avisar
+ * que existen.
+ *
+ * El vencimiento que muestra la lista no sale de acá: es el de la deuda
+ * impaga más vieja, y se calcula aparte (`vencimientoImpagoProveedores`).
  *
  * A diferencia de ventas, `comprobantes_compra` no tiene estado ni clase: una
  * compra es un documento recibido, sin ciclo de emisión. Por eso acá no hay
@@ -79,22 +83,6 @@ function agregadosDe(tx: TenantTx) {
       otraMoneda: sql<number>`count(*) filter (
         where ${comprobantesCompra.moneda} <> 'ARS'
       )`.as("otra_moneda"),
-      /**
-       * Vencimiento de cada comprobante = recepción + su condición de pago.
-       * El `filter` es lo que hace que esto sea el PRÓXIMO vencimiento: sin
-       * él, `min` devuelve el más viejo de todos, que siempre está vencido en
-       * cuanto el proveedor tiene alguna compra con historia.
-       *
-       * Limitación conocida: no distingue comprobantes ya pagados, porque los
-       * pagos se registran contra el proveedor y no contra el comprobante. El
-       * saldo a pagar de la fila dice si queda algo por pagar.
-       */
-      proximo: sql<string | null>`min(
-        ${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day'
-      ) filter (where
-        ${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day'
-        >= current_date
-      )`.as("proximo_vencimiento"),
     })
     .from(comprobantesCompra)
     .groupBy(comprobantesCompra.proveedorId)
@@ -137,7 +125,6 @@ export async function listarProveedores(
         comprado: comprado.total,
         pagado: pagado.total,
         otraMoneda: comprado.otraMoneda,
-        proximo: comprado.proximo,
       })
       .from(proveedores)
       .leftJoin(comprado, eq(comprado.proveedorId, proveedores.id))
@@ -160,10 +147,17 @@ export async function listarProveedores(
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
+    const vencimientos = primerVencimientoImpago(
+      (
+        await saldosCuentaCorriente(tx, "compras", {
+          contraparteIds: filas.map((f) => f.proveedor.id),
+        })
+      ).comprobantes,
+    );
     const items: ProveedorConSaldo[] = filas.map((fila) => ({
       ...fila.proveedor,
       saldoAPagar: saldoDe(fila.comprado, fila.pagado).aStringFiscal(),
-      proximoVencimiento: fila.proximo ? String(fila.proximo).slice(0, 10) : null,
+      proximoVencimiento: vencimientos.get(fila.proveedor.id) ?? null,
       tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
     }));
 

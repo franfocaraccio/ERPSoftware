@@ -12,6 +12,7 @@ import {
   ScrollText,
   Settings,
   SlidersHorizontal,
+  TrendingUp,
   UserCog,
   Users,
   Wallet,
@@ -24,6 +25,7 @@ import {
   MenuUsuario,
   SelectorOrganizacion,
   useRolOrganizacion,
+  useRutasPermitidas,
 } from "./sesion.js";
 
 interface ItemNav {
@@ -43,6 +45,7 @@ const NAVEGACION: ItemNav[] = [
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: true },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: true },
+  { a: "/resultados", etiqueta: "Resultados", Icono: TrendingUp, habilitado: true },
 ];
 
 /**
@@ -117,6 +120,7 @@ function ItemNavegacion({
 function Navegacion({ onNavegar }: { onNavegar?: () => void }) {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
   const rol = useRolOrganizacion();
+  const permitidas = useRutasPermitidas();
   const idSubmenu = useId();
 
   const enConfiguracion = CONFIGURACION.some((item) => ruta.startsWith(item.a));
@@ -126,7 +130,7 @@ function Navegacion({ onNavegar }: { onNavegar?: () => void }) {
 
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
-      {NAVEGACION.map((item) => (
+      {NAVEGACION.filter((item) => !permitidas || permitidas.has(item.a)).map((item) => (
         <ItemNavegacion
           key={item.a}
           item={item}

@@ -14,6 +14,8 @@ export interface Parametros {
   margenObjetivo: string | null;
   minimoOperativo: string | null;
   umbralConcentracion: string;
+  regimenFiscal: "responsable_inscripto" | "monotributo";
+  diaVencimientoIva: number;
 }
 
 /**
@@ -29,6 +31,8 @@ export const POR_DEFECTO: Parametros = {
   margenObjetivo: null,
   minimoOperativo: null,
   umbralConcentracion: "20.00",
+  regimenFiscal: "responsable_inscripto",
+  diaVencimientoIva: 20,
 };
 
 /**
@@ -52,6 +56,8 @@ export async function leerParametros(tx: TenantTx, tenantId: string): Promise<Pa
     margenObjetivo: fila.margenObjetivo,
     minimoOperativo: fila.minimoOperativo,
     umbralConcentracion: fila.umbralConcentracion,
+    regimenFiscal: fila.regimenFiscal,
+    diaVencimientoIva: fila.diaVencimientoIva,
   };
 }
 
@@ -76,6 +82,9 @@ export async function guardarParametros(
       margenObjetivo: datos.margenObjetivo,
       minimoOperativo: datos.minimoOperativo,
       umbralConcentracion: datos.umbralConcentracion,
+      regimenFiscal: datos.regimenFiscal ?? existente?.regimenFiscal ?? POR_DEFECTO.regimenFiscal,
+      diaVencimientoIva:
+        datos.diaVencimientoIva ?? existente?.diaVencimientoIva ?? POR_DEFECTO.diaVencimientoIva,
     };
 
     const [guardado] = existente
@@ -102,6 +111,8 @@ export async function guardarParametros(
               margenObjetivo: existente.margenObjetivo,
               minimoOperativo: existente.minimoOperativo,
               umbralConcentracion: existente.umbralConcentracion,
+              regimenFiscal: existente.regimenFiscal,
+              diaVencimientoIva: existente.diaVencimientoIva,
             }
           : null,
         despues: valores,
@@ -113,6 +124,8 @@ export async function guardarParametros(
       margenObjetivo: guardado.margenObjetivo,
       minimoOperativo: guardado.minimoOperativo,
       umbralConcentracion: guardado.umbralConcentracion,
+      regimenFiscal: guardado.regimenFiscal,
+      diaVencimientoIva: guardado.diaVencimientoIva,
     };
   });
 }

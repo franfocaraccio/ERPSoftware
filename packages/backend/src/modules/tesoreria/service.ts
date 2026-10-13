@@ -1,13 +1,21 @@
 import { hoyEnArgentina } from "@erp/core/dates";
 import { Money } from "@erp/core/money";
-import { diasParaCobro, saldoCuenta } from "@erp/core/treasury";
+import { diasParaCobro, diasParaPresentar, saldoCuenta } from "@erp/core/treasury";
 import { and, asc, count, eq, gte, lte, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
+import { proveedores } from "../../db/schema/proveedores.js";
+import { categorias } from "../../db/schema/resultados.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { exigirPropios } from "../_comunes/pertenencia.js";
+import {
+  guardarImputaciones,
+  type Imputacion,
+  imputacionesDe,
+} from "../cuenta-corriente/imputaciones.js";
 import type {
   ChequeActualizar,
   ChequeInput,
@@ -31,6 +39,8 @@ export interface CuentaConSaldo extends Cuenta {
 export interface ChequeConDerivados extends Cheque {
   libradorNombreEfectivo: string;
   diasParaCobro: number;
+  /** Días que quedan para presentarlo al banco. Negativo: ya no se puede. */
+  diasParaPresentar: number;
 }
 
 // "Hoy" es un concepto local: en UTC, a partir de las 21:00 argentinas ya
@@ -193,10 +203,16 @@ export async function listarMovimientos(
   });
 }
 
-export async function obtenerMovimiento(actor: Actor, id: string): Promise<Movimiento | null> {
+export async function obtenerMovimiento(
+  actor: Actor,
+  id: string,
+): Promise<(Movimiento & { imputaciones: Imputacion[] }) | null> {
   return withTenant(actor.tenantId, async (tx) => {
     const [movimiento] = await tx.select().from(movimientos).where(eq(movimientos.id, id));
-    return movimiento ?? null;
+    if (!movimiento) {
+      return null;
+    }
+    return { ...movimiento, imputaciones: await imputacionesDe(tx, id) };
   });
 }
 
@@ -211,12 +227,26 @@ function aColumnasMovimiento(input: MovimientoInput) {
     clienteId: input.clienteId ?? null,
     proveedorId: input.proveedorId ?? null,
     chequeId: input.chequeId ?? null,
+    categoriaId: input.categoriaId ?? null,
     conciliado: input.conciliado,
   };
 }
 
+/** Cuenta, contraparte y cheque de un movimiento: todos de esta empresa. */
+async function exigirReferenciasMovimiento(
+  tx: Parameters<Parameters<typeof withTenant>[1]>[0],
+  m: MovimientoInput,
+): Promise<void> {
+  await exigirPropios(tx, cuentas, cuentas.id, [m.cuentaId], "Cuenta no encontrada");
+  await exigirPropios(tx, clientes, clientes.id, [m.clienteId], "Cliente no encontrado");
+  await exigirPropios(tx, proveedores, proveedores.id, [m.proveedorId], "Proveedor no encontrado");
+  await exigirPropios(tx, cheques, cheques.id, [m.chequeId], "Cheque no encontrado");
+  await exigirPropios(tx, categorias, categorias.id, [m.categoriaId], "Categoría no encontrada");
+}
+
 export async function crearMovimiento(actor: Actor, input: MovimientoInput): Promise<Movimiento> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirReferenciasMovimiento(tx, input);
     const [creado] = await tx
       .insert(movimientos)
       .values({ tenantId: actor.tenantId, ...aColumnasMovimiento(input) })
@@ -224,12 +254,13 @@ export async function crearMovimiento(actor: Actor, input: MovimientoInput): Pro
     if (!creado) {
       throw new Error("No se pudo registrar el movimiento");
     }
+    const imputadas = await guardarImputaciones(tx, creado, input.imputaciones ?? []);
     // Impacta saldos: la auditoría es obligatoria.
     await auditar(tx, actor, {
       tabla: "movimientos",
       registroId: creado.id,
       accion: "alta",
-      detalle: { despues: creado },
+      detalle: { despues: { ...creado, imputaciones: imputadas } },
     });
     return creado;
   });
@@ -244,6 +275,8 @@ export async function actualizarMovimiento(
     if (!antes) {
       return null;
     }
+    const imputacionesAntes = await imputacionesDe(tx, id);
+    await exigirReferenciasMovimiento(tx, datos);
     const [despues] = await tx
       .update(movimientos)
       .set(aColumnasMovimiento(datos))
@@ -252,11 +285,15 @@ export async function actualizarMovimiento(
     if (!despues) {
       return null;
     }
+    const imputadas = await guardarImputaciones(tx, despues, datos.imputaciones ?? []);
     await auditar(tx, actor, {
       tabla: "movimientos",
       registroId: id,
       accion: "modificacion",
-      detalle: { antes, despues },
+      detalle: {
+        antes: { ...antes, imputaciones: imputacionesAntes },
+        despues: { ...despues, imputaciones: imputadas },
+      },
     });
     return despues;
   });
@@ -307,6 +344,7 @@ export async function listarCheques(
       ...cheque,
       libradorNombreEfectivo: libradorCliente ?? cheque.libradorNombre ?? "—",
       diasParaCobro: diasParaCobro(cheque.fechaPago, hoy),
+      diasParaPresentar: diasParaPresentar(cheque.fechaPago, hoy),
     }));
 
     const [fila] = await tx.select({ total: count() }).from(cheques).where(filtro);
@@ -345,6 +383,13 @@ function aColumnasCheque(input: ChequeInput) {
 
 export async function crearCheque(actor: Actor, input: ChequeInput): Promise<Cheque> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirPropios(
+      tx,
+      clientes,
+      clientes.id,
+      [input.libradorClienteId],
+      "Cliente no encontrado",
+    );
     const [creado] = await tx
       .insert(cheques)
       .values({ tenantId: actor.tenantId, ...aColumnasCheque(input) })
@@ -371,6 +416,13 @@ export async function actualizarCheque(
     if (!antes) {
       return null;
     }
+    await exigirPropios(
+      tx,
+      clientes,
+      clientes.id,
+      [datos.libradorClienteId],
+      "Cliente no encontrado",
+    );
     const [despues] = await tx
       .update(cheques)
       .set(aColumnasCheque(datos))

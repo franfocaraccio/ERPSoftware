@@ -1,7 +1,10 @@
-import { integer, numeric, pgTable, uniqueIndex } from "drizzle-orm/pg-core";
+import { integer, numeric, pgEnum, pgTable, uniqueIndex } from "drizzle-orm/pg-core";
 import { columnasBase } from "./_comunes.js";
 
 // Una fila por tenant. Umbrales que la especificación define como "del cliente".
+/** Decide qué impuestos aplican: un monotributista no liquida IVA ni Ganancias. */
+export const regimenFiscalEnum = pgEnum("regimen_fiscal", ["responsable_inscripto", "monotributo"]);
+
 export const parametros = pgTable(
   "parametros",
   {
@@ -19,6 +22,10 @@ export const parametros = pgTable(
     umbralConcentracion: numeric("umbral_concentracion", { precision: 5, scale: 2 })
       .default("20")
       .notNull(),
+    regimenFiscal: regimenFiscalEnum("regimen_fiscal").default("responsable_inscripto").notNull(),
+    // Día del mes siguiente en que vence el IVA. Depende de la terminación del
+    // CUIT; 20 es un valor medio que cada empresa ajusta al suyo.
+    diaVencimientoIva: integer("dia_vencimiento_iva").default(20).notNull(),
   },
   (t) => [uniqueIndex("parametros_tenant_unq").on(t.tenantId)],
 );

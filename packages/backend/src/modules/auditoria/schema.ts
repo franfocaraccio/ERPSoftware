@@ -8,15 +8,18 @@ import { z } from "zod";
 export const MODULOS_AUDITABLES = {
   clientes: { etiqueta: "Clientes", tablas: ["clientes"] },
   proveedores: { etiqueta: "Proveedores", tablas: ["proveedores"] },
-  stock: { etiqueta: "Stock", tablas: ["productos"] },
+  stock: { etiqueta: "Stock", tablas: ["productos", "movimientos_stock"] },
   tesoreria: { etiqueta: "Tesorería", tablas: ["cuentas", "movimientos", "cheques"] },
-  impuestos: { etiqueta: "Impuestos", tablas: ["impuestos"] },
+  impuestos: { etiqueta: "Impuestos", tablas: ["impuestos", "retenciones_iibb"] },
   comprobantes: {
     etiqueta: "Comprobantes",
     tablas: ["comprobantes_venta", "comprobantes_compra"],
   },
   equipo: { etiqueta: "Equipo y permisos", tablas: ["member", "permisos_panel"] },
+  resultados: { etiqueta: "Resultados", tablas: ["categorias", "gastos_recurrentes"] },
   parametros: { etiqueta: "Parámetros", tablas: ["parametros"] },
+  accesos: { etiqueta: "Accesos de solo lectura", tablas: ["accesos_consolidado"] },
+  historial: { etiqueta: "Historial", tablas: ["audit_log"] },
 } as const;
 
 export type ModuloAuditable = keyof typeof MODULOS_AUDITABLES;

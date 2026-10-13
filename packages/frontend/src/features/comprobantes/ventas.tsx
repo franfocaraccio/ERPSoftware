@@ -25,6 +25,7 @@ import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.j
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { CeldaCobranza } from "./cobranza.js";
 
 type Estado = "borrador" | "enviada" | "aprobada" | "rechazada";
 type Evento = "emitir" | "aprobar" | "rechazar" | "corregir";
@@ -39,7 +40,10 @@ const TONO_ESTADO = {
 const ETIQUETA_ESTADO = {
   borrador: "Borrador",
   enviada: "Enviada",
-  aprobada: "Aprobada",
+  // Se muestra "Confirmada" y no "Aprobada" hasta que exista la emisión con
+  // ARCA: sin CAE, "Aprobada" sugiere una validez fiscal que no tiene. El
+  // estado interno no cambia (decisión de Fran del 12/10/2026).
+  aprobada: "Confirmada",
   rechazada: "Rechazada",
 } as const;
 
@@ -47,7 +51,7 @@ const ETIQUETA_ESTADO = {
 // backend declara como disponibles.
 const ETIQUETA_EVENTO: Record<Evento, string> = {
   emitir: "Emitir",
-  aprobar: "Aprobar",
+  aprobar: "Confirmar",
   rechazar: "Rechazar",
   corregir: "Volver a borrador",
 };
@@ -75,7 +79,12 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaExportVenta>[] = [
   { encabezado: "Punto de venta", valor: (v) => v.puntoVenta, tipo: "codigo", ancho: 14 },
   { encabezado: "Número", valor: (v) => v.numero, tipo: "codigo", ancho: 12 },
   { encabezado: "Cliente", valor: (v) => v.clienteRazonSocial, tipo: "texto", ancho: 32 },
-  { encabezado: "Estado", valor: (v) => v.estado, tipo: "texto", ancho: 12 },
+  {
+    encabezado: "Estado",
+    valor: (v) => ETIQUETA_ESTADO[v.estado as Estado] ?? v.estado,
+    tipo: "texto",
+    ancho: 12,
+  },
   { encabezado: "Moneda", valor: (v) => v.moneda, tipo: "texto", ancho: 10 },
   { encabezado: "Neto", valor: (v) => v.neto, tipo: "dinero" },
   { encabezado: "IVA", valor: (v) => v.iva, tipo: "dinero" },
@@ -260,6 +269,15 @@ export function Ventas() {
                   ))}
                   {encabezado("Total", "total", "derecha")}
                   {encabezado("Estado", "estado")}
+                  <th
+                    scope="col"
+                    className={cn(
+                      clasesEncabezado(densidad),
+                      "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                    )}
+                  >
+                    Cobro
+                  </th>
                   <th scope="col" className={clasesEncabezado(densidad)} />
                 </tr>
               </thead>
@@ -313,6 +331,9 @@ export function Ventas() {
                       <Insignia tono={TONO_ESTADO[v.estado as Estado]}>
                         {ETIQUETA_ESTADO[v.estado as Estado]}
                       </Insignia>
+                    </td>
+                    <td className={clasesCelda(densidad)}>
+                      <CeldaCobranza cobranza={v.cobranza} lado="ventas" moneda={v.moneda} />
                     </td>
                     <td className={clasesCelda(densidad)}>
                       <div className="flex justify-end gap-1.5">

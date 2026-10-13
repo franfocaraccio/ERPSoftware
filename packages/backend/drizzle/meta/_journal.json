@@ -99,6 +99,41 @@
       "when": 1791702157161,
       "tag": "0013_umbral_concentracion",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791900000000,
+      "tag": "0014_imputaciones",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791910000000,
+      "tag": "0015_impuestos_calculados",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791920000000,
+      "tag": "0016_resultados",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791930000000,
+      "tag": "0017_alcance_accesos",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791940000000,
+      "tag": "0018_movimientos_stock",
+      "breakpoints": true
     }
   ]
 }

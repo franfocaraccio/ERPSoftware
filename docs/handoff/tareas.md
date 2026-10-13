@@ -22,6 +22,12 @@ Eran cuatro: dos están hechas, la 2 se descartó, y **queda sólo la 3**.
 | 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
 | 3 | Leer extractos bancarios y conciliar | nada | grande |
 | 4 | ~~Leer facturas de proveedor~~ | — | **hecha** el 12/10/2026 |
+| 5 | ~~Etapa 1: que los números del panel sean correctos~~ | — | **hecha** el 13/10/2026 |
+| 6 | ~~Etapa 2: cuenta corriente con imputación~~ | — | **hecha** el 13/10/2026 |
+| 7 | ~~Etapa 3: impuestos~~ | — | **hecha** el 13/10/2026 |
+| 8 | ~~Etapa 4: estado de resultados~~ | — | **hecha** el 13/10/2026 |
+| 9 | ~~Etapa 5: pantallas~~ | — | **hecha** el 13/10/2026 |
+| 10 | ~~Etapa 6: stock, costo e IA~~ | — | **hecha** el 13/10/2026 |
 
 Las tareas 3 y 4 son el "OCR". **La tarea 2 se descartó** (12 de octubre de
 2026, decisión de Fran): la aplicación **no guarda los archivos ni permite
@@ -621,6 +627,169 @@ saberlo para no construirlo de nuevo:
 - Mutation testing: romper el validador de totales y confirmar que un test se
   cae.
 - `pnpm lint && pnpm typecheck && pnpm test` con código de salida 0.
+
+---
+
+## Tareas 5 a 10 — Lo que salió del análisis del 30 de septiembre
+
+Un análisis externo recorrió la app con la demo de `scripts/datos-demo.sql`. Se
+validó punto por punto el 12 de octubre de 2026, reproduciendo sus mismos datos
+(la demo corrida con fechas de 51 días atrás) y comparando con la misma demo al
+día. Las decisiones de cada etapa las tomó Fran ese mismo día y **no se
+re-preguntan**. Se hacen en orden, en una sola rama y un solo PR.
+
+### Qué dio la validación
+
+- **"Sin datos" en DSO, DPO, rotación y margen no era falta de imputación.**
+  Los KPIs miran los últimos 30 días y la demo terminaba en agosto. Con datos al
+  día calculan.
+- **Las pestañas que "no responden al clic" no se reproducen.** Nada las tapa y
+  responden con eventos de puntero, en escritorio y en celular.
+- **Bugs reales**, todos en la Etapa 1:
+  - **B1:** el margen bruto se calcula sobre el total **con IVA** contra un costo
+    sin IVA. Con la demo al día da 46,10 % contra 34,78 % real.
+  - **B2:** la proyección descarta todo lo vencido (`proyectarCaja` filtra por
+    semana). Con la demo vieja da pagos en cero con $ 13,7 M impagos.
+  - **B3:** la proyección no descuenta lo ya cobrado o pagado, y suma los cheques
+    en cartera encima de las facturas que pagan.
+  - **B4:** el formulario de venta **nunca guarda `productoId`** (un `<datalist>`
+    sólo sugiere el texto). Los ítems quedan con costo 0 para el margen, y el
+    manual dice lo contrario.
+  - **B5:** el panel no filtra por estado ni por moneda (Clientes sí), y suma los
+    ítems de las notas de crédito como salidas de stock.
+  - **B6:** "Ventas por mes" grafica con IVA.
+  - **B7:** "Próx. vencimiento" esconde lo vencido.
+  - **B8:** Historial muestra "exportacion" crudo y la fecha en otro formato.
+
+### Estado: las seis etapas están HECHAS (13 de octubre de 2026)
+
+Todo en un solo PR, como decidió Fran. Lo que hay que saber para llevarlo a
+producción y lo que quedó afuera:
+
+- **Migraciones 0014 a 0018**: imputaciones, impuestos calculados,
+  resultados, alcance de los links y movimientos de stock. Aplicarlas en
+  Supabase con el procedimiento de siempre. Las que tocan datos (0014 y 0018)
+  recorren empresa por empresa declarando `app.tenant_id`: con FORCE ROW LEVEL
+  SECURITY, un rol que no es superusuario no ve ninguna fila sin eso.
+- **La demo cambió**: `scripts/datos-demo.sql` carga pagos imputables con
+  contraparte, IVA calculado, IIBB con retenciones, categorías, gastos
+  recurrentes y movimientos de stock. Para verla hay que borrar y volver a
+  cargar la organización. Con estos números **la empresa de demo pierde plata**
+  casi todos los meses (factura 1 a 2 M netos y paga 1,65 M de sueldos): es un
+  dato de la demo, y conviene revisar los volúmenes antes de mostrarla.
+- **La "Lectura del mes" usa OpenAI** con la misma key del asistente y un tope
+  propio (`EXPLICACION_LIMITE_DIARIO`, 10 por defecto). No se probó contra la
+  API real, para no gastar: está cubierta con tests que reemplazan al modelo.
+- **Simplificaciones asumidas**: los KPIs y el estado de resultados usan el
+  costo actual del producto para el costo de ventas (los movimientos de venta
+  guardan el costo histórico, pero todavía no se leen de ahí); el saldo a
+  favor de IIBB se arrastra igual que el de IVA; Ganancias no entra en el
+  resultado neto. El IVA calculado necesita **validación de un contador**.
+- **Revalidación del 13/10/2026** contra el análisis original: faltaba la
+  **sugerencia de compra con costo de reposición** para lo marcado "Reponer",
+  que no había entrado en ninguna etapa. Se agregó en Stock (regla en
+  `core/stock/reposicion.ts`). También se corrigió que el Historial mostrara
+  "movimientos_stock" crudo y que la demo guardara un cliente "en_mora" a mano.
+- **Quedó afuera por decisión de Fran**: comparativos mes contra mes y contra
+  el año anterior, presupuesto, proyección a 12 meses, retenciones de IVA y
+  Ganancias, registro de ingresos y PIN del link, nota de crédito y duplicado
+  desde el detalle, y PDF y mail del comprobante.
+
+### Tarea 5 — Etapa 1: que los números existentes sean correctos
+
+- Margen, ventas del período y "Ventas por mes" sobre **neto**. DSO y por
+  cobrar siguen con total, porque la deuda incluye IVA.
+- El panel cuenta sólo `enviada` y `aprobada`, y sólo ARS (igual que Clientes).
+  Las notas de crédito restan de las salidas y del costo.
+- Proyección:
+  - **pagos vencidos e impagos → semana 1**;
+  - **cobros vencidos no se proyectan**: se informan aparte como
+    `cobrosVencidos`;
+  - lo cobrado o pagado por contraparte se descuenta de sus comprobantes más
+    viejos (FIFO) hasta que exista imputación (Etapa 2);
+  - los cheques en cartera no se suman encima de facturas ya cubiertas.
+- Formulario de venta: elegir un producto guarda `productoId` y precarga precio
+  y descripción. Corregir `docs/ayuda/04-comprobantes.md`.
+- "Próx. vencimiento" muestra el vencido más viejo, si lo hay.
+- Historial: etiqueta "Exportación" y fecha `dd/mm/aaaa hh:mm`.
+- `datos-demo.sql`: pagos y cobros con contraparte, importes con IVA, impuestos
+  coherentes con lo facturado.
+
+### Tarea 6 — Etapa 2: cuenta corriente con imputación
+
+- **Imputaciones:** una tabla nueva que vincula un movimiento con uno o varios
+  comprobantes, con importe parcial. Lo no imputado queda **a cuenta**.
+- **Saldo por comprobante** derivado. Estado de cobro o pago (pendiente,
+  parcial, cobrada, vencida) y fecha de vencimiento en las listas de ventas y
+  compras.
+- La proyección usa el saldo de cada comprobante; reemplaza el FIFO de la
+  Etapa 1.
+- **Mora calculada:** un cliente con facturas vencidas hace más que
+  `umbral_mora_dias` está en mora. **Se quita "En mora" del formulario**, que
+  queda con Activo e Inactivo.
+- **Límite de crédito:** avisa y no bloquea. Se marca en la lista y la ficha, y
+  aparece un aviso al facturar.
+- Ficha de cliente y de proveedor: saldo, comprobantes abiertos, antigüedad de
+  deuda (0–30, 31–60, 61–90, +90), cheques y crédito usado.
+- Cheques vinculados al cobro que los recibió.
+
+### Tarea 7 — Etapa 3: impuestos
+
+- **Régimen fiscal de la empresa en Parámetros**: Responsable Inscripto o
+  Monotributo. La app muestra sólo lo que corresponde al régimen.
+- **Posición de IVA calculada** por mes: débito de ventas menos crédito de
+  compras menos saldo a favor anterior. **Reemplaza la carga manual de IVA**;
+  los registros manuales existentes quedan como histórico. En Impuestos sólo se
+  carga el pago.
+- **Retenciones y percepciones: sólo IIBB, incluido SIRCREB.** Se cargan y
+  restan del IIBB del período. IVA y Ganancias quedan afuera por decisión.
+- **Ganancias como 10 anticipos más el saldo anual de la DDJJ.** Los importes
+  los carga la persona; la app no estima el impuesto.
+- Validar el modelo con un contador antes de darlo por cerrado.
+
+### Tarea 8 — Etapa 4: estado de resultados
+
+- **Base devengado.** Ventas y compras por fecha del comprobante, en neto. Los
+  gastos sin comprobante, por fecha del movimiento con su categoría.
+- **Categorías:** lista inicial editable por empresa (Sueldos y cargas,
+  Alquiler, Servicios, Fletes, Comisiones bancarias, Impuestos, Otros).
+- **Gastos recurrentes: sólo se proyectan.** Una plantilla con importe, día del
+  mes, categoría y cuenta entra en la proyección de caja; no genera
+  movimientos.
+- Resultado mensual: ventas netas, costo de ventas, margen bruto, gastos por
+  categoría, resultado operativo y resultado neto.
+- **Rentabilidad por cliente, por producto y por categoría de producto.**
+
+### Tarea 9 — Etapa 5: pantallas
+
+- "Aprobada" **se muestra como "Confirmada"**. Sólo cambia la etiqueta: el
+  enum, la máquina de estados y los datos no se tocan.
+- Link de solo lectura con **alcance por módulo**. No se agregan registro de
+  ingresos ni PIN.
+- Cuenta en dólares consolidada al **oficial comprador**, con `cotizaciones`.
+- Detalle de factura: acción **"Registrar cobro"**, ya imputado (usa la
+  Etapa 2). Nota de crédito y duplicar quedan afuera.
+- Cheques: aviso del plazo de presentación (30 días desde la fecha de pago) y
+  acciones de depositar o endosar desde la lista.
+- KPIs: un desglose de qué incluye cada uno, y "Sin datos" que explique qué
+  falta cargar.
+
+### Tarea 10 — Etapa 6: stock, costo e IA
+
+- **La facturación mueve stock**, con una tabla de movimientos. Una venta
+  confirmada descuenta, una nota de crédito devuelve, una compra con ítems suma
+  y hay ajustes manuales. `stock_actual` deja de editarse a mano. Reemplaza la
+  decisión de modelado 3.
+- **Las compras tienen ítems con producto**: es la condición para lo anterior y
+  para el costo.
+- **Costo por promedio ponderado**, recalculado en cada compra. Reemplaza la
+  decisión 4.
+- **IA que explica:** un texto que explica variaciones y alertas anticipadas
+  ("en la semana 6 quedás bajo el mínimo"). Los números salen de `core`; el
+  modelo sólo redacta. Usa el proveedor y el tope diario del asistente.
+- **Fuera de esta tanda, por decisión:** comparativos, presupuesto, proyección a
+  12 meses, PIN y registro de ingresos del link, nota de crédito y duplicar desde
+  el detalle, y PDF y mail (dependen de ARCA y del dominio).
 
 ---
 

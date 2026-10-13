@@ -5,3 +5,7 @@
 // No hace falta Testcontainers: el aislamiento entre tests no lo da la base
 // sino RLS, porque cada test crea su propia organización (ver test/tenant.ts).
 process.env.DATABASE_URL ??= "postgresql://erp_app:erp_app@localhost:5432/erp";
+
+// Importar el router de tRPC carga BetterAuth, que no arranca sin secreto.
+// Ninguna sesión real se firma en los tests: cualquier valor sirve.
+process.env.BETTER_AUTH_SECRET ??= "secreto-solo-para-tests-no-usar-en-ningun-entorno";

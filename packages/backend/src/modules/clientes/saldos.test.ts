@@ -184,16 +184,30 @@ describe("saldo por cliente", () => {
     expect((await buscar("Solo nota de crédito SA"))?.proximoVencimiento).toBeNull();
   });
 
-  it("el próximo vencimiento es el más cercano en el futuro, no el más viejo", async () => {
+  it("el vencimiento es el de la deuda impaga más vieja, aunque ya haya vencido", async () => {
+    // Antes se mostraba el vencimiento futuro más cercano: una deuda vencida
+    // hace dos meses no aparecía, que es justo lo que hay que ver.
     const id = await nuevoCliente(tenant, "Con vencimientos SA");
     await facturar(
       tenant,
-      // Vencida hace rato: no tiene que ganar aunque sea la más antigua.
       { clienteId: id, total: "1000.00", emitidaHace: 90, condicionVentaDias: 30 },
       { clienteId: id, total: "1000.00", condicionVentaDias: 10 },
       { clienteId: id, total: "1000.00", condicionVentaDias: 45 },
     );
-    expect((await buscar("Con vencimientos SA"))?.proximoVencimiento).toBe(enDias(10));
+    expect((await buscar("Con vencimientos SA"))?.proximoVencimiento).toBe(enDias(-60));
+  });
+
+  it("una vez cobrada la deuda más vieja, muestra la siguiente", async () => {
+    // Lo cobrado cancela primero lo que vence antes. Una factura cobrada no
+    // puede seguir figurando como próxima a vencer.
+    const id = await nuevoCliente(tenant, "Al día SA");
+    await facturar(
+      tenant,
+      { clienteId: id, total: "1000.00", emitidaHace: 90, condicionVentaDias: 30 },
+      { clienteId: id, total: "1000.00", condicionVentaDias: 10 },
+    );
+    await cobrar(id, "1000.00");
+    expect((await buscar("Al día SA"))?.proximoVencimiento).toBe(enDias(10));
   });
 
   it("los comprobantes en dólares no entran al saldo en pesos, pero se avisan", async () => {

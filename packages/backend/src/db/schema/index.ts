@@ -10,5 +10,6 @@ export * from "./impuestos.js";
 export * from "./parametros.js";
 export * from "./permisos.js";
 export * from "./proveedores.js";
+export * from "./resultados.js";
 export * from "./stock.js";
 export * from "./tesoreria.js";

@@ -4,6 +4,7 @@ import { generateObject } from "ai";
 import { fromNodeHeaders } from "better-auth/node";
 import express, { type Request, type Response } from "express";
 import multer from "multer";
+import { ROLES_ESCRITURA } from "../../auth/roles.js";
 import { resolverSesion } from "../../trpc/context.js";
 import { detectarTipo, TIPOS_PERMITIDOS } from "../_comunes/tipo-archivo.js";
 import { crearContador } from "../asistente/limite.js";
@@ -76,6 +77,13 @@ async function manejarLectura(req: Request, res: Response): Promise<void> {
   const sesion = await resolverSesion(fromNodeHeaders(req.headers));
   if (!sesion?.activeOrganizationId) {
     res.status(401).json({ error: "Sesión no válida." });
+    return;
+  }
+  // Leer una factura es para cargarla: una acción de escritura. Sin esto, un
+  // miembro de solo lectura o un link de solo lectura disparaban lecturas
+  // pagas que después no podían guardar.
+  if (!sesion.rolOrganizacion || !ROLES_ESCRITURA.includes(sesion.rolOrganizacion)) {
+    res.status(403).json({ error: "Tu rol no permite cargar comprobantes." });
     return;
   }
 

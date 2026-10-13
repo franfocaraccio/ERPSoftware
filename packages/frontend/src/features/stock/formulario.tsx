@@ -16,6 +16,7 @@ import { EncabezadoPagina } from "../../components/layout.js";
 import { mensajeDeError } from "../../lib/errores.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { MovimientosStock } from "./movimientos.js";
 
 const importe = (mensaje: string) =>
   z
@@ -336,9 +337,13 @@ export function FormularioProducto({ productoId }: { productoId?: string }) {
               <form.Field name="stockActual">
                 {(field) => (
                   <Campo
-                    etiqueta="Stock actual"
+                    etiqueta={esEdicion ? "Stock actual" : "Stock inicial"}
                     requerido
-                    ayuda="Carga manual en esta etapa"
+                    ayuda={
+                      esEdicion
+                        ? "Se mueve con ventas, compras y ajustes (abajo)"
+                        : "Con cuánto arranca: queda como el primer movimiento"
+                    }
                     error={
                       field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
                     }
@@ -350,6 +355,8 @@ export function FormularioProducto({ productoId }: { productoId?: string }) {
                         className="tabular"
                         aria-describedby={describedBy}
                         invalido={invalido}
+                        // Al editar no se toca: se corrige con un ajuste.
+                        readOnly={esEdicion}
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
@@ -410,6 +417,8 @@ export function FormularioProducto({ productoId }: { productoId?: string }) {
           </div>
         </form>
       </Tarjeta>
+
+      {productoId && <MovimientosStock productoId={productoId} />}
     </>
   );
 }

@@ -35,13 +35,13 @@ import {
 import { SelectorColumnas } from "../../components/selector-columnas.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
+import { CeldaVencimiento } from "../../components/vencimiento.js";
 import { aVisibilidad, useColumnasEscondidas } from "../../lib/columnas.js";
 import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import {
   etiquetaCondicionIva,
   formatearCuit,
-  formatearFecha,
   formatearImporte,
   formatearPorcentaje,
 } from "../../lib/formato.js";
@@ -125,9 +125,7 @@ const columnas = helper.columns([
   helper.accessor("proximoVencimiento", {
     meta: { secundaria: true },
     header: "Próx. vencimiento",
-    cell: (info) => (
-      <span className="tabular text-muted-foreground">{formatearFecha(info.getValue())}</span>
-    ),
+    cell: (info) => <CeldaVencimiento fecha={info.getValue()} />,
   }),
   helper.accessor("saldoAPagar", {
     header: "Saldo a pagar",

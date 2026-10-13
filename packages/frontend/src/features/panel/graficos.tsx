@@ -79,9 +79,15 @@ const EJE = {
 export function GraficoSaldoProyectado({
   datos,
   minimoOperativo,
+  cobrosVencidos,
+  pagosVencidos,
 }: {
   datos: FilaProyeccion[];
   minimoOperativo: string | null;
+  /** Vencidos e impagos: no se proyectan, por prudencia. */
+  cobrosVencidos: string;
+  /** Vencidos e impagos: la proyección los pone en la semana en curso. */
+  pagosVencidos: string;
 }) {
   const [verTabla, setVerTabla] = useState(false);
 
@@ -92,6 +98,10 @@ export function GraficoSaldoProyectado({
   }));
 
   const hayAlerta = datos.some((f) => f.semaforo === "alerta");
+  // Llegan con dos decimales y nunca negativos: alcanza con comparar el texto,
+  // sin pasar un importe por `number`.
+  const hayPagosVencidos = pagosVencidos !== "0.00";
+  const hayCobrosVencidos = cobrosVencidos !== "0.00";
 
   return (
     <Tarjeta className="p-5">
@@ -111,6 +121,29 @@ export function GraficoSaldoProyectado({
         <p role="status" className="mb-3 text-xs font-medium text-danger">
           Hay semanas donde el saldo cae por debajo del mínimo operativo.
         </p>
+      )}
+
+      {(hayPagosVencidos || hayCobrosVencidos) && (
+        <ul className="mb-3 space-y-0.5 text-xs text-muted-foreground">
+          {hayPagosVencidos && (
+            <li>
+              Incluye{" "}
+              <span className="font-medium tabular text-foreground">
+                {formatearImporte(pagosVencidos)}
+              </span>{" "}
+              de pagos vencidos, en la semana en curso.
+            </li>
+          )}
+          {hayCobrosVencidos && (
+            <li>
+              No incluye{" "}
+              <span className="font-medium tabular text-foreground">
+                {formatearImporte(cobrosVencidos)}
+              </span>{" "}
+              de cobros vencidos: no se cuenta con plata que ya no llegó a tiempo.
+            </li>
+          )}
+        </ul>
       )}
 
       {verTabla ? (
@@ -253,7 +286,7 @@ export function GraficoVentas({ datos }: { datos: { mes: string; total: string }
           <p className="mt-4 text-2xl font-semibold text-foreground">
             {formatearImporte(datos[0].total)}
             <span className="ml-2 text-xs font-normal text-muted-foreground">
-              facturado en {datos[0].mes}
+              vendido (neto) en {datos[0].mes}
             </span>
           </p>
         )}
@@ -267,7 +300,7 @@ export function GraficoVentas({ datos }: { datos: { mes: string; total: string }
     <Tarjeta className="p-5">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-foreground">Evolución de ventas</h2>
-        <p className="text-xs text-muted-foreground">Total facturado por mes</p>
+        <p className="text-xs text-muted-foreground">Ventas netas por mes, sin IVA</p>
       </div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={serie} margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>

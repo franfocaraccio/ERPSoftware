@@ -28,6 +28,7 @@ export const RUTAS = [
   "/impuestos/nueva",
   "/comprobantes",
   "/comprobantes/nuevo",
+  "/resultados",
   "/equipo",
   "/parametros",
   "/historial",
