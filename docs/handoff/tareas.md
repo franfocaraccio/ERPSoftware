@@ -21,7 +21,7 @@ Eran cuatro: dos están hechas, la 2 se descartó, y **queda sólo la 3**.
 | 1 | ~~Las notas de crédito suman en vez de restar~~ | — | **hecha** el 12/10/2026 |
 | 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
 | 3 | Leer extractos bancarios y conciliar | nada | grande |
-| 4 | ~~Leer facturas de proveedor~~ | — | **hecha** el 12/10/2026 |
+| 4 | ~~Leer facturas de compra y de venta~~ | — | **hecha** el 13/10/2026 |
 | 5 | ~~Etapa 1: que los números del panel sean correctos~~ | — | **hecha** el 13/10/2026 |
 | 6 | ~~Etapa 2: cuenta corriente con imputación~~ | — | **hecha** el 13/10/2026 |
 | 7 | ~~Etapa 3: impuestos~~ | — | **hecha** el 13/10/2026 |
@@ -432,7 +432,28 @@ Con extractos reales en la mano:
 
 ---
 
-## Tarea 4 — Leer facturas de proveedor — HECHA
+## Tarea 4 — Leer facturas de compra y de venta — HECHA
+
+**Ampliada el 13 de octubre de 2026: también lee facturas de venta.** Decisión
+de Fran: mientras no haya integración con ARCA, la factura se emite en el sitio
+de ARCA y se carga acá, así que leerla es el uso diario y no una migración.
+Sirve igual para cargar facturas viejas al historial.
+
+Lo que distingue a una venta: sus totales **se recalculan de los ítems**, no se
+transcriben, y el total impreso queda sólo para contrastar. Se guarda el CAE,
+que es la única autorización que lleva el comprobante mientras se emita afuera.
+El producto del catálogo no se vincula solo, porque vincularlo es lo que hace
+que confirmar la factura mueva stock, y eso lo decide una persona.
+
+Esto destapó un bug que ya se arregló: la letra se derivaba con la empresa fija
+en "responsable inscripto", con un `TODO(fase 3)`, mientras el régimen fiscal ya
+existía en Parámetros. Un monotributista veía sus facturas C guardadas como A.
+
+`lectura-ruta.ts` ya tiene sus 13 tests (sin sesión, rol de solo lectura,
+archivo disfrazado, cupo agotado, modelo caído, y que la sesión se mire antes de
+recibir el archivo).
+
+
 
 **Terminada el 12 de octubre de 2026.** Andando de punta a punta y verificada
 en el navegador con las facturas reales de Fran.

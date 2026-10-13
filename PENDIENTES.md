@@ -80,7 +80,8 @@ dólar oficial con compra y venta en el panel.
   `docs/handoff/tareas.md`, tarea 3. La aplicación **no guarda** los archivos
   (se leen y se descartan).
 - **Falta una factura A de un proveedor real** para terminar de probar la
-  lectura. La que se usó es una muestra de demo. Es de Fran.
+  lectura de comprobantes. La que se usó es una muestra de demo, y las A reales
+  son las que más varían entre proveedores. Es de Fran.
 
 ## Lo que salió del análisis del 30 de septiembre
 
