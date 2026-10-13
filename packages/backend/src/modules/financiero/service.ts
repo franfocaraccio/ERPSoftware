@@ -12,18 +12,17 @@ import {
   semaforoDe,
 } from "@erp/core/kpis";
 import { Money } from "@erp/core/money";
-import { estadoImpuesto, importeDeterminado } from "@erp/core/tax";
 import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { Actor } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
-import { impuestos } from "../../db/schema/impuestos.js";
 import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
 import { saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
+import { obligacionesImpositivas } from "../impuestos/obligaciones.js";
 import { obtenerParametros } from "./parametros.js";
 
 const ARS = "ARS" as const;
@@ -207,13 +206,10 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     );
 
     // --- Impuestos ---
-    const filasImpuestos = await tx.select().from(impuestos);
-    const impuestosVencidos = filasImpuestos.filter((i) => {
-      const determinado = importeDeterminado(ars(i.baseImponible), i.alicuota);
-      return (
-        estadoImpuesto(determinado, ars(i.importePagado), i.fechaVencimiento, hoy) === "vencido"
-      );
-    }).length;
+    // Las mismas obligaciones que muestra la pantalla de Impuestos: IVA
+    // calculado, IIBB neto de retenciones y lo cargado a mano.
+    const obligaciones = await obligacionesImpositivas(tx, tenantId);
+    const impuestosVencidos = obligaciones.filter((o) => o.estado === "vencido").length;
 
     // --- KPIs ---
     const liquidez = liquidezCorriente(saldoTesoreria, porCobrar, porPagar);
@@ -366,12 +362,8 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
 
     const pagosCompras = aProyectar(comprasCC.comprobantes);
 
-    const pagosImpuestos = filasImpuestos
-      .map((i) => {
-        const determinado = importeDeterminado(ars(i.baseImponible), i.alicuota);
-        const saldo = determinado.restar(ars(i.importePagado));
-        return { fecha: i.fechaVencimiento, importe: saldo };
-      })
+    const pagosImpuestos = obligaciones
+      .map((o) => ({ fecha: o.fechaVencimiento, importe: ars(o.saldo) }))
       .filter((p) => p.importe.esPositivo());
 
     // Un pago vencido e impago sigue siendo plata que hay que poner: va a hoy.

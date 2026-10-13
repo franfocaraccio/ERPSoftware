@@ -9,6 +9,8 @@ los semáforos del panel y el de concentración en Clientes.
 | Margen objetivo (%) | Margen bruto que la empresa se propone. Vacío = sin objetivo definido |
 | Mínimo operativo | Piso de caja de la proyección a 13 semanas, en pesos. Vacío = sin piso |
 | Umbral de concentración (%) | Cuánto puede representar un solo cliente dentro del total a cobrar antes de que la pantalla de Clientes lo marque. Por defecto 20% |
+| Régimen fiscal | Responsable Inscripto o Monotributo. Decide qué impuestos se cargan y si el sistema calcula el IVA |
+| Día de vencimiento del IVA | Día del mes siguiente en que vence el IVA calculado. Depende de la terminación del CUIT. Entre 1 y 28, por defecto 20 |
 
 Margen objetivo y Mínimo operativo se pueden dejar vacíos: el indicador
 correspondiente queda en "sin datos" en vez de mostrar un semáforo que no

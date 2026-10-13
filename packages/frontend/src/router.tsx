@@ -293,14 +293,35 @@ const rutaImpuestos = createRoute({
   component: ListaImpuestos,
 });
 
+const TIPOS_IMPUESTO = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
+
+/**
+ * `?tipo=iva&periodo=AAAA-MM` llega desde "Registrar pago" de una posición de
+ * IVA calculada: el formulario arranca con eso completo.
+ */
 const rutaImpuestoNuevo = createRoute({
   getParentRoute: () => rutaApp,
   path: "/impuestos/nueva",
-  component: () => (
-    <SoloEscritura>
-      <FormularioImpuesto />
-    </SoloEscritura>
-  ),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { tipo?: (typeof TIPOS_IMPUESTO)[number] | undefined; periodo?: string | undefined } => ({
+    tipo: TIPOS_IMPUESTO.find((t) => t === search.tipo),
+    periodo:
+      typeof search.periodo === "string" && /^\d{4}-\d{2}$/.test(search.periodo)
+        ? search.periodo
+        : undefined,
+  }),
+  component: function NuevoImpuesto() {
+    const { tipo, periodo } = rutaImpuestoNuevo.useSearch();
+    return (
+      <SoloEscritura>
+        <FormularioImpuesto
+          {...(tipo ? { tipoInicial: tipo } : {})}
+          {...(periodo ? { periodoInicial: periodo } : {})}
+        />
+      </SoloEscritura>
+    );
+  },
 });
 
 const rutaImpuestoEditar = createRoute({

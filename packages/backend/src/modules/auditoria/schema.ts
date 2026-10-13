@@ -10,7 +10,7 @@ export const MODULOS_AUDITABLES = {
   proveedores: { etiqueta: "Proveedores", tablas: ["proveedores"] },
   stock: { etiqueta: "Stock", tablas: ["productos"] },
   tesoreria: { etiqueta: "Tesorería", tablas: ["cuentas", "movimientos", "cheques"] },
-  impuestos: { etiqueta: "Impuestos", tablas: ["impuestos"] },
+  impuestos: { etiqueta: "Impuestos", tablas: ["impuestos", "retenciones_iibb"] },
   comprobantes: {
     etiqueta: "Comprobantes",
     tablas: ["comprobantes_venta", "comprobantes_compra"],

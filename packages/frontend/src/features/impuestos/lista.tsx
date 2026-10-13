@@ -23,23 +23,23 @@ import {
 import { EncabezadoPagina } from "../../components/layout.js";
 import { useModoLectura } from "../../components/sesion.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
-import {
-  formatearFecha,
-  formatearImporte,
-  formatearPeriodo,
-  formatearPorcentaje,
-} from "../../lib/formato.js";
+import { formatearFecha, formatearImporte, formatearPeriodo } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { PosicionIva, RetencionesIibb } from "./secciones.js";
 
 type EstadoImpuesto = "pagado" | "vencido" | "pendiente";
 
 interface FilaImpuesto {
   id: string;
+  /** La fila que la respalda; null en una posición de IVA sin pago registrado. */
+  impuestoId: string | null;
   tipo: string;
   periodo: string;
-  baseImponible: string;
-  alicuota: string;
+  concepto: string | null;
+  origen: "manual" | "calculado" | "historico";
+  bruto: string;
+  creditos: string;
   importeDeterminado: string;
   importePagado: string;
   saldo: string;
@@ -64,15 +64,40 @@ const helper = createColumnHelper<typeof features, FilaImpuesto>();
 const columnas = helper.columns([
   helper.accessor("tipo", {
     header: "Impuesto",
-    cell: (info) => (
-      <Link
-        to="/impuestos/$impuestoId"
-        params={{ impuestoId: info.row.original.id }}
-        className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
-      >
-        {ETIQUETAS_TIPO[info.getValue()] ?? info.getValue()}
-      </Link>
-    ),
+    cell: (info) => {
+      const fila = info.row.original;
+      const nombre = ETIQUETAS_TIPO[info.getValue()] ?? info.getValue();
+      const detalle =
+        fila.origen === "calculado"
+          ? "Calculado"
+          : fila.origen === "historico"
+            ? "Histórico"
+            : fila.concepto;
+      return (
+        <div>
+          {fila.impuestoId ? (
+            <Link
+              to="/impuestos/$impuestoId"
+              params={{ impuestoId: fila.impuestoId }}
+              className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              {nombre}
+            </Link>
+          ) : (
+            // Una posición de IVA sin pago: no hay fila que editar, hay un
+            // pago que registrar.
+            <Link
+              to="/impuestos/nueva"
+              search={{ tipo: "iva", periodo: fila.periodo.slice(0, 7) }}
+              className="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+            >
+              {nombre}
+            </Link>
+          )}
+          {detalle && <span className="block text-xs text-muted-foreground">{detalle}</span>}
+        </div>
+      );
+    },
   }),
   helper.accessor("periodo", {
     meta: { secundaria: true },
@@ -81,8 +106,10 @@ const columnas = helper.columns([
       <span className="tabular text-muted-foreground">{formatearPeriodo(info.getValue())}</span>
     ),
   }),
-  helper.accessor("baseImponible", {
-    header: "Base imponible",
+  // Bruto y créditos explican el determinado: débito y crédito fiscal en el
+  // IVA, impuesto y retenciones en IIBB.
+  helper.accessor("bruto", {
+    header: "Bruto",
     meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
@@ -90,12 +117,12 @@ const columnas = helper.columns([
       </span>
     ),
   }),
-  helper.accessor("alicuota", {
-    header: "Alícuota",
+  helper.accessor("creditos", {
+    header: "Créditos",
     meta: { alineado: "derecha", secundaria: true },
     cell: (info) => (
       <span className="block text-right tabular text-muted-foreground">
-        {formatearPorcentaje(info.getValue())}
+        {info.getValue() === "0.00" ? "—" : `− ${formatearImporte(info.getValue())}`}
       </span>
     ),
   }),
@@ -147,8 +174,9 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaImpuesto>[] = [
   },
   // El período es AAAA-MM: como texto, para que no lo interprete como fecha.
   { encabezado: "Período", valor: (i) => i.periodo, tipo: "codigo", ancho: 10 },
-  { encabezado: "Base imponible", valor: (i) => i.baseImponible, tipo: "dinero" },
-  { encabezado: "Alícuota (%)", valor: (i) => i.alicuota, tipo: "numero" },
+  { encabezado: "Concepto", valor: (i) => i.concepto, tipo: "texto", ancho: 16 },
+  { encabezado: "Bruto", valor: (i) => i.bruto, tipo: "dinero" },
+  { encabezado: "Créditos", valor: (i) => i.creditos, tipo: "dinero" },
   { encabezado: "Importe determinado", valor: (i) => i.importeDeterminado, tipo: "dinero" },
   { encabezado: "Importe pagado", valor: (i) => i.importePagado, tipo: "dinero" },
   { encabezado: "Saldo", valor: (i) => i.saldo, tipo: "dinero" },
@@ -163,14 +191,14 @@ const TIPOS = ["iva", "iibb", "ganancias", "monotributo", "otros"] as const;
 const CAMPOS_ORDENABLES: Record<string, string | undefined> = {
   tipo: "tipo",
   periodo: "periodo",
-  baseImponible: "baseImponible",
+  importeDeterminado: "importeDeterminado",
   fechaVencimiento: "fechaVencimiento",
 };
 
 const ETIQUETA_COLUMNA: Record<string, string> = {
   tipo: "Tipo",
   periodo: "Período",
-  baseImponible: "Base imponible",
+  importeDeterminado: "Determinado",
   fechaVencimiento: "Vencimiento",
 };
 
@@ -429,6 +457,9 @@ export function ListaImpuestos() {
           />
         </div>
       )}
+
+      <PosicionIva />
+      <RetencionesIibb />
     </>
   );
 }

@@ -249,38 +249,76 @@ begin
   ) as ch(numero, librador, banco, emitido, paga_en, importe, estado);
 
   -- --- Impuestos -----------------------------------------------------------
-  -- Las bases salen de lo facturado en cada mes (neto), no de números
-  -- inventados: la demo vieja tenía un IVA con base de 8,8 millones en un mes
-  -- que había vendido 1,2. La empresa es Responsable Inscripta, así que no
-  -- lleva monotributo. El IVA queda como base × 21 % mientras el sistema no
-  -- calcule la posición (débito − crédito); es una aproximación de demo.
+  -- El IVA no se carga: lo calcula el sistema con los comprobantes (débito de
+  -- ventas menos crédito de compras). Cargarlo acá lo dejaría como histórico y
+  -- taparía el cálculo de esos meses.
+  --
+  -- IIBB: base = lo facturado en el mes (neto), al 3,5 %. Los meses viejos
+  -- quedan pagos por lo que resultó después de retenciones; el último vencido,
+  -- impago a propósito para el KPI de impuestos vencidos.
   insert into impuestos (tenant_id, tipo, periodo, base_imponible, alicuota, importe_pagado, fecha_vencimiento)
-  select v_tenant, i.tipo::tipo_impuesto, m.periodo,
-         m.neto, i.alicuota,
-         case when m.periodo + interval '1 month' + i.vence_dia * interval '1 day' < v_hoy
-              then round(m.neto * i.alicuota / 100, 2) else 0 end,
-         (m.periodo + interval '1 month' + i.vence_dia * interval '1 day')::date
+  select v_tenant, 'iibb', m.periodo, m.neto, 3.50, 0,
+         (m.periodo + interval '1 month' + interval '14 days')::date
   from (
     select date_trunc('month', fecha_emision)::date as periodo, sum(neto) as neto
     from comprobantes_venta
     where tenant_id = v_tenant
     group by 1
   ) m
-  cross join (values ('iva', 21.00, 18), ('iibb', 3.50, 15)) as i(tipo, alicuota, vence_dia)
   where m.periodo >= date_trunc('month', v_hoy - interval '3 months');
 
-  -- Uno impago y vencido a propósito, para el KPI de impuestos vencidos.
-  update impuestos set importe_pagado = 0
-  where tenant_id = v_tenant and tipo = 'iibb'
-    and periodo = (select max(periodo) from impuestos
-                   where tenant_id = v_tenant and tipo = 'iibb' and fecha_vencimiento < v_hoy);
+  -- Retenciones, percepciones y SIRCREB: restan del IIBB de su período.
+  insert into retenciones_iibb (tenant_id, fecha, periodo, tipo, agente, comprobante, importe)
+  select v_tenant, (i.periodo + interval '10 days')::date, i.periodo, r.tipo::tipo_retencion_iibb,
+         r.agente, r.comprobante, round(i.base_imponible * r.proporcion, 2)
+  from impuestos i
+  cross join (values
+    ('percepcion', 'Aceros del Plata SA',  'A-0003-00001402', 0.004),
+    ('retencion',  'Metalúrgica Pilar SA', 'CR-0002-00011', 0.006),
+    ('sircreb',    'Banco Nación',          null,           0.003)
+  ) as r(tipo, agente, comprobante, proporcion)
+  where i.tenant_id = v_tenant and i.tipo = 'iibb';
+
+  -- Los meses ya vencidos, pagos por lo que quedó después de retenciones,
+  -- salvo el último, que queda impago y vencido.
+  update impuestos i set importe_pagado = greatest(
+           round(i.base_imponible * i.alicuota / 100, 2)
+           - coalesce((select sum(r.importe) from retenciones_iibb r
+                       where r.tenant_id = v_tenant and r.periodo = i.periodo), 0), 0)
+  where i.tenant_id = v_tenant and i.tipo = 'iibb' and i.fecha_vencimiento < v_hoy
+    and i.periodo < (select max(periodo) from impuestos
+                     where tenant_id = v_tenant and tipo = 'iibb' and fecha_vencimiento < v_hoy);
+
+  -- IVA: los meses de hace más de dos meses están pagos. Se registra sólo el
+  -- pago (calculado = true); lo determinado lo calcula el sistema. El importe
+  -- es débito menos crédito del mes, que en estos primeros meses no arrastra
+  -- saldo a favor.
+  insert into impuestos (tenant_id, tipo, periodo, importe_pagado, fecha_vencimiento, calculado)
+  select v_tenant, 'iva', m.periodo, m.neto,
+         (m.periodo + interval '1 month' + interval '19 days')::date, true
+  from (
+    select p.periodo,
+           coalesce((select sum(iva) from comprobantes_venta
+                     where tenant_id = v_tenant and date_trunc('month', fecha_emision) = p.periodo), 0)
+         - coalesce((select sum(iva) from comprobantes_compra
+                     where tenant_id = v_tenant and date_trunc('month', fecha_recepcion) = p.periodo), 0)
+           as neto
+    from (select distinct date_trunc('month', fecha_emision)::date as periodo
+          from comprobantes_venta where tenant_id = v_tenant) p
+  ) m
+  where m.neto > 0 and m.periodo < date_trunc('month', v_hoy - interval '2 months');
+
+  -- Ganancias: un anticipo por importe, el que informa ARCA.
+  insert into impuestos (tenant_id, tipo, periodo, importe_fijo, concepto, importe_pagado, fecha_vencimiento)
+  values (v_tenant, 'ganancias', date_trunc('month', v_hoy)::date, 420000.00, 'Anticipo 5', 0,
+          (date_trunc('month', v_hoy) + interval '14 days')::date);
 
   -- --- Parámetros ----------------------------------------------------------
   -- Sin una fila acá, el panel usa los valores por defecto y el mínimo
   -- operativo queda en null: el gráfico de saldo proyectado no dibuja la línea
   -- de referencia ni marca semanas en alerta.
-  insert into parametros (tenant_id, umbral_mora_dias, margen_objetivo, minimo_operativo)
-  values (v_tenant, 45, 32.00, 1500000.00)
+  insert into parametros (tenant_id, umbral_mora_dias, margen_objetivo, minimo_operativo, regimen_fiscal, dia_vencimiento_iva)
+  values (v_tenant, 45, 32.00, 1500000.00, 'responsable_inscripto', 20)
   on conflict do nothing;
 
   raise notice 'Datos de demo cargados en el tenant %', v_tenant;
@@ -304,6 +342,8 @@ $$;
 --     delete from movimientos             where tenant_id = v_tenant;
 --     delete from cheques                 where tenant_id = v_tenant;
 --     delete from impuestos               where tenant_id = v_tenant;
+--     delete from retenciones_iibb        where tenant_id = v_tenant;
+--     delete from imputaciones            where tenant_id = v_tenant;
 --     delete from productos               where tenant_id = v_tenant;
 --     delete from proveedores             where tenant_id = v_tenant;
 --     delete from clientes                where tenant_id = v_tenant;
