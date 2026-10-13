@@ -15,7 +15,7 @@ import { FileCheck, FileUp, Plus, ShoppingCart, TriangleAlert } from "lucide-rea
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { BotonExportar } from "../../components/boton-exportar.js";
-import { BotonLeerComprobante } from "../../components/boton-leer-comprobante.js";
+import { BotonNuevoComprobante } from "../../components/boton-nuevo-comprobante.js";
 import { RangoFechas } from "../../components/filtros.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
@@ -607,25 +607,18 @@ export function Compras() {
         )}
         <div className="ml-auto flex items-center gap-2">
           {!creando && !soloLectura && (
-            <>
-              <BotonLeerComprobante<LecturaCompra>
-                tipo="compra"
-                onLeido={(l) => {
-                  setLectura(l);
-                  setCreando(true);
-                }}
-              />
-              <Boton
-                tamano="sm"
-                onClick={() => {
-                  setLectura(null);
-                  setCreando(true);
-                }}
-              >
-                <Plus className="size-4" aria-hidden="true" />
-                Nueva compra
-              </Boton>
-            </>
+            <BotonNuevoComprobante<LecturaCompra>
+              tipo="compra"
+              etiqueta="Nueva compra"
+              onManual={() => {
+                setLectura(null);
+                setCreando(true);
+              }}
+              onLeido={(l) => {
+                setLectura(l);
+                setCreando(true);
+              }}
+            />
           )}
           <SelectorDensidad valor={densidad} onCambio={setDensidad} />
         </div>

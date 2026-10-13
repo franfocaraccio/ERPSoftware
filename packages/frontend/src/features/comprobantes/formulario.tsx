@@ -13,7 +13,7 @@ import { EncabezadoPagina } from "../../components/layout.js";
 import { mensajeDeError } from "../../lib/errores.js";
 import { formatearImporte } from "../../lib/formato.js";
 import { primerError } from "../../lib/formulario.js";
-import { type LecturaVenta, leerComprobante, textoReparo } from "../../lib/lectura.js";
+import { type LecturaVenta, textoReparo, tomarLecturaPendiente } from "../../lib/lectura.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 const ALICUOTAS: { valor: AlicuotaIva; etiqueta: string }[] = [
@@ -193,7 +193,10 @@ function valoresIniciales(lectura?: LecturaVenta | null): ValoresVenta {
  * queda vacío.
  */
 export function FormularioComprobante() {
-  const [lectura, setLectura] = useState<LecturaVenta | null>(null);
+  // Si se llegó acá desde "Subir archivo", la lectura ya está hecha y espera.
+  // Se toma una sola vez, en el primer render: `useState` con función corre
+  // sólo al montar, así que volver a entrar al formulario no la repite.
+  const [lectura, setLectura] = useState<LecturaVenta | null>(() => tomarLecturaPendiente());
   return (
     <FormularioVenta
       key={lectura?.archivo.hash ?? "manual"}

@@ -8,10 +8,11 @@ import {
   Tarjeta,
 } from "@erp/design-system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { FileText, Plus } from "lucide-react";
 import { useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
+import { BotonNuevoComprobante } from "../../components/boton-nuevo-comprobante.js";
 import {
   ariaSort,
   type Direccion,
@@ -24,6 +25,7 @@ import { useModoLectura } from "../../components/sesion.js";
 import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
+import { guardarLecturaPendiente, type LecturaVenta } from "../../lib/lectura.js";
 import { useTRPC } from "../../lib/trpc.js";
 import { CeldaCobranza } from "./cobranza.js";
 
@@ -90,6 +92,28 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaExportVenta>[] = [
   { encabezado: "IVA", valor: (v) => v.iva, tipo: "dinero" },
   { encabezado: "Total", valor: (v) => v.total, tipo: "dinero" },
 ];
+
+/**
+ * El botón de cargar, con sus dos caminos.
+ *
+ * El formulario de venta vive en su propia página, así que los dos caminos
+ * terminan ahí: la carga manual lo abre vacío y la lectura lo abre con el
+ * archivo ya interpretado, que viaja en memoria entre una pantalla y la otra.
+ */
+function BotonNuevo() {
+  const navigate = useNavigate();
+  return (
+    <BotonNuevoComprobante<LecturaVenta>
+      tipo="venta"
+      etiqueta="Nuevo comprobante"
+      onManual={() => void navigate({ to: "/comprobantes/nuevo" })}
+      onLeido={(lectura) => {
+        guardarLecturaPendiente(lectura);
+        void navigate({ to: "/comprobantes/nuevo" });
+      }}
+    />
+  );
+}
 
 export function Ventas() {
   const soloLectura = useModoLectura();
@@ -188,12 +212,7 @@ export function Ventas() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {!soloLectura && (
-            <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
-              <Plus className="size-4" aria-hidden="true" />
-              Nuevo comprobante
-            </Link>
-          )}
+          {!soloLectura && <BotonNuevo />}
           <SelectorDensidad valor={densidad} onCambio={setDensidad} />
         </div>
       </div>
@@ -228,14 +247,7 @@ export function Ventas() {
             icono={<FileText className="size-8" aria-hidden="true" />}
             titulo={estado ? "Sin comprobantes en ese estado" : "Todavía no hay comprobantes"}
             descripcion="Emitís en borrador y el sistema calcula neto, IVA y total por alícuota."
-            accion={
-              soloLectura ? null : (
-                <Link to="/comprobantes/nuevo" className={clasesBoton("primario", "sm")}>
-                  <Plus className="size-4" aria-hidden="true" />
-                  Nuevo comprobante
-                </Link>
-              )
-            }
+            accion={soloLectura ? null : <BotonNuevo />}
           />
         ) : (
           <div className="overflow-x-auto">

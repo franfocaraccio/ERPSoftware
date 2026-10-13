@@ -112,3 +112,29 @@ export function textoReparo(reparo: Reparo): string {
       return "En una factura B o C el IVA va incluido en el precio. Revisá si corresponde.";
   }
 }
+
+/**
+ * La lectura que espera al formulario de venta, entre una pantalla y la otra.
+ *
+ * El formulario de venta vive en su propia página, así que cuando se sube el
+ * archivo desde el listado hay que llevarle el resultado. Vive en memoria y de
+ * un solo uso: se entrega una vez y se olvida.
+ *
+ * Por qué no va por la navegación ni por `sessionStorage`: la versión de
+ * TanStack Router que usamos no tipa el `state` de `navigate`, y el storage
+ * dejaría los datos de una factura escritos en el navegador más tiempo del que
+ * hacen falta. Esto dura lo que dura la navegación: un refresh lo pierde, y
+ * entonces se vuelve a subir el archivo, que es lo correcto.
+ */
+let pendiente: LecturaVenta | null = null;
+
+export function guardarLecturaPendiente(lectura: LecturaVenta): void {
+  pendiente = lectura;
+}
+
+/** La devuelve y la olvida: volver a entrar al formulario no la repite. */
+export function tomarLecturaPendiente(): LecturaVenta | null {
+  const lectura = pendiente;
+  pendiente = null;
+  return lectura;
+}

@@ -129,9 +129,15 @@ egresos.
 ### Leer una factura de venta de un archivo
 
 Mientras no haya integración con ARCA, la factura se emite en el sitio de ARCA
-y se carga acá. Para no tipearla dos veces, en **Nuevo comprobante** hay un
-botón **Leer de un archivo**: subís el PDF que te dio ARCA (o una foto) y el
-formulario se completa solo, incluidos el **CAE** y su vencimiento.
+y se carga acá. Para no tipearla dos veces, el botón **Nuevo comprobante** abre
+dos opciones:
+
+- **Carga manual**: el formulario vacío, para tipear los datos.
+- **Subir archivo**: subís el PDF que te dio ARCA (o una foto) y el formulario
+  se completa solo, incluidos el **CAE** y su vencimiento.
+
+El botón **Nueva compra** funciona igual del lado de Compras: las dos pantallas
+se cargan de la misma manera.
 
 Sirve igual para cargar facturas viejas al historial.
 
@@ -152,10 +158,10 @@ Lo que conviene saber:
 
 ### Leer una factura de compra de un archivo
 
-En la pestaña **Compras** hay un botón **Leer de un archivo**. Subís la factura
-del proveedor —un PDF o una foto, hasta 10 MB— y el sistema la lee y **completa
-el formulario** con lo que entendió: proveedor, letra, número, fechas, concepto
-e importes.
+En la pestaña **Compras**, el botón **Nueva compra** abre las mismas dos
+opciones. Con **Subir archivo** subís la factura del proveedor —un PDF o una
+foto, hasta 10 MB— y el sistema la lee y **completa el formulario** con lo que
+entendió: proveedor, letra, número, fechas, concepto e importes.
 
 Tres cosas que conviene saber:
 
