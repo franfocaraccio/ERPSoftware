@@ -217,9 +217,8 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const porPagar = ars(compras?.totalGeneral).restar(pagado);
 
     // --- Stock ---
-    // Las salidas se derivan de los ítems facturados: en esta fase no hay tabla
-    // de movimientos de stock, y una venta es la salida real del producto.
-    // Sólo ítems del catálogo —una línea de texto libre no tiene costo ni
+    // Las salidas se derivan de los ítems facturados: una venta es la salida
+    // real del producto. Sólo ítems del catálogo —una línea de texto libre no tiene costo ni
     // unidad comparable con el stock— y con signo: una nota de crédito es una
     // devolución, que vuelve a entrar y descuenta su costo.
     const [salidas] = await tx
@@ -232,8 +231,14 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       .innerJoin(productos, eq(productos.id, itemsComprobanteVenta.productoId))
       .where(and(ventasQueCuentan(), gte(comprobantesVenta.fechaEmision, hace30)));
 
+    // El stock se compara en pesos, al costo, contra el costo de lo vendido:
+    // sumar unidades mezclaría tornillos con taladros, y comparar el total
+    // vendido contra el stock de UN producto promedio (como se hacía) daba una
+    // rotación tantas veces más corta como productos hubiera.
     const [stock] = await tx
-      .select({ promedio: sql<string>`coalesce(avg(${productos.stockActual}), 0)` })
+      .select({
+        valor: sql<string>`coalesce(sum(greatest(${productos.stockActual}, 0) * coalesce(${productos.costoUnitario}, 0)), 0)`,
+      })
       .from(productos);
 
     // --- Cheques ---
@@ -267,7 +272,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const liquidez = liquidezCorriente(saldoTesoreria, porCobrar, porPagar);
     const diasCobro = dso(porCobrar, ars(ventas?.totalPeriodo));
     const diasPago = dpo(porPagar, ars(compras?.totalPeriodo));
-    const rotacion = diasRotacionStock(salidas?.cantidad ?? "0", stock?.promedio ?? "0");
+    const rotacion = diasRotacionStock(salidas?.costo ?? "0", stock?.valor ?? "0");
     const ciclo = cicloConversionEfectivo(diasCobro, rotacion, diasPago);
     const margen = margenBrutoPorcentual(ars(ventas?.netoPeriodo), ars(salidas?.costo));
 
@@ -371,18 +376,10 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         valor: rotacion === null ? null : String(rotacion),
         unidad: "dias",
         semaforo: semaforoDe(rotacion, { umbral: 60, direccion: "menor_es_mejor" }),
-        detalle: "Días que tarda en salir el stock promedio",
+        detalle: "Días que tarda en venderse el stock actual",
         desglose: [
-          {
-            etiqueta: "Unidades vendidas en 30 días",
-            valor: salidas?.cantidad ?? "0",
-            unidad: "cantidad",
-          },
-          {
-            etiqueta: "Stock promedio por producto",
-            valor: stock?.promedio ?? "0",
-            unidad: "cantidad",
-          },
+          plata("Costo de lo vendido en 30 días", ars(salidas?.costo)),
+          plata("Stock actual, valuado al costo", ars(stock?.valor)),
         ],
         motivoSinDatos:
           rotacion === null

@@ -446,3 +446,19 @@ describe("saldo consolidado", () => {
     expect(r.saldoPorCuenta.find((c) => c.moneda === "USD")?.saldo).toBe("100.00");
   });
 });
+
+describe("rotación de stock", () => {
+  it("compara el stock valuado al costo con el costo de lo vendido", async () => {
+    // Dos productos con 10 unidades cada uno: uno a costo 100 y otro a 50,
+    // stock valuado en 1.500. Se vendieron 3 del primero y 6 del segundo:
+    // costo 600. Rotación = 30 × 1.500 / 600 = 75 días. La cuenta vieja
+    // (9 unidades contra un stock "promedio por producto" de 10) daba 33.
+    const e = await escenario();
+    await e.emitir(
+      { total: "1000.00", items: [{ cantidad: "3", costo: "100" }] },
+      { total: "1000.00", items: [{ cantidad: "6", costo: "50" }] },
+    );
+
+    expect(kpi(await resumenFinanciero(e.actor), "rotacion")).toBe("75");
+  });
+});

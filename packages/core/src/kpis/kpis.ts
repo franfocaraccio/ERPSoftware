@@ -62,8 +62,10 @@ export function dpo(saldoAPagar: Money, comprasPeriodo: Money): number | null {
 }
 
 /**
- * Días de rotación de stock = 30 / (salidas del período / stock promedio).
- * Cantidades, no dinero: se comparan como decimales sin moneda.
+ * Días de rotación de stock = 30 / (salidas del período / stock).
+ * Las dos cifras tienen que estar en la misma medida: el panel usa el costo
+ * de lo vendido y el stock valuado al costo, que suman productos distintos.
+ * Se reciben como decimales, sin moneda: el resultado son días.
  */
 export function diasRotacionStock(salidasPeriodo: string, stockPromedio: string): number | null {
   const salidas = new Decimal(salidasPeriodo);
