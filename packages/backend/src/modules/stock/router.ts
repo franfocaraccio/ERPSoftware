@@ -3,6 +3,7 @@ import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import { ajustarStock, movimientosDeProducto, StockInvalidoError } from "./movimientos.js";
+import { agruparPorProveedor, sugerenciasDeCompra } from "./reposicion.js";
 import { productoActualizarSchema, productoInputSchema, productosListarSchema } from "./schema.js";
 import { actualizarProducto, crearProducto, listarProductos, obtenerProducto } from "./service.js";
 
@@ -46,6 +47,11 @@ export const stockRouter = router({
       }
       return producto;
     }),
+
+  /** Qué comprar para lo marcado "Reponer", y a qué costo. */
+  reposicion: tenantProcedure.query(async ({ ctx }) =>
+    agruparPorProveedor(await sugerenciasDeCompra(ctx)),
+  ),
 
   /** La historia de un producto: cada entrada y salida. */
   movimientos: tenantProcedure

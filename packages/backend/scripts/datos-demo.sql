@@ -50,7 +50,7 @@ begin
     (v_tenant, 'Corralón Belgrano SRL',     '30710000014', 'responsable_inscripto', 'admin@corralonbel.com.ar','1156789012', 'Cabildo 1875, CABA',              1500000.00, 'activo'),
     (v_tenant, 'Ferretería Industrial MyM', '30710000022', 'responsable_inscripto', 'ventas@mym.com.ar',       '1167890123', 'Ruta 8 km 34, Malvinas Argentinas',2000000.00, 'activo'),
     (v_tenant, 'Metalúrgica Pilar SA',      '30710000030', 'responsable_inscripto', 'pagos@metalpilar.com.ar', '2304445566', 'Parque Industrial Pilar',         4000000.00, 'activo'),
-    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@gmail.com',       '1178901234', 'San Martín 450, San Isidro',       800000.00, 'en_mora'),
+    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@gmail.com',       '1178901234', 'San Martín 450, San Isidro',       800000.00, 'activo'),
     (v_tenant, 'Construcciones Aráoz',      '30710000057', 'responsable_inscripto', 'info@araoz.com.ar',       '1189012345', 'Aráoz 1200, CABA',                1200000.00, 'activo');
 
   -- --- Proveedores ---------------------------------------------------------

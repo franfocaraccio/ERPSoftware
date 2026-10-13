@@ -148,7 +148,7 @@ export function Parametros() {
               <Campo
                 etiqueta="Umbral de mora"
                 requerido
-                ayuda="Días de cobro promedio a partir de los cuales el indicador pasa a rojo. Si cobrás a 30 días, un umbral de 45 te avisa cuando se está estirando."
+                ayuda="Días de atraso a partir de los cuales un cliente queda en mora, y el DSO del panel pasa a rojo. Si cobrás a 30 días, un umbral de 45 te avisa cuando se está estirando."
                 error={
                   field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
                 }

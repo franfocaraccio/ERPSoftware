@@ -29,6 +29,7 @@ import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearCantidad, formatearImporte, formatearPorcentaje } from "../../lib/formato.js";
 import { alineadoDerecha, clasesColumna } from "../../lib/tabla.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { SugerenciaCompra } from "./reposicion.js";
 
 interface FilaProducto {
   id: string;
@@ -433,6 +434,8 @@ export function ListaStock() {
           <BotonExportar traerFilas={traerParaExportar} columnas={COLUMNAS_EXPORT} nombre="stock" />
         </div>
       )}
+
+      <SugerenciaCompra />
     </>
   );
 }

@@ -55,6 +55,23 @@ Cada compra con productos recalcula el costo unitario:
 Si no había stock, el costo pasa a ser el de la compra. El costo de compra va
 **sin IVA**. Cada venta guarda el costo que tenía el producto en ese momento.
 
+## Sugerencia de compra
+
+Debajo de la tabla, cuando hay productos en **Reponer**, aparece qué comprar,
+agrupado en un pedido por proveedor (el proveedor principal del producto):
+
+- **Comprar**: lo que hace falta para volver al mínimo y cubrir un mes más de
+  ventas, es decir mínimo + lo vendido en los últimos 30 días − stock actual.
+  Si no hubo ventas en el mes, repone hasta el doble del mínimo.
+- **Costo de reposición**: el costo de la **última compra** del producto, sin
+  IVA. Es distinto del costo unitario, que es el promedio ponderado: el
+  promedio sirve para valuar lo que hay, y el último precio se parece más a lo
+  que se va a pagar. Si el producto nunca se compró con ítems, se usa el
+  costo promedio, y la pantalla lo aclara.
+- **Importe**: cantidad × costo de reposición, y el total de cada pedido.
+
+Es una sugerencia para armar el pedido: no genera ninguna compra.
+
 ## Filtros
 
 - **Buscador**: por SKU o descripción.

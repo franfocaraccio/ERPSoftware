@@ -14,8 +14,10 @@ import {
 import { columnasBase, monedaEnum } from "./_comunes.js";
 import { proveedores } from "./proveedores.js";
 
-// Decisiones Fase 1: stock_actual y costo_unitario son de carga manual.
-// Estado (Reponer/OK), valorización y rotación son derivados: se calculan al leer.
+// `stock_actual` lo mueven los movimientos de stock y `costo_unitario` es el
+// promedio ponderado de las compras (decisiones del 12/10/2026, que
+// reemplazaron la carga manual). Estado (Reponer/OK), valorización y rotación
+// son derivados: se calculan al leer.
 export const productos = pgTable(
   "productos",
   {
