@@ -160,8 +160,8 @@ export function Asistente() {
         >
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">Ayuda</h2>
-              <p className="text-xs text-muted-foreground">Cómo usar el sistema</p>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">Asistente</h2>
+              <p className="text-xs text-muted-foreground">Tus números y cómo usar el sistema</p>
             </div>
             <Boton
               variante="fantasma"

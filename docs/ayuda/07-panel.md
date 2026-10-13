@@ -57,7 +57,9 @@ Es la misma cuenta de la proyección: no usa inteligencia artificial.
 La tarjeta **Lectura del mes** tiene un botón **Explicar**: escribe en pocas
 oraciones qué pasó en el último mes cerrado contra el anterior (ventas, margen,
 gastos, resultado y alertas de caja) y la causa más probable, si surge de los
-datos.
+datos. Recibe, por producto, el costo y el precio unitario promedio de cada mes:
+así puede decir si un margen cayó porque subió el costo ("subió el costo del
+hierro") o porque bajó el precio.
 
 - Los números los calcula el sistema; la inteligencia artificial sólo redacta.
   Debajo del texto, **Los números que usó** muestra exactamente qué recibió.

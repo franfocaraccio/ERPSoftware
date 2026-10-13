@@ -1,6 +1,7 @@
 import { EncabezadoPagina } from "../../components/layout.js";
 import { Categorias, GastosRecurrentes } from "./configuracion.js";
 import { EstadoResultados } from "./estado.js";
+import { DescargarInforme } from "./informe.js";
 import { Rentabilidad } from "./rentabilidad.js";
 
 /**
@@ -13,6 +14,7 @@ export function Resultados() {
       <EncabezadoPagina
         titulo="Resultados"
         descripcion="Estado de resultados mensual y rentabilidad por cliente y producto."
+        acciones={<DescargarInforme />}
       />
       <EstadoResultados />
       <Rentabilidad />

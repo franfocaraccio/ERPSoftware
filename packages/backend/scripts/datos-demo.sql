@@ -88,13 +88,6 @@ begin
     ('HE-032', 'Set de mechas HSS 19 piezas',     'Herramientas', 15600.00,  24900.00,  42, 20,  'Herramientas Global SA')
   ) as p(sku, descripcion, categoria, costo, precio, stock, minimo, proveedor);
 
-  -- El stock con el que arranca cada producto, como movimiento inicial: el
-  -- stock se mueve con movimientos y la historia tiene que cerrar.
-  insert into movimientos_stock (tenant_id, producto_id, fecha, tipo, cantidad, costo_unitario, motivo)
-  select v_tenant, id, v_inicio - 1, 'inicial', stock_actual, costo_unitario, 'Stock inicial de la demo'
-  from productos
-  where tenant_id = v_tenant and stock_actual <> 0;
-
   -- --- Comprobantes de venta ----------------------------------------------
   -- Una factura cada dos días durante seis meses: unos 10 millones netos por
   -- mes, lo que necesita una distribuidora con estos gastos fijos para ganar
@@ -153,6 +146,33 @@ begin
     group by comprobante_id
   ) t
   where cv.id = t.comprobante_id and cv.tenant_id = v_tenant;
+
+  -- Cada venta confirmada saca su mercadería con un movimiento de stock, que
+  -- guarda el costo de ese momento: es lo que usa el costo de ventas. El hierro
+  -- subió a principio del mes pasado (antes costaba un 10 % menos), así el
+  -- margen de ese mes cae y la lectura del mes tiene una causa que contar.
+  insert into movimientos_stock (tenant_id, producto_id, fecha, tipo, cantidad, costo_unitario, comprobante_venta_id, motivo)
+  select v_tenant, i.producto_id, cv.fecha_emision, 'venta', -i.cantidad,
+         case when p.categoria = 'Hierro'
+                   and cv.fecha_emision < (date_trunc('month', v_hoy) - interval '1 month')::date
+              then round(p.costo_unitario * 0.9, 2)
+              else p.costo_unitario end,
+         cv.id, null
+  from items_comprobante_venta i
+  join comprobantes_venta cv on cv.id = i.comprobante_id
+  join productos p on p.id = i.producto_id
+  where i.tenant_id = v_tenant;
+
+  -- El stock con el que arrancó cada producto, como movimiento inicial: lo de
+  -- hoy más todo lo que se vendió, así la historia de movimientos cierra con
+  -- el stock actual.
+  insert into movimientos_stock (tenant_id, producto_id, fecha, tipo, cantidad, costo_unitario, motivo)
+  select v_tenant, p.id, v_inicio - 1, 'inicial',
+         p.stock_actual + coalesce((select -sum(m.cantidad) from movimientos_stock m
+                                    where m.producto_id = p.id and m.tipo = 'venta'), 0),
+         p.costo_unitario, 'Stock inicial de la demo'
+  from productos p
+  where p.tenant_id = v_tenant;
 
   -- --- Comprobantes de compra ---------------------------------------------
   -- Mercadería cada cinco días, rotando proveedores, por lo que se vende al

@@ -3,6 +3,25 @@
 Pantalla en `/resultados`. Dice si la empresa gana plata y dónde: el panel
 muestra la caja; esta pantalla, la rentabilidad.
 
+## Informe mensual en PDF
+
+Arriba a la derecha, **Descargar informe** baja un PDF del mes elegido (uno de
+los últimos 12 meses cerrados), listo para el dueño:
+
+- Ventas netas, margen bruto y resultado neto, contra el mes anterior.
+- La **lectura del mes** escrita por la inteligencia artificial, sólo si el mes
+  elegido es el último cerrado y la IA está configurada.
+- El estado de resultados del mes y del anterior, con la variación de cada
+  renglón.
+- La caja de hoy: saldo, la semana con el saldo proyectado más bajo y si se
+  perfora el mínimo operativo.
+- Los indicadores del panel, quién debe, a quién se le debe, los impuestos
+  pendientes y lo que más margen dejó en el mes, por cliente y por producto.
+
+Se arma en el momento con los datos de ese instante y no se guarda. Muestra
+sólo lo que el usuario puede ver en la app: un link de solo lectura sin
+Resultados o sin Panel no puede bajarlo.
+
 ## Estado de resultados
 
 Una tabla con un mes por columna (3, 6 o 12 meses) y estos renglones:
@@ -10,7 +29,7 @@ Una tabla con un mes por columna (3, 6 o 12 meses) y estos renglones:
 | Renglón | De dónde sale |
 |---|---|
 | Ventas netas | El neto (sin IVA) de las facturas Enviadas o Confirmadas, por fecha de emisión. Las notas de crédito restan |
-| Costo de ventas | El costo de los productos vendidos. Un ítem de texto libre no tiene costo |
+| Costo de ventas | El costo de los productos vendidos, **al costo que tenían cuando se vendieron** (lo guarda el movimiento de stock al confirmar la venta). Si la venta todavía no se confirmó, el costo de hoy. Un ítem de texto libre no tiene costo |
 | Margen bruto | Ventas netas − costo de ventas, y su porcentaje |
 | Gastos | Por categoría (ver abajo) |
 | Impuestos sobre ventas (IIBB) | El IIBB del período, antes de retenciones. El IVA no es gasto |
