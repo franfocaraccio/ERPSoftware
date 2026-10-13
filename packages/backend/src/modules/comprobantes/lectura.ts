@@ -1,4 +1,7 @@
+import { discriminaIva, type LetraComprobante, revisarTotalesLeidos } from "@erp/core/invoicing";
+import { Money } from "@erp/core/money";
 import { normalizarCuit, validarCuit } from "@erp/core/tax";
+import { z } from "zod";
 
 /**
  * Normalizadores de lo que se lee de un comprobante en papel.
@@ -90,3 +93,187 @@ export function aNumeracion(puntoVenta: string, numero?: string): Numeracion | n
   const nro = /^\d+$/.test(numero.trim()) ? Number(numero) : null;
   return pv === null || nro === null ? null : { puntoVenta: pv, numero: nro };
 }
+
+// ---------------------------------------------------------------------------
+// El contrato con el modelo
+// ---------------------------------------------------------------------------
+
+/**
+ * Lo que el modelo tiene que devolver: **todo string, y todo obligatorio**.
+ *
+ * Nada es opcional ni nullable a propósito. Las salidas estructuradas son más
+ * confiables cuando el esquema no tiene ramas, y así no hay que distinguir
+ * "el modelo omitió el campo" de "el campo no está en el papel": si no está,
+ * devuelve `""` y acá se decide qué significa eso según la letra.
+ *
+ * Los valores van **como están impresos**, sin convertir. La conversión la
+ * hacen `aImporte`, `aFechaIso` y compañía, que se pueden probar.
+ */
+export const comprobanteLeidoSchema = z.object({
+  emisorRazonSocial: z.string(),
+  emisorCuit: z.string(),
+  letra: z.string(),
+  puntoVenta: z.string(),
+  numero: z.string(),
+  /** Cuando el papel los imprime juntos: "02715-00574048". */
+  numeroCompleto: z.string(),
+  fechaEmision: z.string(),
+  concepto: z.string(),
+  neto: z.string(),
+  iva: z.string(),
+  otrosTributos: z.string(),
+  total: z.string(),
+});
+
+export type ComprobanteLeido = z.infer<typeof comprobanteLeidoSchema>;
+
+const LETRAS = ["A", "B", "C", "E"] as const;
+
+export type Reparo =
+  | { campo: string; motivo: "ilegible" }
+  | { campo: "total"; motivo: "no_cierra"; esperado: string }
+  | { campo: "iva"; motivo: "sin_discriminar" };
+
+export interface CompraPropuesta {
+  emisorRazonSocial: string;
+  emisorCuit: string | null;
+  letra: LetraComprobante | null;
+  numeroCompleto: string | null;
+  fechaEmision: string | null;
+  concepto: string;
+  neto: string | null;
+  iva: string | null;
+  total: string | null;
+  /** Lo que una persona tiene que mirar antes de guardar. */
+  reparos: Reparo[];
+}
+
+/** "0002-00000080", como se escribe un comprobante en Argentina. */
+function formatearNumeracion(n: Numeracion): string {
+  return `${String(n.puntoVenta).padStart(4, "0")}-${String(n.numero).padStart(8, "0")}`;
+}
+
+/**
+ * Convierte lo leído en una propuesta para el formulario de compra.
+ *
+ * No escribe nada ni decide nada definitivo: devuelve los campos que pudo
+ * entender y la lista de reparos. Lo que no se entendió queda en `null` para
+ * que el formulario lo muestre vacío, nunca relleno con un valor inventado.
+ *
+ * Es una función pura: la búsqueda del proveedor por CUIT la hace el service,
+ * que es el que tiene la base.
+ */
+export function interpretar(leido: ComprobanteLeido): CompraPropuesta {
+  const reparos: Reparo[] = [];
+  const faltante = (campo: string) => reparos.push({ campo, motivo: "ilegible" });
+
+  const letra = (LETRAS as readonly string[]).includes(leido.letra.trim().toUpperCase())
+    ? (leido.letra.trim().toUpperCase() as LetraComprobante)
+    : null;
+  if (letra === null) {
+    faltante("letra");
+  }
+
+  const emisorCuit = leido.emisorCuit.trim() === "" ? null : cuitLeido(leido.emisorCuit);
+  if (emisorCuit === null) {
+    faltante("emisorCuit");
+  }
+
+  // El número puede venir en dos campos o en uno pegado; sirve cualquiera.
+  const numeracion =
+    aNumeracion(leido.puntoVenta, leido.numero) ?? aNumeracion(leido.numeroCompleto);
+  if (numeracion === null) {
+    faltante("numeroCompleto");
+  }
+
+  const fechaEmision = aFechaIso(leido.fechaEmision);
+  if (fechaEmision === null) {
+    faltante("fechaEmision");
+  }
+
+  const neto = aImporte(leido.neto);
+  if (neto === null) {
+    faltante("neto");
+  }
+  const total = aImporte(leido.total);
+  if (total === null) {
+    faltante("total");
+  }
+
+  // Un IVA vacío es normal en una B o una C, donde va incluido en el precio.
+  // En una A es un campo que no se pudo leer: la A siempre lo discrimina.
+  const ivaVacio = leido.iva.trim() === "";
+  const discrimina = letra !== null && discriminaIva(letra);
+  let iva = ivaVacio ? "0" : aImporte(leido.iva);
+  if (iva === null || (ivaVacio && discrimina)) {
+    faltante("iva");
+    iva = null;
+  }
+
+  const otros = leido.otrosTributos.trim() === "" ? "0" : (aImporte(leido.otrosTributos) ?? "0");
+
+  // El chequeo de que el total cierre vive en `core`, y sólo se puede hacer
+  // con los tres números leídos.
+  if (letra !== null && neto !== null && iva !== null && total !== null) {
+    for (const reparo of revisarTotalesLeidos({
+      letra,
+      neto: Money.desdeString(neto, "ARS"),
+      iva: Money.desdeString(iva, "ARS"),
+      otrosTributos: Money.desdeString(otros, "ARS"),
+      total: Money.desdeString(total, "ARS"),
+    })) {
+      reparos.push(
+        reparo.tipo === "total_no_cierra"
+          ? { campo: "total", motivo: "no_cierra", esperado: reparo.esperado.aStringFiscal() }
+          : { campo: "iva", motivo: "sin_discriminar" },
+      );
+    }
+  }
+
+  return {
+    emisorRazonSocial: leido.emisorRazonSocial.trim(),
+    emisorCuit,
+    letra,
+    numeroCompleto: numeracion === null ? null : formatearNumeracion(numeracion),
+    fechaEmision,
+    concepto: leido.concepto.trim(),
+    neto,
+    iva,
+    total,
+    reparos,
+  };
+}
+
+/**
+ * Lo que se le pide al modelo.
+ *
+ * Las tres reglas del final no son teóricas: cada una sale de una factura real
+ * que rompía una suposición del código.
+ */
+export const INSTRUCCIONES = `Sos un lector de comprobantes fiscales argentinos (ARCA, ex AFIP).
+
+Devolvés los datos del comprobante **tal como están impresos**, sin convertir
+nada: los importes con su coma decimal y su punto de miles, y las fechas en
+dd/mm/aaaa. No calcules, no redondees y no completes lo que no ves.
+
+Si un dato no está en el papel, devolvé la cadena vacía. Nunca lo inventes ni
+lo deduzcas de los otros.
+
+Reglas que importan:
+
+1. Si el mismo comprobante aparece varias veces —ORIGINAL, DUPLICADO,
+   TRIPLICADO— es UN solo comprobante. Devolvé sus datos una vez. No sumes los
+   importes de las copias.
+2. En una factura B o C el IVA va incluido en los precios. Si abajo figura un
+   "IVA Contenido" por el régimen de transparencia fiscal (ley 27.743), ese
+   número es informativo y NO es el IVA discriminado: devolvé el campo iva
+   vacío. Sólo la factura A tiene IVA discriminado.
+3. El emisor es quien emite la factura, no quien la recibe. Devolvé la razón
+   social y el CUIT del emisor, que en un comprobante de ARCA están arriba,
+   junto al tipo y al número.
+4. La razón social es la que figura en el campo rotulado "Razón Social" o
+   "Apellido y Nombre". No uses el logo ni la marca del software que imprimió
+   el comprobante, que suelen estar en el mismo lugar.
+5. El concepto es la descripción de los bienes o servicios que figura en el
+   detalle, no el título del documento ni la palabra "FACTURA". Si hay varias
+   líneas, unilas con "; ".`;

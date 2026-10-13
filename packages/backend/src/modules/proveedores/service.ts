@@ -235,6 +235,24 @@ export async function obtenerProveedor(actor: Actor, id: string): Promise<Provee
   });
 }
 
+/**
+ * El proveedor que tiene ese CUIT, si ya está cargado.
+ *
+ * Lo usa la lectura de comprobantes para sugerir el proveedor en vez de
+ * hacerlo elegir de una lista. El CUIT tiene índice único por empresa, así que
+ * o hay uno o no hay ninguno.
+ */
+export async function buscarProveedorPorCuit(actor: Actor, cuit: string): Promise<string | null> {
+  return withTenant(actor.tenantId, async (tx) => {
+    const [proveedor] = await tx
+      .select({ id: proveedores.id })
+      .from(proveedores)
+      .where(eq(proveedores.cuit, cuit))
+      .limit(1);
+    return proveedor?.id ?? null;
+  });
+}
+
 function aColumnas(input: ProveedorInput) {
   return {
     razonSocial: input.razonSocial,

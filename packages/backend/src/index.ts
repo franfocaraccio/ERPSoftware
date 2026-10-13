@@ -6,6 +6,7 @@ import express from "express";
 import { auth } from "./auth/auth.js";
 import { verificarMigraciones } from "./db/migraciones.js";
 import { asistenteRouter, inicializarAsistente } from "./modules/asistente/ruta.js";
+import { lecturaComprobantesRouter } from "./modules/comprobantes/lectura-ruta.js";
 import { createContext } from "./trpc/context.js";
 import { appRouter } from "./trpc/router.js";
 
@@ -49,6 +50,7 @@ app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 // El chat va por una ruta Express común y no por tRPC: el streaming de tokens
 // es un POST que devuelve un stream, que es justo lo que espera el SDK.
 app.use(asistenteRouter);
+app.use(lecturaComprobantesRouter);
 
 // Antes de escuchar, no después: si la base está atrasada conviene que el
 // deploy falle y Railway conserve la versión anterior, en vez de dejar arriba
