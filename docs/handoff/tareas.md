@@ -24,12 +24,12 @@ paralelo.
 | 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
 | 3 | Leer extractos bancarios y conciliar | nada | grande |
 | 4 | Leer facturas de proveedor | nada | mediana, plan acordado |
-| 5 | Etapa 1: que los números del panel sean correctos | nada | mediana |
-| 6 | Etapa 2: cuenta corriente con imputación | 5 | grande |
-| 7 | Etapa 3: impuestos | 6 | grande |
-| 8 | Etapa 4: estado de resultados | 5 | grande |
-| 9 | Etapa 5: pantallas | 6 | mediana |
-| 10 | Etapa 6: stock, costo e IA | 8 | grande |
+| 5 | ~~Etapa 1: que los números del panel sean correctos~~ | — | **hecha** el 13/10/2026 |
+| 6 | ~~Etapa 2: cuenta corriente con imputación~~ | — | **hecha** el 13/10/2026 |
+| 7 | ~~Etapa 3: impuestos~~ | — | **hecha** el 13/10/2026 |
+| 8 | ~~Etapa 4: estado de resultados~~ | — | **hecha** el 13/10/2026 |
+| 9 | ~~Etapa 5: pantallas~~ | — | **hecha** el 13/10/2026 |
+| 10 | ~~Etapa 6: stock, costo e IA~~ | — | **hecha** el 13/10/2026 |
 
 Las tareas 3 y 4 son el "OCR". **La tarea 2 se descartó** (12 de octubre de
 2026, decisión de Fran): la aplicación **no guarda los archivos ni permite
@@ -615,6 +615,35 @@ re-preguntan**. Se hacen en orden, en una sola rama y un solo PR.
   - **B6:** "Ventas por mes" grafica con IVA.
   - **B7:** "Próx. vencimiento" esconde lo vencido.
   - **B8:** Historial muestra "exportacion" crudo y la fecha en otro formato.
+
+### Estado: las seis etapas están HECHAS (13 de octubre de 2026)
+
+Todo en un solo PR, como decidió Fran. Lo que hay que saber para llevarlo a
+producción y lo que quedó afuera:
+
+- **Migraciones 0014 a 0018**: imputaciones, impuestos calculados,
+  resultados, alcance de los links y movimientos de stock. Aplicarlas en
+  Supabase con el procedimiento de siempre. Las que tocan datos (0014 y 0018)
+  recorren empresa por empresa declarando `app.tenant_id`: con FORCE ROW LEVEL
+  SECURITY, un rol que no es superusuario no ve ninguna fila sin eso.
+- **La demo cambió**: `scripts/datos-demo.sql` carga pagos imputables con
+  contraparte, IVA calculado, IIBB con retenciones, categorías, gastos
+  recurrentes y movimientos de stock. Para verla hay que borrar y volver a
+  cargar la organización. Con estos números **la empresa de demo pierde plata**
+  casi todos los meses (factura 1 a 2 M netos y paga 1,65 M de sueldos): es un
+  dato de la demo, y conviene revisar los volúmenes antes de mostrarla.
+- **La "Lectura del mes" usa OpenAI** con la misma key del asistente y un tope
+  propio (`EXPLICACION_LIMITE_DIARIO`, 10 por defecto). No se probó contra la
+  API real, para no gastar: está cubierta con tests que reemplazan al modelo.
+- **Simplificaciones asumidas**: los KPIs y el estado de resultados usan el
+  costo actual del producto para el costo de ventas (los movimientos de venta
+  guardan el costo histórico, pero todavía no se leen de ahí); el saldo a
+  favor de IIBB se arrastra igual que el de IVA; Ganancias no entra en el
+  resultado neto. El IVA calculado necesita **validación de un contador**.
+- **Quedó afuera por decisión de Fran**: comparativos mes contra mes y contra
+  el año anterior, presupuesto, proyección a 12 meses, retenciones de IVA y
+  Ganancias, registro de ingresos y PIN del link, nota de crédito y duplicado
+  desde el detalle, y PDF y mail del comprobante.
 
 ### Tarea 5 — Etapa 1: que los números existentes sean correctos
 

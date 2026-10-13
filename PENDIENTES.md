@@ -83,10 +83,11 @@ dólar oficial con compra y venta en el panel.
 
 ## Lo que salió del análisis del 30 de septiembre
 
-- **Seis etapas, con plan y decisiones tomadas** (12 de octubre de 2026):
-  números del panel, cuenta corriente, impuestos, estado de resultados,
-  pantallas, y stock con costo e IA. Ver `docs/handoff/tareas.md`, tareas 5 a 10.
-  Las dos cosas sueltas del panel (estado y moneda) quedaron dentro de la tarea 5.
+- **Las seis etapas están hechas** (13 de octubre de 2026), en un solo PR.
+  Falta: aplicar las migraciones 0014–0018 en Supabase, recargar la demo, que
+  un contador valide el IVA calculado, y lo que quedó afuera por decisión
+  (comparativos, presupuesto, proyección a 12 meses). Ver
+  `docs/handoff/tareas.md`, "Tareas 5 a 10".
 
 ## Postergado
 
