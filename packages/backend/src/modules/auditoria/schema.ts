@@ -17,6 +17,7 @@ export const MODULOS_AUDITABLES = {
   },
   equipo: { etiqueta: "Equipo y permisos", tablas: ["member", "permisos_panel"] },
   parametros: { etiqueta: "Parámetros", tablas: ["parametros"] },
+  accesos: { etiqueta: "Accesos de solo lectura", tablas: ["accesos_consolidado"] },
 } as const;
 
 export type ModuloAuditable = keyof typeof MODULOS_AUDITABLES;

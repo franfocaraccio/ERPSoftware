@@ -17,6 +17,7 @@ import { EncabezadoPagina } from "../../components/layout.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.js";
 import type { ColumnaExport } from "../../lib/exportar.js";
+import { formatearFechaHora } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 type Tono = "exito" | "advertencia" | "peligro" | "info" | "neutro";
@@ -27,17 +28,10 @@ const ACCION: Record<string, { etiqueta: string; tono: Tono }> = {
   modificacion: { etiqueta: "Modificación", tono: "info" },
   baja: { etiqueta: "Baja", tono: "peligro" },
   transicion_estado: { etiqueta: "Cambio de estado", tono: "advertencia" },
+  exportacion: { etiqueta: "Exportación", tono: "neutro" },
 };
 
 const TAMANO_PAGINA = 25;
-
-function fechaHora(valor: string | Date): string {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date(valor));
-}
 
 /** El snapshot crudo. Es para leer, no para editar: va tal cual se guardó. */
 function Detalle({ detalle }: { detalle: unknown }) {
@@ -252,7 +246,7 @@ export function Auditoria() {
                               "tabular whitespace-nowrap text-muted-foreground",
                             )}
                           >
-                            {fechaHora(entrada.fecha)}
+                            {formatearFechaHora(entrada.fecha)}
                           </td>
                           <td className={clasesCelda(densidad)}>
                             {entrada.autor ? (

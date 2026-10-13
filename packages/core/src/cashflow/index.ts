@@ -6,3 +6,4 @@ export {
   type SemanaHorizonte,
   semanasDelHorizonte,
 } from "./proyeccion.js";
+export { type Separacion, separarVencidos } from "./vencidos.js";

@@ -14,9 +14,11 @@ import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
 import { proveedores } from "../../db/schema/proveedores.js";
+import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { exigirPropios } from "../_comunes/pertenencia.js";
 import type {
   CompraActualizar,
   CompraInput,
@@ -154,6 +156,13 @@ async function resolverCliente(
 export async function crearVenta(actor: Actor, input: VentaInput): Promise<ComprobanteVenta> {
   return withTenant(actor.tenantId, async (tx) => {
     const cliente = await resolverCliente(tx, input.clienteId);
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      input.items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     // Los totales los calcula core a partir de los ítems: nunca llegan del cliente.
     const calculo = calcularComprobante(input.items, input.moneda);
 
@@ -217,6 +226,13 @@ export async function actualizarVenta(
     }
 
     const cliente = await resolverCliente(tx, datos.clienteId);
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      datos.items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     const calculo = calcularComprobante(datos.items, datos.moneda);
 
     const [despues] = await tx
@@ -385,6 +401,13 @@ function aColumnasCompra(input: CompraInput) {
 
 export async function crearCompra(actor: Actor, input: CompraInput): Promise<ComprobanteCompra> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [input.proveedorId],
+      "Proveedor no encontrado",
+    );
     const [creada] = await tx
       .insert(comprobantesCompra)
       .values({ tenantId: actor.tenantId, ...aColumnasCompra(input) })
@@ -411,6 +434,13 @@ export async function actualizarCompra(
     if (!antes) {
       return null;
     }
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [datos.proveedorId],
+      "Proveedor no encontrado",
+    );
     const [despues] = await tx
       .update(comprobantesCompra)
       .set(aColumnasCompra(datos))

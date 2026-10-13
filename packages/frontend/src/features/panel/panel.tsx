@@ -173,6 +173,8 @@ export function Panel() {
               <GraficoSaldoProyectado
                 datos={data.proyeccion as FilaProyeccion[]}
                 minimoOperativo={data.minimoOperativo}
+                cobrosVencidos={data.cobrosVencidos}
+                pagosVencidos={data.pagosVencidos}
               />
               <GraficoFlujoSemanal datos={data.proyeccion as FilaProyeccion[]} />
             </div>

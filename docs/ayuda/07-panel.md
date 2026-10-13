@@ -11,8 +11,26 @@ Administrador desde **Equipo**.
 - **Cobros y pagos por semana**: proyección de caja a 13 semanas. Las barras
   son los cobros y los pagos esperados; la línea es el saldo acumulado.
   Los cobros salen de los comprobantes de venta más la condición de venta en
-  días; los pagos, de las compras más el plazo de pago del proveedor.
-- **Evolución de ventas mensuales**: el total facturado por mes.
+  días; los pagos, de las compras más el plazo de pago del proveedor, y de los
+  impuestos impagos.
+- **Evolución de ventas mensuales**: las ventas **netas** (sin IVA) por mes.
+
+### Cómo arma la proyección
+
+- **Se proyecta sólo lo que falta cobrar o pagar.** Lo ya cobrado a un cliente
+  (o pagado a un proveedor) se descuenta de sus comprobantes, empezando por el
+  que vence antes.
+- **Un pago vencido e impago aparece en la semana en curso.** Es plata que hay
+  que poner ya. Debajo del gráfico dice cuánto de la semana es deuda vencida.
+- **Un cobro vencido no se proyecta.** Si el cliente no pagó cuando debía, no se
+  cuenta con esa plata. Debajo del gráfico se informa el total de cobros
+  vencidos que quedaron afuera.
+- **Los cheques en cartera** entran por su fecha de pago y cubren las facturas
+  de su librador, así que la misma plata no se cuenta dos veces. Un cheque con
+  la fecha pasada entra en la semana en curso (se puede depositar), salvo que
+  hayan pasado más de 30 días, porque ya no se puede presentar.
+- Sólo cuentan comprobantes **Enviados** o **Aprobados** y en **pesos**, igual
+  que en Clientes.
 
 ## Qué pasa con las notas de crédito
 
@@ -25,14 +43,18 @@ Dos consecuencias que conviene conocer:
 - Un mes puede mostrar un total **negativo** si se emitieron notas de crédito
   que corrigen facturas de meses anteriores. No es un error: el mes muestra lo
   que efectivamente se facturó.
-- En la proyección, una nota de crédito descuenta de los cobros de la semana en
-  que vence, así que una semana puede quedar con cobros negativos.
+- En la proyección, una nota de crédito descuenta lo que queda por cobrar de
+  las facturas de ese cliente, empezando por la que vence antes.
 
 ## Indicadores
 
 Cada tarjeta tiene un semáforo de tres estados: **ok**, **alerta** y **sin
 datos**. "Sin datos" no es un error: significa que falta información para
 calcular ese indicador (por ejemplo, margen sin costos cargados).
+
+DSO, DPO, rotación de stock, ciclo de conversión y margen miran los **últimos
+30 días**. Si en ese período no hubo ventas (o compras, para el DPO), dicen
+"Sin datos" aunque haya comprobantes más viejos.
 
 Indicadores disponibles:
 
@@ -41,7 +63,9 @@ Indicadores disponibles:
 - **DPO** (días promedio de pago)
 - **Días de rotación de stock**
 - **Ciclo de conversión de efectivo**
-- **Margen bruto porcentual**
+- **Margen bruto porcentual**: sobre las ventas **netas** (sin IVA) de los
+  últimos 30 días, contra el costo de los productos vendidos. Sólo cuentan los
+  ítems que tienen un producto del stock elegido.
 - **Concentración de librador** (qué parte de la cartera de cheques depende de
   un solo librador)
 

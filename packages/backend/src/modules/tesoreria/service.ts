@@ -4,10 +4,12 @@ import { diasParaCobro, saldoCuenta } from "@erp/core/treasury";
 import { and, asc, count, eq, gte, lte, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
+import { proveedores } from "../../db/schema/proveedores.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { exigirPropios } from "../_comunes/pertenencia.js";
 import type {
   ChequeActualizar,
   ChequeInput,
@@ -215,8 +217,20 @@ function aColumnasMovimiento(input: MovimientoInput) {
   };
 }
 
+/** Cuenta, contraparte y cheque de un movimiento: todos de esta empresa. */
+async function exigirReferenciasMovimiento(
+  tx: Parameters<Parameters<typeof withTenant>[1]>[0],
+  m: MovimientoInput,
+): Promise<void> {
+  await exigirPropios(tx, cuentas, cuentas.id, [m.cuentaId], "Cuenta no encontrada");
+  await exigirPropios(tx, clientes, clientes.id, [m.clienteId], "Cliente no encontrado");
+  await exigirPropios(tx, proveedores, proveedores.id, [m.proveedorId], "Proveedor no encontrado");
+  await exigirPropios(tx, cheques, cheques.id, [m.chequeId], "Cheque no encontrado");
+}
+
 export async function crearMovimiento(actor: Actor, input: MovimientoInput): Promise<Movimiento> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirReferenciasMovimiento(tx, input);
     const [creado] = await tx
       .insert(movimientos)
       .values({ tenantId: actor.tenantId, ...aColumnasMovimiento(input) })
@@ -244,6 +258,7 @@ export async function actualizarMovimiento(
     if (!antes) {
       return null;
     }
+    await exigirReferenciasMovimiento(tx, datos);
     const [despues] = await tx
       .update(movimientos)
       .set(aColumnasMovimiento(datos))
@@ -345,6 +360,13 @@ function aColumnasCheque(input: ChequeInput) {
 
 export async function crearCheque(actor: Actor, input: ChequeInput): Promise<Cheque> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirPropios(
+      tx,
+      clientes,
+      clientes.id,
+      [input.libradorClienteId],
+      "Cliente no encontrado",
+    );
     const [creado] = await tx
       .insert(cheques)
       .values({ tenantId: actor.tenantId, ...aColumnasCheque(input) })
@@ -371,6 +393,13 @@ export async function actualizarCheque(
     if (!antes) {
       return null;
     }
+    await exigirPropios(
+      tx,
+      clientes,
+      clientes.id,
+      [datos.libradorClienteId],
+      "Cliente no encontrado",
+    );
     const [despues] = await tx
       .update(cheques)
       .set(aColumnasCheque(datos))

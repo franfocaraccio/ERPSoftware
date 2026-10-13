@@ -6,6 +6,7 @@ import { proveedores } from "../../db/schema/proveedores.js";
 import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { exigirPropios } from "../_comunes/pertenencia.js";
 import type { ProductoActualizar, ProductoInput, ProductosListar } from "./schema.js";
 
 export type Producto = typeof productos.$inferSelect;
@@ -121,6 +122,13 @@ function aColumnas(input: ProductoInput) {
 
 export async function crearProducto(actor: Actor, input: ProductoInput): Promise<Producto> {
   return withTenant(actor.tenantId, async (tx) => {
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [input.proveedorPrincipalId],
+      "Proveedor no encontrado",
+    );
     const [creado] = await tx
       .insert(productos)
       .values({ tenantId: actor.tenantId, ...aColumnas(input) })
@@ -147,6 +155,13 @@ export async function actualizarProducto(
     if (!antes) {
       return null;
     }
+    await exigirPropios(
+      tx,
+      proveedores,
+      proveedores.id,
+      [datos.proveedorPrincipalId],
+      "Proveedor no encontrado",
+    );
     const [despues] = await tx
       .update(productos)
       .set(aColumnas(datos))

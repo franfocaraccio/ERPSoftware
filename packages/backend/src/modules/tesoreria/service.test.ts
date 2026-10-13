@@ -219,4 +219,34 @@ describe("tesorería service (integración, RLS activo)", () => {
     const { items } = await listarCuentas(tenantA);
     expect(await obtenerCuenta(tenantB, items[0]?.id ?? "")).toBeNull();
   });
+
+  it("no deja colgar un movimiento de la cuenta o el cliente de otra empresa", async () => {
+    // La clave foránea se verifica sin RLS: sin el chequeo del service, B
+    // podía registrar un movimiento sobre una cuenta de A.
+    const { items } = await listarCuentas(tenantA);
+    const cuentaDeA = items[0]?.id ?? "";
+    const clienteDeA = await crearCliente(tenantA, {
+      razonSocial: "Cliente de A",
+      condicionIva: "responsable_inscripto",
+    });
+    const cuentaDeB = await crearCuenta(tenantB, {
+      nombre: "Caja B",
+      tipo: "efectivo",
+      moneda: "ARS",
+    });
+    const base = {
+      fecha: "2026-08-01",
+      tipo: "ingreso" as const,
+      medioPago: "efectivo" as const,
+      importe: "1.00",
+      conciliado: false,
+    };
+
+    await expect(crearMovimiento(tenantB, { ...base, cuentaId: cuentaDeA })).rejects.toThrow(
+      "Cuenta no encontrada",
+    );
+    await expect(
+      crearMovimiento(tenantB, { ...base, cuentaId: cuentaDeB.id, clienteId: clienteDeA.id }),
+    ).rejects.toThrow("Cliente no encontrado");
+  });
 });

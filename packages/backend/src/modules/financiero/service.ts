@@ -1,4 +1,10 @@
-import { type FilaProyeccion, proyectarCaja } from "@erp/core/cashflow";
+import { imputarFIFO } from "@erp/core/balances";
+import {
+  type FilaProyeccion,
+  type MovimientoProyectado,
+  proyectarCaja,
+  separarVencidos,
+} from "@erp/core/cashflow";
 import { hoyEnArgentina } from "@erp/core/dates";
 import {
   cicloConversionEfectivo,
@@ -13,7 +19,7 @@ import {
 } from "@erp/core/kpis";
 import { Money } from "@erp/core/money";
 import { estadoImpuesto, importeDeterminado } from "@erp/core/tax";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { Actor } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
@@ -21,12 +27,15 @@ import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/factur
 import { impuestos } from "../../db/schema/impuestos.js";
 import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
-import { withTenant } from "../../db/tenant-db.js";
-import { totalConSigno } from "../_comunes/comprobantes.js";
+import { type TenantTx, withTenant } from "../../db/tenant-db.js";
+import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
 import { obtenerParametros } from "./parametros.js";
 
 const ARS = "ARS" as const;
 const ars = (valor: string | null | undefined) => Money.desdeString(valor ?? "0", ARS);
+
+/** Un cheque que pasó 30 días de su fecha de pago ya no se puede presentar. */
+const DIAS_PRESENTACION_CHEQUE = 30;
 
 export interface Kpi {
   id: string;
@@ -49,7 +58,15 @@ export interface ResumenFinanciero {
     saldoFinal: string;
     semaforo: "ok" | "alerta";
   }[];
+  /**
+   * Cobros que ya vencieron y siguen impagos. No entran en la proyección —es
+   * plata que no llegó cuando debía— y se informan aparte.
+   */
+  cobrosVencidos: string;
+  /** Pagos vencidos e impagos que la proyección pone en la semana en curso. */
+  pagosVencidos: string;
   saldoPorCuenta: { nombre: string; moneda: string; saldo: string }[];
+  /** Ventas netas (sin IVA) por mes. */
   ventasPorMes: { mes: string; total: string }[];
   minimoOperativo: string | null;
 }
@@ -58,6 +75,53 @@ function diasAtras(hoy: string, dias: number): string {
   const d = new Date(`${hoy}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - dias);
   return d.toISOString().slice(0, 10);
+}
+
+function acumular(mapa: Map<string, Money>, clave: string | null, importe: Money): void {
+  if (!clave) {
+    return;
+  }
+  mapa.set(clave, (mapa.get(clave) ?? Money.cero(ARS)).sumar(importe));
+}
+
+/**
+ * Lo que queda por cobrar o pagar de cada comprobante, con lo cobrado o pagado
+ * a cada contraparte aplicado FIFO (`imputarFIFO`, en core).
+ *
+ * Mientras los cobros no se imputen a comprobantes concretos, es la única
+ * forma de no proyectar como pendiente una factura que ya se cobró.
+ */
+function pendientesPorContraparte(
+  comprobantes: readonly { id: string; contraparte: string; vencimiento: string; importe: Money }[],
+  creditos: ReadonlyMap<string, Money>,
+): MovimientoProyectado[] {
+  const porContraparte = new Map<string, (typeof comprobantes)[number][]>();
+  for (const c of comprobantes) {
+    porContraparte.set(c.contraparte, [...(porContraparte.get(c.contraparte) ?? []), c]);
+  }
+  return [...porContraparte.entries()].flatMap(([contraparte, propios]) =>
+    imputarFIFO(propios, creditos.get(contraparte) ?? Money.cero(ARS)).pendientes.map((p) => ({
+      fecha: p.vencimiento,
+      importe: p.pendiente,
+    })),
+  );
+}
+
+/** Movimientos de una cuenta en pesos, de un tipo, agrupados por contraparte. */
+function movimientosEnPesosPor(
+  tx: TenantTx,
+  tipo: "ingreso" | "egreso",
+  contraparte: typeof movimientos.clienteId | typeof movimientos.proveedorId,
+) {
+  return tx
+    .select({
+      contraparte: sql<string | null>`${contraparte}`,
+      total: sql<string>`sum(${movimientos.importe})`,
+    })
+    .from(movimientos)
+    .innerJoin(cuentas, eq(cuentas.id, movimientos.cuentaId))
+    .where(and(eq(movimientos.tipo, tipo), isNotNull(contraparte), eq(cuentas.moneda, ARS)))
+    .groupBy(contraparte);
 }
 
 /**
@@ -96,23 +160,29 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     );
 
     // --- Ventas y cobranzas ---
-    // Las notas de crédito restan, acá y en los otros dos lugares de este
-    // archivo que suman comprobantes de venta. Ver `totalConSigno`.
+    // Sólo deuda real en pesos (`ventasQueCuentan`), igual que Clientes. Las
+    // notas de crédito restan, acá y en todo este archivo.
+    //
+    // DSO y por cobrar usan el total: la deuda del cliente incluye el IVA. El
+    // margen y la evolución de ventas usan el neto: el IVA no es venta, es
+    // plata que se le debe a ARCA.
     const [ventas] = await tx
       .select({
         totalPeriodo: sql<string>`coalesce(sum(case when ${comprobantesVenta.fechaEmision} >= ${hace30} then ${totalConSigno()} else 0 end), 0)`,
+        netoPeriodo: sql<string>`coalesce(sum(case when ${comprobantesVenta.fechaEmision} >= ${hace30} then ${conSigno(comprobantesVenta.neto)} else 0 end), 0)`,
         totalGeneral: sql<string>`coalesce(sum(${totalConSigno()}), 0)`,
       })
-      .from(comprobantesVenta);
+      .from(comprobantesVenta)
+      .where(ventasQueCuentan());
 
-    const [cobrado] = await tx
-      .select({
-        total: sql<string>`coalesce(sum(${movimientos.importe}), 0)`,
-      })
-      .from(movimientos)
-      .where(and(eq(movimientos.tipo, "ingreso"), sql`${movimientos.clienteId} is not null`));
-
-    const porCobrar = ars(ventas?.totalGeneral).restar(ars(cobrado?.total));
+    // Un movimiento hereda la moneda de su cuenta: los cobros en pesos son los
+    // de cuentas en pesos.
+    const cobrosPorCliente = await movimientosEnPesosPor(tx, "ingreso", movimientos.clienteId);
+    const cobrado = Money.sumarTodos(
+      cobrosPorCliente.map((c) => ars(c.total)),
+      ARS,
+    );
+    const porCobrar = ars(ventas?.totalGeneral).restar(cobrado);
 
     // --- Compras y pagos ---
     const [compras] = await tx
@@ -120,27 +190,31 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         totalPeriodo: sql<string>`coalesce(sum(case when ${comprobantesCompra.fechaRecepcion} >= ${hace30} then ${comprobantesCompra.total} else 0 end), 0)`,
         totalGeneral: sql<string>`coalesce(sum(${comprobantesCompra.total}), 0)`,
       })
-      .from(comprobantesCompra);
+      .from(comprobantesCompra)
+      .where(eq(comprobantesCompra.moneda, ARS));
 
-    const [pagado] = await tx
-      .select({ total: sql<string>`coalesce(sum(${movimientos.importe}), 0)` })
-      .from(movimientos)
-      .where(and(eq(movimientos.tipo, "egreso"), sql`${movimientos.proveedorId} is not null`));
-
-    const porPagar = ars(compras?.totalGeneral).restar(ars(pagado?.total));
+    const pagosPorProveedor = await movimientosEnPesosPor(tx, "egreso", movimientos.proveedorId);
+    const pagado = Money.sumarTodos(
+      pagosPorProveedor.map((p) => ars(p.total)),
+      ARS,
+    );
+    const porPagar = ars(compras?.totalGeneral).restar(pagado);
 
     // --- Stock ---
     // Las salidas se derivan de los ítems facturados: en esta fase no hay tabla
     // de movimientos de stock, y una venta es la salida real del producto.
+    // Sólo ítems del catálogo —una línea de texto libre no tiene costo ni
+    // unidad comparable con el stock— y con signo: una nota de crédito es una
+    // devolución, que vuelve a entrar y descuenta su costo.
     const [salidas] = await tx
       .select({
-        cantidad: sql<string>`coalesce(sum(${itemsComprobanteVenta.cantidad}), 0)`,
-        costo: sql<string>`coalesce(sum(${itemsComprobanteVenta.cantidad} * coalesce(${productos.costoUnitario}, 0)), 0)`,
+        cantidad: sql<string>`coalesce(sum(${conSigno(itemsComprobanteVenta.cantidad)}), 0)`,
+        costo: sql<string>`coalesce(sum(${conSigno(sql`${itemsComprobanteVenta.cantidad} * coalesce(${productos.costoUnitario}, 0)`)}), 0)`,
       })
       .from(itemsComprobanteVenta)
       .innerJoin(comprobantesVenta, eq(comprobantesVenta.id, itemsComprobanteVenta.comprobanteId))
-      .leftJoin(productos, eq(productos.id, itemsComprobanteVenta.productoId))
-      .where(gte(comprobantesVenta.fechaEmision, hace30));
+      .innerJoin(productos, eq(productos.id, itemsComprobanteVenta.productoId))
+      .where(and(ventasQueCuentan(), gte(comprobantesVenta.fechaEmision, hace30)));
 
     const [stock] = await tx
       .select({ promedio: sql<string>`coalesce(avg(${productos.stockActual}), 0)` })
@@ -149,9 +223,11 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     // --- Cheques ---
     const chequesEnCartera = await tx
       .select({
+        id: cheques.id,
         importe: cheques.importe,
         fechaPago: cheques.fechaPago,
         libradorNombre: cheques.libradorNombre,
+        libradorClienteId: cheques.libradorClienteId,
         libradorCliente: clientes.razonSocial,
       })
       .from(cheques)
@@ -180,7 +256,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const diasPago = dpo(porPagar, ars(compras?.totalPeriodo));
     const rotacion = diasRotacionStock(salidas?.cantidad ?? "0", stock?.promedio ?? "0");
     const ciclo = cicloConversionEfectivo(diasCobro, rotacion, diasPago);
-    const margen = margenBrutoPorcentual(ars(ventas?.totalPeriodo), ars(salidas?.costo));
+    const margen = margenBrutoPorcentual(ars(ventas?.netoPeriodo), ars(salidas?.costo));
 
     const umbralMargen = parametros.margenObjetivo ? Number(parametros.margenObjetivo) : null;
 
@@ -270,24 +346,97 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     ];
 
     // --- Proyección de caja ---
-    // Cobros: facturas de venta según su condición de venta, más los cheques
-    // en cartera por su fecha de pago. Pagos: compras según su plazo, más los
-    // vencimientos impositivos.
-    const cobrosFacturas = await tx
+    // Cobros: lo que queda por cobrar de cada factura, por su vencimiento, más
+    // los cheques en cartera por su fecha de pago. Pagos: lo que queda por
+    // pagar de cada compra, más los saldos impositivos.
+    //
+    // Lo ya cobrado o pagado a cada contraparte se aplica FIFO contra sus
+    // comprobantes: sin eso, una factura cobrada se seguía proyectando como un
+    // cobro por venir.
+    const comprobantesACobrar = await tx
       .select({
-        fecha: sql<string>`to_char(${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day', 'YYYY-MM-DD')`,
-        // Negada, no excluida: si se excluyera, la proyección mostraría que se
-        // cobra la factura completa. Una semana puede quedar en negativo.
-        importe: totalConSigno(),
+        id: comprobantesVenta.id,
+        clienteId: comprobantesVenta.clienteId,
+        clase: comprobantesVenta.clase,
+        vencimiento: sql<string>`to_char(${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day', 'YYYY-MM-DD')`,
+        total: comprobantesVenta.total,
       })
-      .from(comprobantesVenta);
+      .from(comprobantesVenta)
+      .where(ventasQueCuentan());
 
-    const pagosCompras = await tx
+    // Un cheque que ya tiene su movimiento de ingreso está en la caja: si
+    // además se proyectara, se contaría dos veces.
+    const chequesConMovimiento = new Set(
+      (
+        await tx
+          .select({ chequeId: movimientos.chequeId })
+          .from(movimientos)
+          .where(isNotNull(movimientos.chequeId))
+      ).map((m) => m.chequeId),
+    );
+    const chequesPorCobrar = chequesEnCartera.filter((c) => !chequesConMovimiento.has(c.id));
+
+    // Lo que cancela deuda de un cliente: lo que pagó, sus notas de crédito y
+    // los cheques suyos que tenemos en la mano. El cheque cubre la factura; la
+    // plata llega en la fecha del cheque, no en la de la factura.
+    const creditosCliente = new Map<string, Money>();
+    for (const c of cobrosPorCliente) {
+      acumular(creditosCliente, c.contraparte, ars(c.total));
+    }
+    for (const c of comprobantesACobrar.filter((c) => c.clase === "nota_credito")) {
+      acumular(creditosCliente, c.clienteId, ars(c.total));
+    }
+    for (const c of chequesPorCobrar) {
+      acumular(creditosCliente, c.libradorClienteId, ars(c.importe));
+    }
+
+    const cobrosFacturas = pendientesPorContraparte(
+      comprobantesACobrar
+        .filter((c) => c.clase !== "nota_credito")
+        .map((c) => ({
+          id: c.id,
+          contraparte: c.clienteId,
+          vencimiento: c.vencimiento,
+          importe: ars(c.total),
+        })),
+      creditosCliente,
+    );
+
+    // Prudencia: un cobro vencido no se proyecta. Ya no llegó cuando debía, y
+    // contar con él dibuja una caja mejor que la real.
+    const facturasACobrar = separarVencidos(cobrosFacturas, hoy);
+
+    // Un cheque con la fecha pasada se puede depositar hoy, mientras esté
+    // dentro del plazo de presentación. Pasado ese plazo ya no es cobrable.
+    const limitePresentacion = diasAtras(hoy, DIAS_PRESENTACION_CHEQUE);
+    const cobrosCheques = chequesPorCobrar
+      .filter((c) => c.fechaPago >= limitePresentacion)
+      .map((c) => ({ fecha: c.fechaPago < hoy ? hoy : c.fechaPago, importe: ars(c.importe) }));
+
+    const comprasAPagar = await tx
       .select({
-        fecha: sql<string>`to_char(${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day', 'YYYY-MM-DD')`,
-        importe: comprobantesCompra.total,
+        id: comprobantesCompra.id,
+        proveedorId: comprobantesCompra.proveedorId,
+        vencimiento: sql<string>`to_char(${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day', 'YYYY-MM-DD')`,
+        total: comprobantesCompra.total,
       })
-      .from(comprobantesCompra);
+      .from(comprobantesCompra)
+      .where(eq(comprobantesCompra.moneda, ARS));
+
+    const creditosProveedor = new Map<string, Money>();
+    for (const p of pagosPorProveedor) {
+      acumular(creditosProveedor, p.contraparte, ars(p.total));
+    }
+
+    const pagosCompras = pendientesPorContraparte(
+      comprasAPagar.map((c) => ({
+        id: c.id,
+        contraparte: c.proveedorId,
+        vencimiento: c.vencimiento,
+        importe: ars(c.total),
+      })),
+      creditosProveedor,
+    );
 
     const pagosImpuestos = filasImpuestos
       .map((i) => {
@@ -297,27 +446,28 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       })
       .filter((p) => p.importe.esPositivo());
 
+    // Un pago vencido e impago sigue siendo plata que hay que poner: va a hoy.
+    // Antes se descartaba por caer antes del horizonte, y la proyección
+    // mostraba pagos en cero con deudas vencidas por millones.
+    const pagos = separarVencidos([...pagosCompras, ...pagosImpuestos], hoy);
+
     const proyeccion: FilaProyeccion[] = proyectarCaja({
       hoy,
       saldoInicial: saldoTesoreria,
-      cobros: [
-        ...cobrosFacturas.map((c) => ({ fecha: c.fecha, importe: ars(c.importe) })),
-        ...chequesEnCartera.map((c) => ({ fecha: c.fechaPago, importe: ars(c.importe) })),
-      ],
-      pagos: [
-        ...pagosCompras.map((p) => ({ fecha: p.fecha, importe: ars(p.importe) })),
-        ...pagosImpuestos,
-      ],
+      cobros: [...facturasACobrar.vigentes, ...cobrosCheques],
+      pagos: [...pagos.vigentes, ...pagos.vencidosAHoy],
       minimoOperativo: parametros.minimoOperativo ? ars(parametros.minimoOperativo) : null,
     });
 
     // --- Serie de ventas por mes, para el gráfico de evolución ---
+    // Neto: el IVA no es venta.
     const ventasPorMes = await tx
       .select({
         mes: sql<string>`to_char(date_trunc('month', ${comprobantesVenta.fechaEmision}), 'YYYY-MM')`,
-        total: sql<string>`coalesce(sum(${totalConSigno()}), 0)`,
+        total: sql<string>`coalesce(sum(${conSigno(comprobantesVenta.neto)}), 0)`,
       })
       .from(comprobantesVenta)
+      .where(ventasQueCuentan())
       .groupBy(sql`date_trunc('month', ${comprobantesVenta.fechaEmision})`)
       .orderBy(sql`date_trunc('month', ${comprobantesVenta.fechaEmision})`);
 
@@ -333,6 +483,8 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         saldoFinal: f.saldoFinal.aStringFiscal(),
         semaforo: f.semaforo,
       })),
+      cobrosVencidos: facturasACobrar.totalVencido.aStringFiscal(),
+      pagosVencidos: pagos.totalVencido.aStringFiscal(),
       saldoPorCuenta,
       ventasPorMes,
       minimoOperativo: parametros.minimoOperativo,

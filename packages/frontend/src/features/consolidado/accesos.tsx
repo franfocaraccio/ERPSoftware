@@ -13,15 +13,8 @@ import { Eye, Plus, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { BotonCopiarLink, LinkInvitacion } from "../../components/link-invitacion.js";
+import { formatearFechaHora } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
-
-function fechaHora(valor: string | Date): string {
-  return new Intl.DateTimeFormat("es-AR", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "America/Argentina/Buenos_Aires",
-  }).format(new Date(valor));
-}
 
 export function Accesos() {
   const trpc = useTRPC();
@@ -159,9 +152,9 @@ export function Accesos() {
                   {acceso.vencido && <Insignia tono="neutro">Vencido</Insignia>}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {acceso.vencido ? "Venció" : "Vence"} {fechaHora(acceso.expira)} ·{" "}
+                  {acceso.vencido ? "Venció" : "Vence"} {formatearFechaHora(acceso.expira)} ·{" "}
                   {acceso.ultimoUso
-                    ? `último uso ${fechaHora(acceso.ultimoUso)}`
+                    ? `último uso ${formatearFechaHora(acceso.ultimoUso)}`
                     : "todavía no lo usaron"}
                 </p>
               </div>

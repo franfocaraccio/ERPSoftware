@@ -24,6 +24,8 @@ const ALICUOTAS: { valor: AlicuotaIva; etiqueta: string }[] = [
 ];
 
 const itemSchema = z.object({
+  // Vacío = línea de texto libre, sin producto del catálogo.
+  productoId: z.string(),
   descripcion: z.string().trim().min(1, "Poné una descripción"),
   cantidad: z
     .string()
@@ -55,6 +57,7 @@ const ventaSchema = z.object({
 type ValoresVenta = z.infer<typeof ventaSchema>;
 
 const ITEM_VACIO = {
+  productoId: "",
   descripcion: "",
   cantidad: "1",
   precioUnitario: "",
@@ -107,6 +110,7 @@ export function FormularioComprobante() {
         condicionVentaDias: Number(value.condicionVentaDias),
         moneda: "ARS",
         items: value.items.map((i) => ({
+          productoId: i.productoId || null,
           descripcion: i.descripcion.trim(),
           cantidad: i.cantidad.trim(),
           precioUnitario: i.precioUnitario.trim(),
@@ -303,13 +307,59 @@ export function FormularioComprobante() {
                       key={indice}
                       className="grid items-end gap-3 rounded-lg border border-border bg-surface-muted/40 p-3 sm:grid-cols-[1fr_5rem_8rem_8rem_auto]"
                     >
+                      {/*
+                        Elegir el producto es lo que lo vincula: el ítem guarda
+                        su id, y de ahí salen el costo para el margen y la
+                        salida de stock. Antes había sólo una lista de
+                        sugerencias para el texto, que dejaba todos los ítems
+                        como texto libre aunque el nombre coincidiera.
+                      */}
+                      <form.Field name={`items[${indice}].productoId`}>
+                        {(field) => (
+                          <div className="sm:col-span-5">
+                            <Campo etiqueta="Producto">
+                              {({ id }) => (
+                                <Selector
+                                  id={id}
+                                  value={field.state.value}
+                                  onChange={(e) => {
+                                    const elegido = productos.data?.items.find(
+                                      (p) => p.id === e.target.value,
+                                    );
+                                    field.handleChange(e.target.value);
+                                    if (elegido) {
+                                      form.setFieldValue(
+                                        `items[${indice}].descripcion`,
+                                        elegido.descripcion,
+                                      );
+                                      if (elegido.precioVenta) {
+                                        form.setFieldValue(
+                                          `items[${indice}].precioUnitario`,
+                                          elegido.precioVenta,
+                                        );
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <option value="">Sin producto (texto libre)</option>
+                                  {productos.data?.items.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.sku} — {p.descripcion}
+                                    </option>
+                                  ))}
+                                </Selector>
+                              )}
+                            </Campo>
+                          </div>
+                        )}
+                      </form.Field>
+
                       <form.Field name={`items[${indice}].descripcion`}>
                         {(field) => (
                           <Campo etiqueta="Descripción" requerido>
                             {({ id }) => (
                               <Entrada
                                 id={id}
-                                list="productos-sugeridos"
                                 value={field.state.value}
                                 onChange={(e) => field.handleChange(e.target.value)}
                                 onBlur={field.handleBlur}
@@ -396,13 +446,6 @@ export function FormularioComprobante() {
                 </div>
               )}
             </form.Field>
-
-            {/* Sugerencias del catálogo, sin obligar a elegir de la lista. */}
-            <datalist id="productos-sugeridos">
-              {productos.data?.items.map((p) => (
-                <option key={p.id} value={p.descripcion} />
-              ))}
-            </datalist>
           </fieldset>
 
           <form.Subscribe selector={(s) => s.values.items}>

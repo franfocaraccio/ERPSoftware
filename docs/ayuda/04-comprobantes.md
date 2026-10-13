@@ -26,13 +26,19 @@ Pantalla en `/comprobantes`. Tiene dos partes: **comprobantes de venta** y
 
 Hace falta **al menos un ítem**. Cada uno lleva:
 
-- Producto (opcional, se puede elegir del stock o escribir la descripción libre)
+- Producto (opcional): se elige de la lista del stock. Al elegirlo se completan
+  solos la descripción y el precio, que se pueden cambiar. Si el ítem no es un
+  producto del stock, se deja en "Sin producto (texto libre)".
 - Descripción (obligatoria)
 - Cantidad (mayor a cero, hasta 3 decimales)
 - Precio unitario
 - Alícuota de IVA: 0, 2.5, 5, 10.5, 21, 27, exento o no gravado
 
 El neto, el IVA y el total los calcula el sistema agrupando por alícuota.
+
+Elegir el producto importa: es lo que permite calcular el **margen bruto** del
+panel. Un ítem de texto libre no tiene costo, así que no entra en el margen ni
+en la rotación de stock.
 
 ## Letra del comprobante
 

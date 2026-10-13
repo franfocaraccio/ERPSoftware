@@ -7,8 +7,9 @@ import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
-import { totalConSigno } from "../_comunes/comprobantes.js";
+import { ESTADOS_QUE_DEBEN, totalConSigno } from "../_comunes/comprobantes.js";
 import { aplicarOrden } from "../_comunes/orden.js";
+import { vencimientoImpagoClientes } from "../_comunes/vencimientos.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ClienteActualizar, ClienteInput, ClientesListar } from "./schema.js";
 
@@ -18,6 +19,7 @@ export type Cliente = typeof clientes.$inferSelect;
 export interface ClienteConSaldo extends Cliente {
   /** Lo que el cliente debe, en pesos. Negativo = tiene saldo a favor. */
   saldo: string;
+  /** Vencimiento de la deuda impaga más vieja. Puede estar en el pasado. */
   proximoVencimiento: string | null;
   /**
    * Tiene comprobantes en otra moneda, que NO entran en `saldo`. Mezclar pesos
@@ -39,15 +41,6 @@ export interface ResumenClientes {
   /** Hay algún cliente con comprobantes fuera de pesos. */
   hayMonedaExtranjera: boolean;
 }
-
-/**
- * Estados de comprobante que son deuda real.
- *
- * Un borrador todavía no se le reclamó a nadie y un rechazado ya no se
- * reclama. Proveedores no necesita este filtro porque las compras no tienen
- * máquina de estados.
- */
-const ESTADOS_QUE_DEBEN = ["enviada", "aprobada"] as const;
 
 interface Actor {
   tenantId: string;
@@ -85,13 +78,14 @@ function filtrosDe(input: FiltrosClientes): SQL | undefined {
  * el saldo vive en `core`.
  *
  * Sobre monedas: la suma de importes se filtra a pesos con un `filter` y no con
- * un `where`, para que el próximo vencimiento siga mirando todos los
- * comprobantes. Una factura en dólares tiene fecha de vencimiento aunque su
- * importe no entre en el saldo en pesos.
+ * un `where`, para poder contar además los comprobantes en otra moneda y
+ * avisar que existen.
  *
  * Sobre notas de crédito: restan en vez de sumar, y el por qué está en
- * `totalConSigno`, que es de donde sale el signo. El `min` del próximo
- * vencimiento las excluye aparte: una nota de crédito no tiene fecha de cobro.
+ * `totalConSigno`, que es de donde sale el signo.
+ *
+ * El vencimiento que muestra la lista no sale de acá: es el de la deuda
+ * impaga más vieja, y se calcula aparte (`vencimientoImpagoClientes`).
  */
 function agregadosDe(tx: TenantTx) {
   const facturado = tx
@@ -103,18 +97,6 @@ function agregadosDe(tx: TenantTx) {
       otraMoneda: sql<number>`count(*) filter (
         where ${comprobantesVenta.moneda} <> 'ARS'
       )`.as("otra_moneda"),
-      /**
-       * El `filter` es lo que hace que esto sea el PRÓXIMO vencimiento: sin él
-       * `min` devuelve el más viejo, que siempre está vencido en cuanto el
-       * cliente tiene alguna factura con historia.
-       */
-      proximo: sql<string | null>`min(
-        ${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day'
-      ) filter (where
-        ${comprobantesVenta.clase} <> 'nota_credito'
-        and ${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day'
-        >= current_date
-      )`.as("proximo_vencimiento"),
     })
     .from(comprobantesVenta)
     .where(inArray(comprobantesVenta.estado, [...ESTADOS_QUE_DEBEN]))
@@ -158,7 +140,6 @@ export async function listarClientes(
         facturado: facturado.total,
         cobrado: cobrado.total,
         otraMoneda: facturado.otraMoneda,
-        proximo: facturado.proximo,
       })
       .from(clientes)
       .leftJoin(facturado, eq(facturado.clienteId, clientes.id))
@@ -181,10 +162,14 @@ export async function listarClientes(
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
+    const vencimientos = await vencimientoImpagoClientes(
+      tx,
+      filas.map((f) => f.cliente.id),
+    );
     const items: ClienteConSaldo[] = filas.map((fila) => ({
       ...fila.cliente,
       saldo: saldoDe(fila.facturado, fila.cobrado).aStringFiscal(),
-      proximoVencimiento: fila.proximo ? String(fila.proximo).slice(0, 10) : null,
+      proximoVencimiento: vencimientos.get(fila.cliente.id) ?? null,
       tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
     }));
 

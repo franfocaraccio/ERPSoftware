@@ -171,39 +171,64 @@ begin
 
   -- --- Movimientos ---------------------------------------------------------
   -- Definen el saldo de tesorería, que es el punto de partida de la
-  -- proyección. Quedan 1.173.000 en pesos entre las dos cuentas: alcanza para
-  -- operar y deja que alguna semana de la proyección se acerque al mínimo, que
-  -- es lo que hace interesante mirar el gráfico.
+  -- proyección.
+  --
+  -- Los cobros y pagos salen de comprobantes concretos, por su total con IVA y
+  -- con la contraparte cargada. Si fueran texto libre ("Cobranza Corralón
+  -- Belgrano"), el saldo del cliente o del proveedor no bajaría nunca: así se
+  -- veía la demo vieja, con Aceros del Plata debiendo todo lo comprado.
   insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado)
   select v_tenant, v_hoy - m.dias_atras,
          (select id from cuentas where tenant_id = v_tenant and nombre = m.cuenta),
          m.tipo::tipo_movimiento, m.medio::medio_pago, m.concepto, m.importe, m.dias_atras > 7
   from (values
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Saldo inicial',                    120, 3800000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Saldo inicial de caja',            120,  450000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Distribuidora del Sur',   112, 1240000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Aceros del Plata',            105, 1850000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                98,  320000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Corralón Belgrano',        91,  890000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           90, 1650000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Pinturas Litoral',             78,  940000.00),
-    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',                     74,   85000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Metalúrgica Pilar',        66, 1560000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           60, 1650000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'IVA período anterior',              56,  680000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                49,  270000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Ferretería MyM',           42, 1120000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Herramientas Global',          38, 1420000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Alquiler del depósito',             35,  520000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Construcciones Aráoz',     29,  760000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                           30, 1650000.00),
-    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',                22,  410000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Distribuidora del Sur',    15, 1380000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Pago Aceros del Plata',             12, 1260000.00),
-    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',                      9,   92000.00),
-    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Cobranza Corralón Belgrano',         5,  980000.00),
-    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Fletes Ruta 9',                      2,  210000.00)
+    ('Banco Nación — cuenta corriente', 'ingreso', 'transferencia', 'Saldo inicial',          180, 9500000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Saldo inicial de caja',  180,  450000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      98,  320000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 90, 1650000.00),
+    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',           74,   85000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 60, 1650000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      49,  270000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Alquiler del depósito',   35,  520000.00),
+    ('Banco Nación — cuenta corriente', 'egreso',  'transferencia', 'Sueldos',                 30, 1650000.00),
+    ('Caja',                            'ingreso', 'efectivo',      'Cobranza mostrador',      22,  410000.00),
+    ('Caja',                            'egreso',  'efectivo',      'Gastos varios',            9,   92000.00)
   ) as m(cuenta, tipo, medio, concepto, dias_atras, importe);
+
+  -- Cobranzas: las facturas que ya vencieron, salvo dos que quedan impagas a
+  -- propósito (una de Obras y Servicios Norte, el cliente en mora, y otra
+  -- reciente) para que haya algo vencido que mirar.
+  insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado, cliente_id)
+  select v_tenant,
+         least(cv.fecha_emision + cv.condicion_venta_dias, v_hoy),
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         'ingreso', 'transferencia',
+         'Cobranza ' || c.razon_social || ' — factura ' || cv.numero,
+         cv.total,
+         cv.fecha_emision + cv.condicion_venta_dias < v_hoy - 7,
+         cv.cliente_id
+  from comprobantes_venta cv
+  join clientes c on c.id = cv.cliente_id
+  where cv.tenant_id = v_tenant
+    and cv.fecha_emision + cv.condicion_venta_dias <= v_hoy
+    and cv.numero not in (8, 11);
+
+  -- Pagos a proveedores: las compras ya vencidas, salvo una de Pinturas
+  -- Litoral que queda impaga y vencida.
+  insert into movimientos (tenant_id, fecha, cuenta_id, tipo, medio_pago, concepto, importe, conciliado, proveedor_id)
+  select v_tenant,
+         cc.fecha_recepcion + cc.condicion_pago_dias,
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         'egreso', 'transferencia',
+         'Pago ' || p.razon_social || ' — ' || cc.numero_completo,
+         cc.total,
+         cc.fecha_recepcion + cc.condicion_pago_dias < v_hoy - 7,
+         cc.proveedor_id
+  from comprobantes_compra cc
+  join proveedores p on p.id = cc.proveedor_id
+  where cc.tenant_id = v_tenant
+    and cc.fecha_recepcion + cc.condicion_pago_dias <= v_hoy
+    and cc.numero_completo <> 'A-0002-00004587';
 
   -- --- Cheques en cartera --------------------------------------------------
   -- Entran a la proyección por su fecha de pago, y alimentan el KPI de
@@ -224,23 +249,31 @@ begin
   ) as ch(numero, librador, banco, emitido, paga_en, importe, estado);
 
   -- --- Impuestos -----------------------------------------------------------
-  -- Los que tienen saldo impago y vencimiento futuro entran a la proyección
-  -- como egresos. El vencido alimenta el KPI de obligaciones vencidas.
+  -- Las bases salen de lo facturado en cada mes (neto), no de números
+  -- inventados: la demo vieja tenía un IVA con base de 8,8 millones en un mes
+  -- que había vendido 1,2. La empresa es Responsable Inscripta, así que no
+  -- lleva monotributo. El IVA queda como base × 21 % mientras el sistema no
+  -- calcule la posición (débito − crédito); es una aproximación de demo.
   insert into impuestos (tenant_id, tipo, periodo, base_imponible, alicuota, importe_pagado, fecha_vencimiento)
-  select v_tenant, i.tipo::tipo_impuesto,
-         date_trunc('month', v_hoy - i.periodo_atras * interval '1 month')::date,
-         i.base, i.alicuota, i.pagado, v_hoy + i.vence_en
-  from (values
-    ('iva',        3, 8200000.00, 21.00, 1722000.00, -68),
-    ('iva',        2, 7400000.00, 21.00, 1554000.00, -38),
-    ('iibb',       2, 7400000.00,  3.50,  259000.00, -34),
-    ('iva',        1, 9100000.00, 21.00,       0.00,  -6),
-    ('iibb',       1, 9100000.00,  3.50,       0.00,   4),
-    ('ganancias',  1, 4600000.00, 35.00,       0.00,  19),
-    ('iva',        0, 8800000.00, 21.00,       0.00,  26),
-    ('iibb',       0, 8800000.00,  3.50,       0.00,  34),
-    ('monotributo',0,  120000.00, 100.00,      0.00,  12)
-  ) as i(tipo, periodo_atras, base, alicuota, pagado, vence_en);
+  select v_tenant, i.tipo::tipo_impuesto, m.periodo,
+         m.neto, i.alicuota,
+         case when m.periodo + interval '1 month' + i.vence_dia * interval '1 day' < v_hoy
+              then round(m.neto * i.alicuota / 100, 2) else 0 end,
+         (m.periodo + interval '1 month' + i.vence_dia * interval '1 day')::date
+  from (
+    select date_trunc('month', fecha_emision)::date as periodo, sum(neto) as neto
+    from comprobantes_venta
+    where tenant_id = v_tenant
+    group by 1
+  ) m
+  cross join (values ('iva', 21.00, 18), ('iibb', 3.50, 15)) as i(tipo, alicuota, vence_dia)
+  where m.periodo >= date_trunc('month', v_hoy - interval '3 months');
+
+  -- Uno impago y vencido a propósito, para el KPI de impuestos vencidos.
+  update impuestos set importe_pagado = 0
+  where tenant_id = v_tenant and tipo = 'iibb'
+    and periodo = (select max(periodo) from impuestos
+                   where tenant_id = v_tenant and tipo = 'iibb' and fecha_vencimiento < v_hoy);
 
   -- --- Parámetros ----------------------------------------------------------
   -- Sin una fila acá, el panel usa los valores por defecto y el mínimo

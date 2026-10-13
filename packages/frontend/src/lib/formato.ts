@@ -101,6 +101,28 @@ export function formatearFecha(iso: string | null): string {
   return anio && mes && dia ? `${dia}/${mes}/${anio}` : iso;
 }
 
+/**
+ * Un instante (con hora) en hora argentina: `12/10/2026 19:22`.
+ *
+ * Mismo orden y año completo que `formatearFecha`, para que una fecha se lea
+ * igual en toda la app. Las tres pantallas que mostraban hora usaban el
+ * formato corto de `Intl` (`12/10/26, 19:22`), que no coincidía con el resto.
+ */
+export function formatearFechaHora(valor: string | Date): string {
+  const partes = new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).formatToParts(new Date(valor));
+  const parte = (tipo: Intl.DateTimeFormatPartTypes) =>
+    partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${parte("day")}/${parte("month")}/${parte("year")} ${parte("hour")}:${parte("minute")}`;
+}
+
 /** 30703088534 → 30-70308853-4 */
 export function formatearCuit(cuit: string | null): string {
   if (cuit?.length !== 11) {

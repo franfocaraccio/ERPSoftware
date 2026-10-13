@@ -214,7 +214,7 @@ describe("proveedores service (integración, RLS activo)", () => {
     expect(soloMono.items[0]?.razonSocial).toBe("Monotributista");
   });
 
-  it("el próximo vencimiento ignora los que ya vencieron", async () => {
+  it("el vencimiento es el de la deuda impaga más vieja, y avanza al pagarla", async () => {
     const tenant = await crearTenantDePrueba();
     const prov = await crearProveedor(tenant, {
       razonSocial: "Con historia",
@@ -248,7 +248,31 @@ describe("proveedores service (integración, RLS activo)", () => {
       pagina: 1,
       tamanoPagina: 20,
     });
-    // El mínimo absoluto sería el de hace 90 días; se espera el futuro.
-    expect(items[0]?.proximoVencimiento).toBe(enDias(20));
+    // La vieja venció hace 90 días y no está pagada: es la que hay que ver.
+    expect(items[0]?.proximoVencimiento).toBe(enDias(-90));
+
+    // Pagada la vieja, pasa a la siguiente.
+    await withTenant(tenant.tenantId, async (tx) => {
+      const [cuenta] = await tx
+        .insert(cuentas)
+        .values({ tenantId: tenant.tenantId, nombre: "Banco", tipo: "cuenta_corriente" })
+        .returning();
+      await tx.insert(movimientos).values({
+        tenantId: tenant.tenantId,
+        fecha: enDias(0),
+        cuentaId: cuenta?.id ?? "",
+        tipo: "egreso",
+        medioPago: "transferencia",
+        importe: "100000.00",
+        proveedorId: prov.id,
+      });
+    });
+    const { items: despues } = await listarProveedores(tenant, {
+      orden: "razonSocial",
+      direccion: "asc",
+      pagina: 1,
+      tamanoPagina: 20,
+    });
+    expect(despues[0]?.proximoVencimiento).toBe(enDias(20));
   });
 });

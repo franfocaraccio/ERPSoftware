@@ -3,6 +3,7 @@ import { pool } from "../../db/client.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { crearCliente } from "../clientes/service.js";
 import { crearProveedor } from "../proveedores/service.js";
+import { crearProducto } from "../stock/service.js";
 import {
   actualizarVenta,
   ComprobanteInmutableError,
@@ -186,6 +187,80 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
     });
     expect(actualizada?.neto).toBe("100000.00");
     expect(actualizada?.total).toBe("121000.00");
+  });
+
+  it("guarda el producto del catálogo en el ítem", async () => {
+    // Es lo que alimenta el costo del margen bruto. La pantalla antes sólo
+    // sugería el texto y todos los ítems quedaban sin producto.
+    const cliente = await crearCliente(tenantA, {
+      razonSocial: "Con producto SA",
+      condicionIva: "responsable_inscripto",
+    });
+    const producto = await crearProducto(tenantA, {
+      sku: "TEST-1",
+      descripcion: "Producto de prueba",
+      costoUnitario: "60",
+      precioVenta: "100",
+      moneda: "ARS",
+      stockActual: "10",
+      stockMinimo: "0",
+    });
+
+    const venta = await crearVenta(tenantA, {
+      clase: "factura",
+      puntoVenta: 1,
+      clienteId: cliente.id,
+      fechaEmision: "2026-08-01",
+      condicionVentaDias: 0,
+      moneda: "ARS",
+      items: [
+        {
+          productoId: producto.id,
+          descripcion: "Producto de prueba",
+          cantidad: "1",
+          precioUnitario: "100",
+          alicuotaIva: "21",
+        },
+      ],
+    });
+
+    const leida = await obtenerVenta(tenantA, venta.id);
+    expect(leida?.items[0]?.productoId).toBe(producto.id);
+  });
+
+  it("rechaza un producto de otra empresa aunque el id exista", async () => {
+    // La clave foránea no alcanza: Postgres la chequea sin RLS.
+    const cliente = await crearCliente(tenantA, {
+      razonSocial: "Ajeno SA",
+      condicionIva: "responsable_inscripto",
+    });
+    const ajeno = await crearProducto(tenantB, {
+      sku: "AJENO-1",
+      descripcion: "De otra empresa",
+      moneda: "ARS",
+      stockActual: "0",
+      stockMinimo: "0",
+    });
+
+    await expect(
+      crearVenta(tenantA, {
+        clase: "factura",
+        puntoVenta: 1,
+        clienteId: cliente.id,
+        fechaEmision: "2026-08-01",
+        condicionVentaDias: 0,
+        moneda: "ARS",
+        items: [
+          {
+            productoId: ajeno.id,
+            descripcion: "x",
+            cantidad: "1",
+            precioUnitario: "1",
+            alicuotaIva: "21",
+          },
+        ],
+      }),
+    ).rejects.toThrow("Producto no encontrado");
   });
 
   it("el aislamiento RLS impide ver comprobantes de otro tenant", async () => {

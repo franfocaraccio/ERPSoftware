@@ -31,10 +31,11 @@ Clic en la razón social del listado → `/proveedores/{id}`.
 - **Plazo**: los días de pago pactados que cargaste.
 - **Saldo a pagar**: lo que le debés, calculado sobre los comprobantes de
   compra registrados.
-- **Próx. vencimiento**: es un dato **calculado**, no se carga a mano. Sale de
-  tomar la fecha de recepción de cada compra registrada a ese proveedor,
-  sumarle el plazo de pago, y quedarse con la fecha más próxima que todavía no
-  pasó. Si el proveedor no tiene compras pendientes, aparece vacío.
+- **Próx. vencimiento**: es un dato **calculado**, no se carga a mano. Es el
+  vencimiento (fecha de recepción más plazo de pago) de la compra impaga **más
+  vieja**. Lo pagado al proveedor se aplica primero a las compras que vencen
+  antes. Si ya pasó, aparece en rojo como "Vencido el …". Si el proveedor no
+  tiene nada pendiente, aparece vacío.
 
 ## Plazo de pago
 

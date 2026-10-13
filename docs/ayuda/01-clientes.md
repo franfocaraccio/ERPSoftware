@@ -48,7 +48,7 @@ El listado muestra tres columnas que no se cargan a mano, se calculan solas:
 | Columna | Qué es |
 |---|---|
 | Saldo | Lo facturado menos lo cobrado. En negativo = el cliente tiene saldo a favor |
-| Próx. vencimiento | La fecha de vencimiento más cercana **en el futuro** de sus comprobantes impagos |
+| Próx. vencimiento | El vencimiento de su deuda impaga **más vieja**. Si ya pasó, aparece en rojo como "Vencido el …" |
 | Concentración | Qué porcentaje del total a cobrar representa ese cliente |
 
 El saldo cuenta solo los comprobantes en estado **Enviada** o **Aprobada**: un
@@ -56,6 +56,10 @@ borrador todavía no se le reclamó a nadie y un rechazado ya no se reclama.
 
 El vencimiento de cada comprobante es su fecha de emisión más los días de la
 condición de venta.
+
+Para saber qué está impago, lo cobrado al cliente (y sus notas de crédito) se
+aplica primero a los comprobantes que vencen antes. Así, si el cliente pagó su
+factura más vieja, el vencimiento pasa a la siguiente.
 
 ## Total a cobrar y concentración
 
