@@ -1,3 +1,4 @@
+export { type AlertasCaja, alertasAnticipadas } from "./alertas.js";
 export {
   type FilaProyeccion,
   HORIZONTE_SEMANAS,

@@ -23,6 +23,7 @@ export type ModuloLink = (typeof MODULOS_LINK)[number];
  */
 const POR_ROUTER: Record<string, ModuloLink | "siempre"> = {
   financiero: "panel",
+  explicacion: "panel",
   cotizaciones: "panel",
   clientes: "clientes",
   proveedores: "proveedores",

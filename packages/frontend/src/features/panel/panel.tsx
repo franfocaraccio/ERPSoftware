@@ -9,6 +9,7 @@ import { useTRPC } from "../../lib/trpc.js";
 import { DolarOficial } from "./dolar.js";
 import type { FilaProyeccion } from "./graficos.js";
 import { EsqueletoKpis, type Kpi, TarjetaKpi } from "./kpis.js";
+import { AlertasCaja, LecturaDelMes } from "./lectura.js";
 
 // Recharts pesa cerca de la mitad del bundle y solo se usa acá: se carga
 // aparte, así el resto de los módulos no lo arrastran.
@@ -166,6 +167,8 @@ export function Panel() {
         </Tarjeta>
       ) : (
         <div className="space-y-4">
+          <AlertasCaja alertas={data.alertas} />
+          <LecturaDelMes />
           <section aria-label="Indicadores">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {(data.kpis as Kpi[]).map((kpi) => (

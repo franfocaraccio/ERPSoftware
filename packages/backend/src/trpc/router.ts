@@ -5,6 +5,7 @@ import { consolidadoRouter } from "../modules/consolidado/router.js";
 import { cotizacionesRouter } from "../modules/cotizaciones/router.js";
 import { cuentaCorrienteRouter } from "../modules/cuenta-corriente/router.js";
 import { equipoRouter } from "../modules/equipo/router.js";
+import { explicacionRouter } from "../modules/explicacion/router.js";
 import { financieroRouter } from "../modules/financiero/router.js";
 import { impuestosRouter } from "../modules/impuestos/router.js";
 import { invitacionesRouter } from "../modules/invitaciones/router.js";
@@ -24,6 +25,7 @@ export const appRouter = router({
   cotizaciones: cotizacionesRouter,
   cuentaCorriente: cuentaCorrienteRouter,
   equipo: equipoRouter,
+  explicacion: explicacionRouter,
   financiero: financieroRouter,
   impuestos: impuestosRouter,
   invitaciones: invitacionesRouter,

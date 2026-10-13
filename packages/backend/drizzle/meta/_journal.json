@@ -127,6 +127,13 @@
       "when": 1791930000000,
       "tag": "0017_alcance_accesos",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791940000000,
+      "tag": "0018_movimientos_stock",
+      "breakpoints": true
     }
   ]
 }

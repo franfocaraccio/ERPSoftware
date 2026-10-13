@@ -42,6 +42,11 @@ const compraSchema = z.object({
     .refine((v) => /^\d+$/.test(v) && Number(v) <= 365, "Días entre 0 y 365"),
   concepto: z.string().trim(),
   categoriaId: z.string(),
+  // Lo que trajo la compra de mercadería: suma stock y pondera el costo. Las
+  // filas vacías se ignoran al guardar.
+  items: z.array(
+    z.object({ productoId: z.string(), cantidad: z.string(), costoUnitario: z.string() }),
+  ),
   neto: importe("Usá punto decimal, máximo 2 decimales"),
   iva: importe("Usá punto decimal, máximo 2 decimales"),
   total: importe("Usá punto decimal, máximo 2 decimales"),
@@ -57,6 +62,9 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
     trpc.proveedores.listar.queryOptions({ pagina: 1, tamanoPagina: 100 }),
   );
   const categorias = useQuery(trpc.resultados.categorias.listar.queryOptions());
+  const productos = useQuery(
+    trpc.stock.listar.queryOptions({ soloReponer: false, pagina: 1, tamanoPagina: 100 }),
+  );
 
   const form = useForm({
     defaultValues: {
@@ -67,6 +75,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
       condicionPagoDias: "30",
       concepto: "",
       categoriaId: "",
+      items: [],
       neto: "",
       iva: "",
       total: "",
@@ -81,14 +90,28 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
         condicionPagoDias: Number(value.condicionPagoDias),
         concepto: opcional(value.concepto),
         categoriaId: value.categoriaId || null,
+        // Sólo la mercadería trae productos; un servicio no mueve stock.
+        items: value.categoriaId
+          ? []
+          : value.items
+              .filter((i) => i.productoId && i.cantidad.trim() && i.costoUnitario.trim())
+              .map((i) => ({
+                productoId: i.productoId,
+                descripcion:
+                  productos.data?.items.find((p) => p.id === i.productoId)?.descripcion ?? "",
+                cantidad: i.cantidad.trim(),
+                costoUnitario: i.costoUnitario.trim(),
+              })),
         moneda: "ARS",
         neto: value.neto.trim(),
         iva: value.iva.trim(),
         total: value.total.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: trpc.comprobantes.pathKey() });
-      // El saldo a pagar del proveedor depende de esta compra.
+      // El saldo a pagar del proveedor depende de esta compra, y el stock y el
+      // costo de los productos que trajo.
       await queryClient.invalidateQueries({ queryKey: trpc.proveedores.pathKey() });
+      await queryClient.invalidateQueries({ queryKey: trpc.stock.pathKey() });
       onListo();
     },
   });
@@ -290,6 +313,102 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
             </form.Field>
           ))}
         </div>
+
+        <form.Subscribe selector={(st) => st.values.categoriaId}>
+          {(categoriaId) =>
+            categoriaId ? null : (
+              <form.Field name="items" mode="array">
+                {(campoItems) => (
+                  <fieldset className="space-y-2 rounded-lg border border-border p-3">
+                    <legend className="px-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                      Productos (opcional)
+                    </legend>
+                    <p className="text-xs text-muted-foreground">
+                      Si cargás qué trajo, suma al stock y actualiza el costo de cada producto
+                      (promedio ponderado). El costo va sin IVA. Después no se edita: se corrige con
+                      un ajuste de stock.
+                    </p>
+                    {campoItems.state.value.map((_, i) => (
+                      <div
+                        // biome-ignore lint/suspicious/noArrayIndexKey: el índice es la fila
+                        key={i}
+                        className="grid gap-2 sm:grid-cols-[1fr_7rem_9rem_auto] sm:items-end"
+                      >
+                        <form.Field name={`items[${i}].productoId`}>
+                          {(f) => (
+                            <Campo etiqueta="Producto">
+                              {({ id }) => (
+                                <Selector
+                                  id={id}
+                                  value={f.state.value}
+                                  onChange={(e) => f.handleChange(e.target.value)}
+                                >
+                                  <option value="">Elegí un producto</option>
+                                  {productos.data?.items.map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.sku} — {p.descripcion}
+                                    </option>
+                                  ))}
+                                </Selector>
+                              )}
+                            </Campo>
+                          )}
+                        </form.Field>
+                        <form.Field name={`items[${i}].cantidad`}>
+                          {(f) => (
+                            <Campo etiqueta="Cantidad">
+                              {({ id }) => (
+                                <Entrada
+                                  id={id}
+                                  inputMode="decimal"
+                                  className="tabular"
+                                  value={f.state.value}
+                                  onChange={(e) => f.handleChange(e.target.value)}
+                                />
+                              )}
+                            </Campo>
+                          )}
+                        </form.Field>
+                        <form.Field name={`items[${i}].costoUnitario`}>
+                          {(f) => (
+                            <Campo etiqueta="Costo unit. (neto)">
+                              {({ id }) => (
+                                <Entrada
+                                  id={id}
+                                  inputMode="decimal"
+                                  placeholder="0.00"
+                                  className="tabular"
+                                  value={f.state.value}
+                                  onChange={(e) => f.handleChange(e.target.value)}
+                                />
+                              )}
+                            </Campo>
+                          )}
+                        </form.Field>
+                        <Boton
+                          variante="fantasma"
+                          tamano="sm"
+                          onClick={() => campoItems.removeValue(i)}
+                        >
+                          Quitar
+                        </Boton>
+                      </div>
+                    ))}
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() =>
+                        campoItems.pushValue({ productoId: "", cantidad: "", costoUnitario: "" })
+                      }
+                    >
+                      Agregar producto
+                    </Boton>
+                  </fieldset>
+                )}
+              </form.Field>
+            )
+          }
+        </form.Subscribe>
 
         {crear.isError && (
           <p role="alert" className="text-sm text-danger">

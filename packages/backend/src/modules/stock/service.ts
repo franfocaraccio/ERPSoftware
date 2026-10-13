@@ -7,6 +7,7 @@ import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
+import { registrarMovimientoStock } from "./movimientos.js";
 import type { ProductoActualizar, ProductoInput, ProductosListar } from "./schema.js";
 
 export type Producto = typeof productos.$inferSelect;
@@ -129,10 +130,25 @@ export async function crearProducto(actor: Actor, input: ProductoInput): Promise
       [input.proveedorPrincipalId],
       "Proveedor no encontrado",
     );
-    const [creado] = await tx
+    // Nace en cero: el stock con el que arranca entra como un movimiento
+    // inicial, para que la historia del producto cierre con su stock.
+    const [nuevo] = await tx
       .insert(productos)
-      .values({ tenantId: actor.tenantId, ...aColumnas(input) })
+      .values({ tenantId: actor.tenantId, ...aColumnas(input), stockActual: "0" })
       .returning();
+    if (!nuevo) {
+      throw new Error("No se pudo crear el producto");
+    }
+    if (!/^0+(\.0+)?$/.test(input.stockActual)) {
+      await registrarMovimientoStock(tx, actor, {
+        productoId: nuevo.id,
+        tipo: "inicial",
+        cantidad: input.stockActual,
+        costoUnitario: input.costoUnitario ?? null,
+        motivo: "Stock inicial al dar de alta el producto",
+      });
+    }
+    const [creado] = await tx.select().from(productos).where(eq(productos.id, nuevo.id));
     if (!creado) {
       throw new Error("No se pudo crear el producto");
     }
@@ -162,9 +178,12 @@ export async function actualizarProducto(
       [datos.proveedorPrincipalId],
       "Proveedor no encontrado",
     );
+    // El stock no se edita: se mueve con ventas, compras y ajustes. Lo que
+    // venga en `stockActual` se ignora.
+    const { stockActual: _ignorado, ...columnas } = aColumnas(datos);
     const [despues] = await tx
       .update(productos)
-      .set(aColumnas(datos))
+      .set(columnas)
       .where(eq(productos.id, id))
       .returning();
     if (!despues) {

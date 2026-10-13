@@ -1,3 +1,4 @@
+export { type Variacion, variacion } from "./comparar.js";
 export {
   estadoResultados,
   type FilaRentabilidad,

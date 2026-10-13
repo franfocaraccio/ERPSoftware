@@ -11,7 +11,7 @@ import {
 import { and, asc, count, eq } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
-import { comprobantesCompra } from "../../db/schema/compras.js";
+import { comprobantesCompra, itemsComprobanteCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { categorias } from "../../db/schema/resultados.js";
@@ -21,6 +21,7 @@ import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
 import { type SaldosCuentaCorriente, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
+import { registrarMovimientoStock } from "../stock/movimientos.js";
 import type {
   CompraActualizar,
   CompraInput,
@@ -346,6 +347,28 @@ export async function transicionarVenta(
       return null;
     }
 
+    // Al confirmarse, la factura descuenta lo vendido y la nota de crédito
+    // devuelve lo devuelto. Una nota de débito no mueve mercadería.
+    if (resultado.siguiente === "aprobada" && despues.clase !== "nota_debito") {
+      const items = await tx
+        .select()
+        .from(itemsComprobanteVenta)
+        .where(eq(itemsComprobanteVenta.comprobanteId, id));
+      for (const item of items) {
+        if (!item.productoId) {
+          continue;
+        }
+        const esDevolucion = despues.clase === "nota_credito";
+        await registrarMovimientoStock(tx, actor, {
+          productoId: item.productoId,
+          tipo: esDevolucion ? "devolucion" : "venta",
+          cantidad: esDevolucion ? item.cantidad : `-${item.cantidad}`,
+          fecha: despues.fechaEmision,
+          comprobanteVentaId: id,
+        });
+      }
+    }
+
     await auditar(tx, actor, {
       tabla: "comprobantes_venta",
       registroId: id,
@@ -459,12 +482,44 @@ export async function crearCompra(actor: Actor, input: CompraInput): Promise<Com
       [input.categoriaId],
       "Categoría no encontrada",
     );
+    const items = input.items ?? [];
+    await exigirPropios(
+      tx,
+      productos,
+      productos.id,
+      items.map((i) => i.productoId),
+      "Producto no encontrado",
+    );
     const [creada] = await tx
       .insert(comprobantesCompra)
       .values({ tenantId: actor.tenantId, ...aColumnasCompra(input) })
       .returning();
     if (!creada) {
       throw new Error("No se pudo registrar la compra");
+    }
+    if (items.length > 0) {
+      await tx.insert(itemsComprobanteCompra).values(
+        items.map((item, orden) => ({
+          tenantId: actor.tenantId,
+          comprobanteId: creada.id,
+          productoId: item.productoId,
+          descripcion: item.descripcion,
+          cantidad: item.cantidad,
+          costoUnitario: item.costoUnitario,
+          orden,
+        })),
+      );
+      // Entra al stock y pondera el costo, producto por producto.
+      for (const item of items) {
+        await registrarMovimientoStock(tx, actor, {
+          productoId: item.productoId,
+          tipo: "compra",
+          cantidad: item.cantidad,
+          costoUnitario: item.costoUnitario,
+          fecha: input.fechaRecepcion,
+          comprobanteCompraId: creada.id,
+        });
+      }
     }
     await auditar(tx, actor, {
       tabla: "comprobantes_compra",

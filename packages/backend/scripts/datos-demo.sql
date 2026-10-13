@@ -82,6 +82,13 @@ begin
     ('HE-032', 'Set de mechas HSS 19 piezas',     'Herramientas', 15600.00,  24900.00,  64, 20,  'Herramientas Global SA')
   ) as p(sku, descripcion, categoria, costo, precio, stock, minimo, proveedor);
 
+  -- El stock con el que arranca cada producto, como movimiento inicial: el
+  -- stock se mueve con movimientos y la historia tiene que cerrar.
+  insert into movimientos_stock (tenant_id, producto_id, fecha, tipo, cantidad, costo_unitario, motivo)
+  select v_tenant, id, v_hoy - 180, 'inicial', stock_actual, costo_unitario, 'Stock inicial de la demo'
+  from productos
+  where tenant_id = v_tenant and stock_actual <> 0;
+
   -- --- Comprobantes de venta ----------------------------------------------
   -- Las viejas alimentan el gráfico de evolución mensual. Las recientes, con
   -- su condición de venta, caen dentro de las trece semanas de la proyección:
@@ -392,6 +399,7 @@ $$;
 --     delete from retenciones_iibb        where tenant_id = v_tenant;
 --     delete from gastos_recurrentes      where tenant_id = v_tenant;
 --     delete from imputaciones            where tenant_id = v_tenant;
+--     delete from movimientos_stock       where tenant_id = v_tenant;
 --     delete from productos               where tenant_id = v_tenant;
 --     delete from proveedores             where tenant_id = v_tenant;
 --     delete from clientes                where tenant_id = v_tenant;

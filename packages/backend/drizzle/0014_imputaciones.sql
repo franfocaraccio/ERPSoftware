@@ -58,4 +58,17 @@ $$;
 
 -- La mora deja de marcarse a mano: se calcula con el umbral de Parámetros. El
 -- valor 'en_mora' queda en el enum para no tocar el tipo, pero nada lo escribe.
-UPDATE "clientes" SET "estado" = 'activo' WHERE "estado" = 'en_mora';
+--
+-- Empresa por empresa, declarando el tenant: `clientes` tiene FORCE ROW LEVEL
+-- SECURITY, y un rol que no sea superusuario (el de Supabase) no ve ninguna
+-- fila sin `app.tenant_id`. Un UPDATE directo no fallaría: no tocaría nada.
+DO $$
+DECLARE
+  v_tenant text;
+BEGIN
+  FOR v_tenant IN SELECT id FROM organization LOOP
+    PERFORM set_config('app.tenant_id', v_tenant, true);
+    UPDATE "clientes" SET "estado" = 'activo' WHERE "estado" = 'en_mora';
+  END LOOP;
+END
+$$;

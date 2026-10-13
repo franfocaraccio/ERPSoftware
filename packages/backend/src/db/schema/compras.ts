@@ -1,7 +1,9 @@
-import { date, index, integer, numeric, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, date, index, integer, numeric, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { columnasBase, monedaEnum } from "./_comunes.js";
 import { letraComprobanteEnum } from "./facturacion.js";
 import { proveedores } from "./proveedores.js";
+import { productos } from "./stock.js";
 
 // Comprobantes recibidos de proveedores. Tabla propia, separada de comprobantes_venta:
 // una compra es un documento recibido (sin ciclo de emisión ARCA ni CAE propio).
@@ -34,5 +36,33 @@ export const comprobantesCompra = pgTable(
     index("comprobantes_compra_tenant_idx").on(t.tenantId),
     index("comprobantes_compra_tenant_proveedor_idx").on(t.tenantId, t.proveedorId),
     index("comprobantes_compra_tenant_recepcion_idx").on(t.tenantId, t.fechaRecepcion),
+  ],
+);
+
+/**
+ * Lo que trajo una compra de mercadería, producto por producto. Es lo que
+ * suma stock y recalcula el costo promedio ponderado. Una compra de servicios
+ * (con categoría de gasto) no tiene ítems.
+ */
+export const itemsComprobanteCompra = pgTable(
+  "items_comprobante_compra",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: text("tenant_id").notNull(),
+    comprobanteId: uuid("comprobante_id")
+      .references(() => comprobantesCompra.id, { onDelete: "cascade" })
+      .notNull(),
+    productoId: uuid("producto_id")
+      .references(() => productos.id)
+      .notNull(),
+    descripcion: text("descripcion").notNull(),
+    cantidad: numeric("cantidad", { precision: 14, scale: 3 }).notNull(),
+    /** Neto, sin IVA: es lo que cuesta el producto. */
+    costoUnitario: numeric("costo_unitario", { precision: 14, scale: 2 }).notNull(),
+    orden: integer("orden").default(0).notNull(),
+  },
+  (t) => [
+    index("items_compra_tenant_comprobante_idx").on(t.tenantId, t.comprobanteId),
+    check("items_compra_cantidad_check", sql`${t.cantidad} > 0`),
   ],
 );

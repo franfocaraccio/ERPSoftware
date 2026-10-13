@@ -46,6 +46,26 @@ Dos consecuencias que conviene conocer:
 - En la proyección, una nota de crédito descuenta lo que queda por cobrar de
   las facturas de ese cliente, empezando por la que vence antes.
 
+## Alertas de caja
+
+Si la proyección muestra que en alguna semana el saldo queda **bajo el mínimo
+operativo** o **en negativo**, el panel lo avisa arriba de todo, con la semana.
+Es la misma cuenta de la proyección: no usa inteligencia artificial.
+
+## Lectura del mes
+
+La tarjeta **Lectura del mes** tiene un botón **Explicar**: escribe en pocas
+oraciones qué pasó en el último mes cerrado contra el anterior (ventas, margen,
+gastos, resultado y alertas de caja) y la causa más probable, si surge de los
+datos.
+
+- Los números los calcula el sistema; la inteligencia artificial sólo redacta.
+  Debajo del texto, **Los números que usó** muestra exactamente qué recibió.
+- Puede equivocarse al redactar: si algo no coincide, mandan los números.
+- Se genera una vez por día por empresa y hay un tope diario.
+- Si el sistema no tiene la inteligencia artificial configurada, la tarjeta no
+  aparece.
+
 ## Indicadores
 
 Cada tarjeta tiene un semáforo de tres estados: **ok**, **alerta** y **sin

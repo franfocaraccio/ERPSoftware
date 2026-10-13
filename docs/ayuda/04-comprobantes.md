@@ -65,11 +65,8 @@ borrador  --emitir-->  enviada  --confirmar-->  confirmada
 - **Enviada**: ya salió, esperando respuesta.
 - **Confirmada**: estado final. **No se puede editar ni anular.** Una vez
   confirmado, un comprobante se corrige únicamente emitiendo una nota de
-  crédito o de débito.
-
-"Confirmada" no quiere decir que ARCA lo haya autorizado: el sistema todavía no
-emite factura electrónica, así que ningún comprobante tiene CAE. Cuando exista
-la emisión, el estado final va a ser el autorizado por ARCA.
+  crédito o de débito. Al confirmarse, una factura descuenta del stock lo
+  vendido y una nota de crédito lo devuelve.
 - **Rechazada**: se puede volver a borrador con la acción "Corregir".
 
 Los botones de acción que aparecen en la pantalla dependen del estado: si no
@@ -93,6 +90,11 @@ resultados:
   como costo cuando se vende el producto.
 - **Una categoría de gasto** (fletes, honorarios, servicios): es gasto del mes
   de recepción, por su neto.
+
+Una compra de mercadería puede llevar sus **productos** (opcional): producto,
+cantidad y costo unitario sin IVA. Al guardarla suma al stock y recalcula el
+costo de cada producto por promedio ponderado (ver `/stock`). Los productos de
+una compra no se editan después: se corrige con un ajuste de stock.
 
 ## Estado de cobro
 

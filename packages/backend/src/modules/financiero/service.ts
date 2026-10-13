@@ -1,4 +1,5 @@
 import {
+  alertasAnticipadas,
   type FilaProyeccion,
   proyectarCaja,
   semanasDelHorizonte,
@@ -92,6 +93,14 @@ export interface ResumenFinanciero {
   /** Ventas netas (sin IVA) por mes. */
   ventasPorMes: { mes: string; total: string }[];
   minimoOperativo: string | null;
+  /**
+   * Lo que hay que saber antes de que pase: en qué semana la caja proyectada
+   * queda bajo el mínimo o en negativo. Aritmética, sin IA.
+   */
+  alertas: {
+    primeraBajoMinimo: { semana: number; inicio: string; saldoFinal: string } | null;
+    primeraNegativa: { semana: number; inicio: string; saldoFinal: string } | null;
+  };
 }
 
 function diasAtras(hoy: string, dias: number): string {
@@ -507,6 +516,12 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       pagos: [...pagos.vigentes, ...pagos.vencidosAHoy, ...recurrentes],
       minimoOperativo: parametros.minimoOperativo ? ars(parametros.minimoOperativo) : null,
     });
+    const alertas = alertasAnticipadas(
+      proyeccion,
+      parametros.minimoOperativo ? ars(parametros.minimoOperativo) : null,
+    );
+    const resumirSemana = (f: FilaProyeccion | null) =>
+      f ? { semana: f.semana, inicio: f.inicio, saldoFinal: f.saldoFinal.aStringFiscal() } : null;
 
     // --- Serie de ventas por mes, para el gráfico de evolución ---
     // Neto: el IVA no es venta.
@@ -547,6 +562,10 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       },
       ventasPorMes,
       minimoOperativo: parametros.minimoOperativo,
+      alertas: {
+        primeraBajoMinimo: resumirSemana(alertas.primeraBajoMinimo),
+        primeraNegativa: resumirSemana(alertas.primeraNegativa),
+      },
     };
   });
 }

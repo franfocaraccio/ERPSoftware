@@ -15,10 +15,10 @@ Listado en `/stock`.
 | SKU | Sí | Código interno, hasta 50 caracteres |
 | Descripción | Sí | Hasta 300 caracteres |
 | Categoría | No | Texto libre |
-| Costo unitario | No | Carga manual |
+| Costo unitario | No | Se carga al crear; después lo recalcula cada compra (ver abajo) |
 | Precio de venta | No | |
 | Moneda | Sí | ARS o USD. Default ARS |
-| Stock actual | Sí | Default 0. Hasta 3 decimales |
+| Stock inicial | Sí | Con cuánto arranca. Default 0. Hasta 3 decimales |
 | Stock mínimo | Sí | Default 0. Umbral de reposición |
 | Proveedor principal | No | Se elige de la lista de proveedores |
 
@@ -26,14 +26,34 @@ Listado en `/stock`.
 
 Clic en la descripción del listado → `/stock/{id}`.
 
-## El stock se edita a mano
+## El stock se mueve solo
 
-No hay tabla de movimientos de stock: **el stock actual es un número que se
-edita directamente** en la ficha del producto. Cargar un comprobante de venta
-no descuenta stock automáticamente.
+El stock **no se edita a mano**: cambia con cada movimiento, y en la ficha del
+producto (`/stock/{id}`) está la lista de **Movimientos de stock**:
 
-Lo mismo con el costo unitario: es carga manual, no se calcula por última
-compra ni por promedio ponderado.
+| Movimiento | Cuándo |
+|---|---|
+| Stock inicial | Al crear el producto, con lo que se cargó |
+| Venta | Cuando una factura pasa a **Confirmada**: descuenta lo vendido |
+| Devolución | Cuando una nota de crédito pasa a **Confirmada**: vuelve a entrar |
+| Compra | Al cargar una compra de mercadería **con sus productos** |
+| Ajuste | A mano, con un motivo (un conteo, una rotura) |
+
+Una factura en borrador o enviada todavía no mueve stock. Un ítem de texto libre
+(sin producto) tampoco.
+
+Para corregir el stock se carga un **ajuste** desde la ficha: la cantidad, en
+negativo para restar, y el motivo. Queda en el historial.
+
+## El costo es promedio ponderado
+
+Cada compra con productos recalcula el costo unitario:
+
+(stock que había × costo que había + cantidad comprada × costo de compra) ÷
+(stock total)
+
+Si no había stock, el costo pasa a ser el de la compra. El costo de compra va
+**sin IVA**. Cada venta guarda el costo que tenía el producto en ese momento.
 
 ## Filtros
 
