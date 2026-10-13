@@ -706,7 +706,7 @@ producción y lo que quedó afuera:
 - **Simplificaciones asumidas**: el saldo a favor de IIBB se arrastra igual
   que el de IVA; Ganancias no entra en el resultado neto. (El costo de ventas
   ya no usa el costo actual: desde el 13/10/2026 lee el costo histórico de los
-  movimientos de venta.) El IVA calculado necesita **validación de un contador**.
+  movimientos de venta.)
 - **Revalidación del 13/10/2026** contra el análisis original: faltaba la
   **sugerencia de compra con costo de reposición** para lo marcado "Reponer",
   que no había entrado en ninguna etapa. Se agregó en Stock (regla en
@@ -767,7 +767,9 @@ producción y lo que quedó afuera:
   restan del IIBB del período. IVA y Ganancias quedan afuera por decisión.
 - **Ganancias como 10 anticipos más el saldo anual de la DDJJ.** Los importes
   los carga la persona; la app no estima el impuesto.
-- Validar el modelo con un contador antes de darlo por cerrado.
+
+Validar el criterio impositivo con un contador es decisión de Jesi, no una
+tarea de desarrollo: no vuelve a esta lista.
 
 ### Tarea 8 — Etapa 4: estado de resultados
 

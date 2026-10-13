@@ -85,11 +85,11 @@ dólar oficial con compra y venta en el panel.
 
 ## Lo que salió del análisis del 30 de septiembre
 
-- **Las seis etapas están hechas** (13 de octubre de 2026), en un solo PR.
-  Falta: aplicar las migraciones 0014–0018 en Supabase, recargar la demo, que
-  un contador valide el IVA calculado, y lo que quedó afuera por decisión
-  (comparativos, presupuesto, proyección a 12 meses). Ver
-  `docs/handoff/tareas.md`, "Tareas 5 a 10".
+- **Las seis etapas están hechas** (13 de octubre de 2026), y las migraciones y
+  la demo ya se aplicaron en Supabase. Queda sólo lo que se dejó afuera por
+  decisión: comparativos contra el mes y el año anterior, presupuesto anual y
+  proyección de resultados a 12 meses. Ver `docs/handoff/tareas.md`,
+  "Tareas 5 a 10".
 
 ## Postergado
 
