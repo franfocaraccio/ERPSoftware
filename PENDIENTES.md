@@ -54,8 +54,9 @@ dólar oficial con compra y venta en el panel.
 
 - **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR.
   **Fran lo habilitó el 12 de octubre de 2026**: se hace. Listo para trabajar en
-  `docs/handoff/tareas.md`, tareas 2, 3 y 4 —en ese orden, porque las dos de OCR
-  dependen de una previa de adjuntos.
+  `docs/handoff/tareas.md`, tareas 3 y 4. La aplicación **no guarda** los archivos
+  (se leen y se descartan), así que no hay una tarea previa de adjuntos: la
+  tarea 2 se descartó el 12 de octubre de 2026.
 
 ## Dos cosas sueltas del panel financiero
 
