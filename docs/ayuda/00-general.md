@@ -56,3 +56,22 @@ Las fechas se eligen con el selector de fecha de cada formulario.
 El sistema maneja ARS y USD. Cada cuenta de tesorería tiene su moneda y los
 movimientos heredan la moneda de la cuenta. Los cheques y los impuestos son
 siempre en pesos.
+
+## Asistente
+
+El botón redondo de abajo a la derecha abre el asistente. Responde dos tipos de
+preguntas:
+
+- **Cómo usar el sistema**: dónde está cada cosa y qué pasos seguir.
+- **Los números de la empresa**: "¿quién me debe más?", "¿cuánto le vendí a
+  Corralón Belgrano este año?", "¿qué vence esta semana?", "¿cómo me fue el mes
+  pasado?".
+
+Ve lo mismo que el usuario ve en pantalla: un link de solo lectura limitado a
+algunos módulos no puede consultar los otros por el chat. **No modifica nada**:
+si se le pide cargar o corregir algo, explica cómo hacerlo. Los totales y
+porcentajes los calcula el sistema; el asistente no hace cuentas, y si una
+respuesta necesita una que el sistema no trae hecha, lo dice y manda a la
+pantalla.
+
+Tiene un tope de consultas por día por empresa.

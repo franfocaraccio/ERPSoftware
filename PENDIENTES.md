@@ -138,11 +138,14 @@ responde sobre el manual, se niega a inventar datos de la empresa y deriva al
 contador cuando le piden criterio impositivo. El cache pega: 4864 de 5260 tokens
 de entrada se leen cacheados a partir del segundo mensaje.
 
-- **Fase B — responder sobre los datos del usuario.** El diseño está decidido:
-  herramientas de solo lectura sobre los services que ya existen, ejecutadas con
-  el `Actor` que arma el servidor, nunca SQL generado por el modelo y nunca
-  aritmética hecha por el modelo (los totales los devuelve `@erp/core`). No se
-  fijan preguntas posibles: el modelo razona y elige la herramienta.
+- **La Fase B está hecha** (13 de octubre de 2026): el asistente responde
+  sobre los datos con herramientas de solo lectura (`modules/asistente/herramientas.ts`).
+  Cada herramienta llama a un procedure de tRPC con la sesión de quien
+  pregunta, así hereda tenant, módulos del link y permiso de panel. Nunca SQL
+  del modelo ni aritmética del modelo. **No se probó contra la API real**: los
+  tests cubren el acceso, no la calidad de las respuestas. Si el modelo mini
+  elige mal la herramienta en preguntas de varios saltos, subirlo con
+  `ASISTENTE_MODELO`.
 - **El tope diario vive en memoria** (`modules/asistente/limite.ts`): se
   reinicia en cada deploy y no se comparte entre instancias. Alcanza con un solo
   contenedor; si el backend escala, hay que moverlo a Postgres.

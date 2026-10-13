@@ -1,8 +1,10 @@
 import { openai } from "@ai-sdk/openai";
-import { pipeUIMessageStreamToResponse, streamText, toUIMessageStream } from "ai";
+import { hoyEnArgentina } from "@erp/core/dates";
+import { isStepCount, pipeUIMessageStreamToResponse, streamText, toUIMessageStream } from "ai";
 import { fromNodeHeaders } from "better-auth/node";
 import express, { type Request, type Response } from "express";
 import { resolverSesion } from "../../trpc/context.js";
+import { herramientasDeDatos } from "./herramientas.js";
 import { consumirCupo } from "./limite.js";
 import { cargarManual } from "./manual.js";
 import { bloqueDelUsuario, bloqueInvariante } from "./prompt.js";
@@ -25,12 +27,19 @@ async function registrar(tarea: () => Promise<void>): Promise<void> {
 }
 
 /**
- * Un modelo mini alcanza de sobra para responder sobre un manual que ya está en
- * el prompt: no hay razonamiento que hacer, hay que leer y resumir. Cuando en la
- * Fase B haya herramientas y preguntas de varios saltos, conviene medir si hace
- * falta subir de gama.
+ * Un modelo mini alcanza para leer el manual y para elegir una herramienta y
+ * contar lo que devolvió. Si las preguntas de varios saltos ("¿cuánto me debe
+ * el cliente que más compró?") salen mal, se sube de gama con
+ * ASISTENTE_MODELO sin tocar código.
  */
 const MODELO = process.env.ASISTENTE_MODELO ?? "gpt-5.4-mini";
+
+/**
+ * Cuántas vueltas modelo → herramienta → modelo puede dar una respuesta. Con
+ * seis alcanza para buscar un cliente, abrir su ficha y contestar, con margen;
+ * más que eso suele ser el modelo dando vueltas, y cada vuelta se paga.
+ */
+const PASOS_MAXIMOS = 6;
 
 /**
  * Etiqueta de ruteo del cache de OpenAI.
@@ -132,12 +141,17 @@ async function manejarChat(req: Request, res: Response): Promise<void> {
           nombre: sesion.nombre,
           rol: sesion.rolOrganizacion,
           esAccesoPorLink: sesion.esAccesoPorLink,
+          hoy: hoyEnArgentina(),
         }),
       },
     ],
     providerOptions: { openai: { promptCacheKey: claveDeCache } },
     messages: mensajes,
-    async onFinish({ usage, text }) {
+    // Las herramientas leen con la misma sesión que la pantalla: mismo tenant,
+    // mismos módulos del link, mismo permiso de panel.
+    tools: herramientasDeDatos({ session: sesion, headers: fromNodeHeaders(req.headers) }),
+    stopWhen: isStepCount(PASOS_MAXIMOS),
+    async onFinish({ totalUsage: usage, text }) {
       // Sin esto no hay forma de saber qué cuesta el asistente ni si el cache
       // está funcionando de verdad.
       console.log(
