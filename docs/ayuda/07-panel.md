@@ -86,7 +86,9 @@ Indicadores disponibles:
 - **Liquidez corriente**
 - **DSO** (días promedio de cobro)
 - **DPO** (días promedio de pago)
-- **Días de rotación de stock**
+- **Días de rotación de stock**: cuántos días tarda en venderse el stock que
+  hay hoy. Compara el stock valuado al costo con el costo de lo vendido en los
+  últimos 30 días, así se pueden sumar productos distintos.
 - **Ciclo de conversión de efectivo**
 - **Margen bruto porcentual**: sobre las ventas **netas** (sin IVA) de los
   últimos 30 días, contra el costo de los productos vendidos. Sólo cuentan los
