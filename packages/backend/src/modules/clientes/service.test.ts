@@ -2,12 +2,20 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
 import { auditLog } from "../../db/schema/auditoria.js";
+import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { actualizarCliente, crearCliente, listarClientes, obtenerCliente } from "./service.js";
 
 // Cada corrida usa tenants aleatorios: el aislamiento por RLS hace que no
 // interfieran con datos existentes ni entre corridas.
+/** Fecha de hace N días, en el formato `date` de Postgres. */
+function hace(dias: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 let tenantA: { tenantId: string; usuarioId: string };
 let tenantB: { tenantId: string; usuarioId: string };
 
@@ -98,11 +106,11 @@ describe("clientes service (integración, RLS activo)", () => {
         razonSocial: "ACME Argentina SA",
         cuit: "33693450239",
         condicionIva: "responsable_inscripto",
-        estado: "en_mora",
+        estado: "inactivo",
       },
     });
     expect(actualizado?.razonSocial).toBe("ACME Argentina SA");
-    expect(actualizado?.estado).toBe("en_mora");
+    expect(actualizado?.estado).toBe("inactivo");
 
     const entradas = await withTenant(tenantA.tenantId, (tx) =>
       tx.select().from(auditLog).where(eq(auditLog.registroId, id)),
@@ -154,13 +162,20 @@ describe("filtros del listado de clientes", () => {
       razonSocial: "Inscripto SA",
       condicionIva: "responsable_inscripto",
     });
-    await actualizarCliente(tenant, {
-      id: inscripto.id,
-      datos: {
-        razonSocial: "Inscripto SA",
-        condicionIva: "responsable_inscripto",
-        estado: "en_mora",
-      },
+    // La mora ya no se marca a mano: sale de una deuda vencida hace más que el
+    // umbral de Parámetros (60 días por defecto).
+    await withTenant(tenant.tenantId, async (tx) => {
+      await tx.insert(comprobantesVenta).values({
+        tenantId: tenant.tenantId,
+        clienteId: inscripto.id,
+        letra: "A",
+        puntoVenta: 1,
+        fechaEmision: hace(120),
+        condicionIvaReceptor: "responsable_inscripto",
+        condicionVentaDias: 0,
+        estado: "enviada",
+        total: "1000.00",
+      });
     });
   });
 
@@ -171,11 +186,19 @@ describe("filtros del listado de clientes", () => {
     expect(items[0]?.razonSocial).toBe("Monotributista SRL");
   });
 
-  it("filtra por estado", async () => {
+  it("filtra por mora, que se calcula y no se guarda", async () => {
     const { items, total } = await listar({ estado: "en_mora" });
 
     expect(total).toBe(1);
     expect(items[0]?.razonSocial).toBe("Inscripto SA");
+    expect(items[0]?.enMora).toBe(true);
+    // El estado guardado sigue siendo activo: la mora es un dato derivado.
+    expect(items[0]?.estado).toBe("activo");
+  });
+
+  it("filtra por el estado guardado", async () => {
+    expect((await listar({ estado: "activo" })).total).toBe(2);
+    expect((await listar({ estado: "inactivo" })).total).toBe(0);
   });
 
   it("combina los filtros en lugar de quedarse con el último", async () => {

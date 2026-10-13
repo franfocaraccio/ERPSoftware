@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
+import { ReferenciaAjenaError } from "../_comunes/pertenencia.js";
+import { ImputacionInvalidaError } from "../cuenta-corriente/imputaciones.js";
 import {
   chequeActualizarSchema,
   chequeInputSchema,
@@ -28,6 +30,14 @@ import {
 } from "./service.js";
 
 const idSchema = z.object({ id: z.uuid() });
+
+/** Los errores de dominio llegan a la pantalla como un pedido inválido. */
+function traducirError(error: unknown): never {
+  if (error instanceof ImputacionInvalidaError || error instanceof ReferenciaAjenaError) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+  }
+  throw error;
+}
 
 export const tesoreriaRouter = router({
   cuentas: router({
@@ -72,12 +82,12 @@ export const tesoreriaRouter = router({
       return movimiento;
     }),
     crear: escrituraProcedure.input(movimientoInputSchema).mutation(({ ctx, input }) => {
-      return crearMovimiento(ctx, input);
+      return crearMovimiento(ctx, input).catch(traducirError);
     }),
     actualizar: escrituraProcedure
       .input(movimientoActualizarSchema)
       .mutation(async ({ ctx, input }) => {
-        const movimiento = await actualizarMovimiento(ctx, input);
+        const movimiento = await actualizarMovimiento(ctx, input).catch(traducirError);
         if (!movimiento) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Movimiento no encontrado" });
         }

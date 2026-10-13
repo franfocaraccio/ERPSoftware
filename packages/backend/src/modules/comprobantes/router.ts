@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
+import { ReferenciaAjenaError } from "../_comunes/pertenencia.js";
 import {
   compraActualizarSchema,
   compraInputSchema,
@@ -32,6 +33,9 @@ function traducirError(error: unknown): never {
   if (error instanceof ComprobanteInmutableError) {
     throw new TRPCError({ code: "CONFLICT", message: error.message });
   }
+  if (error instanceof ReferenciaAjenaError) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+  }
   if (error instanceof TransicionInvalidaError) {
     throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   }
@@ -58,7 +62,7 @@ export const comprobantesRouter = router({
       return venta;
     }),
     crear: escrituraProcedure.input(ventaInputSchema).mutation(({ ctx, input }) => {
-      return crearVenta(ctx, input);
+      return crearVenta(ctx, input).catch(traducirError);
     }),
     actualizar: escrituraProcedure.input(ventaActualizarSchema).mutation(async ({ ctx, input }) => {
       const venta = await actualizarVenta(ctx, input).catch(traducirError);
@@ -97,12 +101,12 @@ export const comprobantesRouter = router({
       return compra;
     }),
     crear: escrituraProcedure.input(compraInputSchema).mutation(({ ctx, input }) => {
-      return crearCompra(ctx, input);
+      return crearCompra(ctx, input).catch(traducirError);
     }),
     actualizar: escrituraProcedure
       .input(compraActualizarSchema)
       .mutation(async ({ ctx, input }) => {
-        const compra = await actualizarCompra(ctx, input);
+        const compra = await actualizarCompra(ctx, input).catch(traducirError);
         if (!compra) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Compra no encontrada" });
         }

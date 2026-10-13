@@ -19,6 +19,7 @@ import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
+import { type SaldosCuentaCorriente, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import type {
   CompraActualizar,
   CompraInput,
@@ -33,8 +34,26 @@ export type ComprobanteVenta = typeof comprobantesVenta.$inferSelect;
 export type ItemComprobante = typeof itemsComprobanteVenta.$inferSelect;
 export type ComprobanteCompra = typeof comprobantesCompra.$inferSelect;
 
+/**
+ * Cómo está de cobrado (o pagado) un comprobante. Null cuando no es deuda: un
+ * borrador, un rechazado, una nota de crédito o uno en otra moneda.
+ */
+export interface Cobranza {
+  vencimiento: string;
+  pendiente: string;
+  estado: "pendiente" | "parcial" | "cobrada" | "vencida";
+}
+
+function cobranzaDe(cc: SaldosCuentaCorriente, id: string): Cobranza | null {
+  const s = cc.comprobantes.find((c) => c.id === id);
+  return s
+    ? { vencimiento: s.vencimiento, pendiente: s.pendiente.aStringFiscal(), estado: s.estado }
+    : null;
+}
+
 export interface VentaConDerivados extends ComprobanteVenta {
   clienteRazonSocial: string;
+  cobranza: Cobranza | null;
   /** Para que el frontend renderice acciones sin conocer la máquina de estados. */
   availableEvents: EventoComprobante[];
   editable: boolean;
@@ -54,11 +73,16 @@ export class TransicionInvalidaError extends Error {
   }
 }
 
-function conDerivados(venta: ComprobanteVenta, clienteRazonSocial: string): VentaConDerivados {
+function conDerivados(
+  venta: ComprobanteVenta,
+  clienteRazonSocial: string,
+  cobranza: Cobranza | null,
+): VentaConDerivados {
   const estado = venta.estado as EstadoComprobante;
   return {
     ...venta,
     clienteRazonSocial,
+    cobranza,
     availableEvents: eventosDisponibles(estado),
     editable: esEditable(estado),
   };
@@ -108,8 +132,16 @@ export async function listarVentas(
 
     const [fila] = await tx.select({ total: count() }).from(comprobantesVenta).where(filtro);
 
+    // El saldo de cada factura depende de toda la cuenta de su cliente (lo no
+    // imputado se aplica FIFO), así que se calcula por cliente, no por fila.
+    const cc = await saldosCuentaCorriente(tx, "ventas", {
+      contraparteIds: [...new Set(filas.map((f) => f.venta.clienteId))],
+    });
+
     return {
-      items: filas.map(({ venta, cliente }) => conDerivados(venta, cliente)),
+      items: filas.map(({ venta, cliente }) =>
+        conDerivados(venta, cliente, cobranzaDe(cc, venta.id)),
+      ),
       total: fila?.total ?? 0,
     };
   });
@@ -133,7 +165,10 @@ export async function obtenerVenta(
       .from(itemsComprobanteVenta)
       .where(eq(itemsComprobanteVenta.comprobanteId, id))
       .orderBy(asc(itemsComprobanteVenta.orden));
-    return { ...conDerivados(fila.venta, fila.cliente), items };
+    const cc = await saldosCuentaCorriente(tx, "ventas", {
+      contraparteIds: [fila.venta.clienteId],
+    });
+    return { ...conDerivados(fila.venta, fila.cliente, cobranzaDe(cc, id)), items };
   });
 }
 
@@ -324,6 +359,8 @@ export async function transicionarVenta(
 
 export interface CompraConProveedor extends ComprobanteCompra {
   proveedorRazonSocial: string;
+  /** Cómo está de pagada. Null si está en otra moneda. */
+  cobranza: Cobranza | null;
 }
 
 export async function listarCompras(
@@ -363,10 +400,15 @@ export async function listarCompras(
 
     const [fila] = await tx.select({ total: count() }).from(comprobantesCompra).where(filtro);
 
+    const cc = await saldosCuentaCorriente(tx, "compras", {
+      contraparteIds: [...new Set(filas.map((f) => f.compra.proveedorId))],
+    });
+
     return {
       items: filas.map(({ compra, proveedor }) => ({
         ...compra,
         proveedorRazonSocial: proveedor,
+        cobranza: cobranzaDe(cc, compra.id),
       })),
       total: fila?.total ?? 0,
     };

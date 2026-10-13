@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgTable,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -91,9 +92,12 @@ export const movimientos = pgTable(
     medioPago: medioPagoEnum("medio_pago").notNull(),
     concepto: text("concepto"),
     importe: numeric("importe", { precision: 14, scale: 2 }).notNull(),
-    // Trazabilidad cobro-factura / pago-factura y cuenta corriente por contraparte.
+    // Cuenta corriente por contraparte. Qué comprobantes cancela un cobro o un
+    // pago va en `imputaciones`, que admite varios y parciales.
     clienteId: uuid("cliente_id").references(() => clientes.id),
     proveedorId: uuid("proveedor_id").references(() => proveedores.id),
+    // En desuso: un movimiento sólo podía apuntar a un comprobante. Lo
+    // reemplazó la tabla `imputaciones`. Nunca se escribieron.
     comprobanteVentaId: uuid("comprobante_venta_id").references(() => comprobantesVenta.id),
     comprobanteCompraId: uuid("comprobante_compra_id").references(() => comprobantesCompra.id),
     chequeId: uuid("cheque_id").references(() => cheques.id),
@@ -105,5 +109,42 @@ export const movimientos = pgTable(
     index("movimientos_tenant_cliente_idx").on(t.tenantId, t.clienteId),
     index("movimientos_tenant_proveedor_idx").on(t.tenantId, t.proveedorId),
     check("movimientos_importe_check", sql`${t.importe} > 0`),
+  ],
+);
+
+/**
+ * Qué parte de un cobro o un pago cancela cada comprobante.
+ *
+ * Un cobro puede cancelar varias facturas, y una factura puede cobrarse en
+ * varias veces: por eso es una tabla aparte y no una columna del movimiento.
+ * Lo que un movimiento no imputa queda **a cuenta** de la contraparte, y se
+ * aplica a sus comprobantes por FIFO al calcular saldos (`@erp/core/balances`).
+ *
+ * Exactamente uno de los dos comprobantes: un cobro imputa ventas, un pago
+ * imputa compras. Que sean de la misma contraparte que el movimiento y que no
+ * se impute de más lo valida el service.
+ */
+export const imputaciones = pgTable(
+  "imputaciones",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: text("tenant_id").notNull(),
+    movimientoId: uuid("movimiento_id")
+      .references(() => movimientos.id, { onDelete: "cascade" })
+      .notNull(),
+    comprobanteVentaId: uuid("comprobante_venta_id").references(() => comprobantesVenta.id),
+    comprobanteCompraId: uuid("comprobante_compra_id").references(() => comprobantesCompra.id),
+    importe: numeric("importe", { precision: 14, scale: 2 }).notNull(),
+    creado: timestamp("creado", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("imputaciones_tenant_movimiento_idx").on(t.tenantId, t.movimientoId),
+    index("imputaciones_tenant_venta_idx").on(t.tenantId, t.comprobanteVentaId),
+    index("imputaciones_tenant_compra_idx").on(t.tenantId, t.comprobanteCompraId),
+    check("imputaciones_importe_check", sql`${t.importe} > 0`),
+    check(
+      "imputaciones_un_comprobante",
+      sql`(${t.comprobanteVentaId} is null) <> (${t.comprobanteCompraId} is null)`,
+    ),
   ],
 );

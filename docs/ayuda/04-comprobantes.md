@@ -71,6 +71,23 @@ borrador  --emitir-->  enviada  --aprobar-->  aprobada
 Los botones de acción que aparecen en la pantalla dependen del estado: si no
 ves "Editar", es porque el comprobante ya no está en borrador.
 
+## Estado de cobro
+
+La lista de ventas tiene una columna **Cobro**, y la de compras una de **Pago**:
+
+| Estado | Qué significa |
+|---|---|
+| Pendiente | No se cobró nada y todavía no venció |
+| Parcial | Se cobró una parte; dice cuánto resta |
+| Vencida | Venció y queda algo por cobrar |
+| Cobrada / Pagada | No queda nada |
+
+El vencimiento es la fecha de emisión (o de recepción, en compras) más los días
+de la condición de venta o de pago. Lo cobrado sale de los movimientos de
+Tesorería: lo imputado a cada factura y, lo que no se imputó, aplicado a las
+más viejas primero. Un borrador, un rechazado o una nota de crédito no son
+deuda y muestran una raya.
+
 ## Facturación electrónica
 
 En esta fase la carga es **manual**: no hay conexión con ARCA ni se pide CAE.

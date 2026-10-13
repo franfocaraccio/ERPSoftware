@@ -24,18 +24,45 @@ Listado en `/clientes`.
 Si el CUIT da error aunque tenga 11 dígitos, el número no es válido: el último
 dígito es un verificador calculado a partir de los otros diez.
 
+## La ficha del cliente
+
+Clic en la razón social en el listado. Se abre la ficha, en `/clientes/{id}`,
+con todo lo del cliente en una pantalla:
+
+- **Saldo a cobrar**, **límite de crédito** (con el porcentaje usado) y lo que
+  pagó **a cuenta** sin imputar a una factura.
+- **Antigüedad de la deuda**: lo pendiente repartido en a vencer, 1 a 30 días,
+  31 a 60, 61 a 90 y más de 90 días de atraso.
+- **Facturas pendientes de cobro**, con su vencimiento y su estado.
+- Sus **cheques** en cartera y depositados, y sus **últimos movimientos**.
+
+Si el cliente está en mora o superó su límite de crédito, la ficha lo marca
+arriba.
+
 ## Editar un cliente
 
-Clic en la razón social en el listado. Se abre `/clientes/{id}`.
+Desde la ficha, botón **Editar** (ruta `/clientes/{id}/editar`).
 
-Al editar aparece además el campo **Estado**: Activo, Inactivo o En mora. Al
-crear no aparece — un cliente nuevo nace activo.
+Al editar aparece además el campo **Estado**: Activo o Inactivo. Al crear no
+aparece — un cliente nuevo nace activo.
+
+## En mora: se calcula solo
+
+"En mora" **no se marca a mano**. Un cliente está en mora cuando tiene algo
+impago vencido hace más días que el **umbral de mora** de `/parametros` (60 por
+defecto). En cuanto paga, deja de estarlo.
+
+## Límite de crédito
+
+Si el saldo de un cliente supera su límite, la lista lo marca en rojo
+("superado") y la ficha lo avisa. Al cargar una factura que haría pasar el
+límite aparece un aviso. **No bloquea**: se puede facturar igual.
 
 ## Buscar y filtrar
 
 - **Buscador**: busca por razón social o CUIT.
 - **Condición IVA**: filtra por categoría fiscal.
-- **Estado**: activo, inactivo o en mora.
+- **Estado**: activo, inactivo o en mora (la mora es la calculada).
 
 Las columnas Razón social, CUIT, Condición IVA, Límite de crédito y Estado se
 pueden ordenar haciendo clic en el encabezado. Saldo, Próx. vencimiento y

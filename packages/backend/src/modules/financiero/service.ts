@@ -1,10 +1,4 @@
-import { imputarFIFO } from "@erp/core/balances";
-import {
-  type FilaProyeccion,
-  type MovimientoProyectado,
-  proyectarCaja,
-  separarVencidos,
-} from "@erp/core/cashflow";
+import { type FilaProyeccion, proyectarCaja, separarVencidos } from "@erp/core/cashflow";
 import { hoyEnArgentina } from "@erp/core/dates";
 import {
   cicloConversionEfectivo,
@@ -29,6 +23,7 @@ import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
+import { saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { obtenerParametros } from "./parametros.js";
 
 const ARS = "ARS" as const;
@@ -75,36 +70,6 @@ function diasAtras(hoy: string, dias: number): string {
   const d = new Date(`${hoy}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - dias);
   return d.toISOString().slice(0, 10);
-}
-
-function acumular(mapa: Map<string, Money>, clave: string | null, importe: Money): void {
-  if (!clave) {
-    return;
-  }
-  mapa.set(clave, (mapa.get(clave) ?? Money.cero(ARS)).sumar(importe));
-}
-
-/**
- * Lo que queda por cobrar o pagar de cada comprobante, con lo cobrado o pagado
- * a cada contraparte aplicado FIFO (`imputarFIFO`, en core).
- *
- * Mientras los cobros no se imputen a comprobantes concretos, es la única
- * forma de no proyectar como pendiente una factura que ya se cobró.
- */
-function pendientesPorContraparte(
-  comprobantes: readonly { id: string; contraparte: string; vencimiento: string; importe: Money }[],
-  creditos: ReadonlyMap<string, Money>,
-): MovimientoProyectado[] {
-  const porContraparte = new Map<string, (typeof comprobantes)[number][]>();
-  for (const c of comprobantes) {
-    porContraparte.set(c.contraparte, [...(porContraparte.get(c.contraparte) ?? []), c]);
-  }
-  return [...porContraparte.entries()].flatMap(([contraparte, propios]) =>
-    imputarFIFO(propios, creditos.get(contraparte) ?? Money.cero(ARS)).pendientes.map((p) => ({
-      fecha: p.vencimiento,
-      importe: p.pendiente,
-    })),
-  );
 }
 
 /** Movimientos de una cuenta en pesos, de un tipo, agrupados por contraparte. */
@@ -350,20 +315,9 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     // los cheques en cartera por su fecha de pago. Pagos: lo que queda por
     // pagar de cada compra, más los saldos impositivos.
     //
-    // Lo ya cobrado o pagado a cada contraparte se aplica FIFO contra sus
-    // comprobantes: sin eso, una factura cobrada se seguía proyectando como un
-    // cobro por venir.
-    const comprobantesACobrar = await tx
-      .select({
-        id: comprobantesVenta.id,
-        clienteId: comprobantesVenta.clienteId,
-        clase: comprobantesVenta.clase,
-        vencimiento: sql<string>`to_char(${comprobantesVenta.fechaEmision} + ${comprobantesVenta.condicionVentaDias} * interval '1 day', 'YYYY-MM-DD')`,
-        total: comprobantesVenta.total,
-      })
-      .from(comprobantesVenta)
-      .where(ventasQueCuentan());
-
+    // Lo ya cobrado o pagado se descuenta de cada comprobante (imputaciones y,
+    // lo que no se imputó, FIFO): sin eso, una factura cobrada se seguía
+    // proyectando como un cobro por venir.
     // Un cheque que ya tiene su movimiento de ingreso está en la caja: si
     // además se proyectara, se contaría dos veces.
     const chequesConMovimiento = new Set(
@@ -376,35 +330,32 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     );
     const chequesPorCobrar = chequesEnCartera.filter((c) => !chequesConMovimiento.has(c.id));
 
-    // Lo que cancela deuda de un cliente: lo que pagó, sus notas de crédito y
-    // los cheques suyos que tenemos en la mano. El cheque cubre la factura; la
-    // plata llega en la fecha del cheque, no en la de la factura.
-    const creditosCliente = new Map<string, Money>();
-    for (const c of cobrosPorCliente) {
-      acumular(creditosCliente, c.contraparte, ars(c.total));
-    }
-    for (const c of comprobantesACobrar.filter((c) => c.clase === "nota_credito")) {
-      acumular(creditosCliente, c.clienteId, ars(c.total));
-    }
+    // Los cheques en cartera cubren facturas de su librador: la factura no se
+    // proyecta, el cheque sí, en su fecha.
+    const chequesPorCliente = new Map<string, Money>();
     for (const c of chequesPorCobrar) {
-      acumular(creditosCliente, c.libradorClienteId, ars(c.importe));
+      if (c.libradorClienteId) {
+        chequesPorCliente.set(
+          c.libradorClienteId,
+          (chequesPorCliente.get(c.libradorClienteId) ?? Money.cero(ARS)).sumar(ars(c.importe)),
+        );
+      }
     }
 
-    const cobrosFacturas = pendientesPorContraparte(
-      comprobantesACobrar
-        .filter((c) => c.clase !== "nota_credito")
-        .map((c) => ({
-          id: c.id,
-          contraparte: c.clienteId,
-          vencimiento: c.vencimiento,
-          importe: ars(c.total),
-        })),
-      creditosCliente,
-    );
+    // La cuenta corriente (imputaciones y FIFO) dice qué queda por cobrar y
+    // pagar de cada comprobante. Es el mismo cálculo que Clientes y Proveedores.
+    const [ventasCC, comprasCC] = [
+      await saldosCuentaCorriente(tx, "ventas", { creditoExtra: chequesPorCliente }),
+      await saldosCuentaCorriente(tx, "compras"),
+    ];
+    const aProyectar = (saldos: typeof ventasCC.comprobantes) =>
+      saldos
+        .filter((s) => s.pendiente.esPositivo())
+        .map((s) => ({ fecha: s.vencimiento, importe: s.pendiente }));
 
     // Prudencia: un cobro vencido no se proyecta. Ya no llegó cuando debía, y
     // contar con él dibuja una caja mejor que la real.
-    const facturasACobrar = separarVencidos(cobrosFacturas, hoy);
+    const facturasACobrar = separarVencidos(aProyectar(ventasCC.comprobantes), hoy);
 
     // Un cheque con la fecha pasada se puede depositar hoy, mientras esté
     // dentro del plazo de presentación. Pasado ese plazo ya no es cobrable.
@@ -413,30 +364,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       .filter((c) => c.fechaPago >= limitePresentacion)
       .map((c) => ({ fecha: c.fechaPago < hoy ? hoy : c.fechaPago, importe: ars(c.importe) }));
 
-    const comprasAPagar = await tx
-      .select({
-        id: comprobantesCompra.id,
-        proveedorId: comprobantesCompra.proveedorId,
-        vencimiento: sql<string>`to_char(${comprobantesCompra.fechaRecepcion} + ${comprobantesCompra.condicionPagoDias} * interval '1 day', 'YYYY-MM-DD')`,
-        total: comprobantesCompra.total,
-      })
-      .from(comprobantesCompra)
-      .where(eq(comprobantesCompra.moneda, ARS));
-
-    const creditosProveedor = new Map<string, Money>();
-    for (const p of pagosPorProveedor) {
-      acumular(creditosProveedor, p.contraparte, ars(p.total));
-    }
-
-    const pagosCompras = pendientesPorContraparte(
-      comprasAPagar.map((c) => ({
-        id: c.id,
-        contraparte: c.proveedorId,
-        vencimiento: c.vencimiento,
-        importe: ars(c.total),
-      })),
-      creditosProveedor,
-    );
+    const pagosCompras = aProyectar(comprasCC.comprobantes);
 
     const pagosImpuestos = filasImpuestos
       .map((i) => {

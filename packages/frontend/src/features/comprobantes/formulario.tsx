@@ -1,10 +1,11 @@
 import { hoyEnArgentina } from "@erp/core/dates";
 import { type AlicuotaIva, calcularComprobante } from "@erp/core/invoicing";
+import { Money } from "@erp/core/money";
 import { Boton, Campo, clasesBoton, Entrada, Selector, Tarjeta } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { mensajeDeError } from "../../lib/errores.js";
@@ -486,6 +487,50 @@ export function FormularioComprobante() {
                     </dl>
                   )}
                 </div>
+              );
+            }}
+          </form.Subscribe>
+
+          <form.Subscribe
+            selector={(s) => ({
+              clienteId: s.values.clienteId,
+              clase: s.values.clase,
+              items: s.values.items,
+            })}
+          >
+            {(v) => {
+              const cliente = clientes.data?.items.find((c) => c.id === v.clienteId);
+              const totales = totalesPreview(v.items);
+              // Una nota de crédito baja la deuda: no puede pasar el límite.
+              if (!cliente?.limiteCredito || v.clase === "nota_credito") {
+                return null;
+              }
+              const limite = Money.desdeString(cliente.limiteCredito, "ARS");
+              const despues = Money.desdeString(cliente.saldo, "ARS").sumar(
+                totales?.total ?? Money.cero("ARS"),
+              );
+              if (!despues.mayorQue(limite)) {
+                return null;
+              }
+              return (
+                <p
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-subtle px-3 py-2 text-sm text-foreground"
+                >
+                  <AlertTriangle
+                    className="mt-0.5 size-4 shrink-0 text-warning"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    Con este comprobante, {cliente.razonSocial} quedaría debiendo{" "}
+                    <span className="font-medium tabular">
+                      {formatearImporte(despues.aStringFiscal())}
+                    </span>
+                    , más que su límite de crédito de{" "}
+                    <span className="tabular">{formatearImporte(cliente.limiteCredito)}</span>. Se
+                    puede guardar igual: es un aviso.
+                  </span>
+                </p>
               );
             }}
           </form.Subscribe>

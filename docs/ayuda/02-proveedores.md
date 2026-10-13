@@ -22,9 +22,15 @@ Listado en `/proveedores`.
 | Email | No | |
 | Teléfono | No | |
 
+## La ficha del proveedor
+
+Clic en la razón social del listado → `/proveedores/{id}`. Muestra el **saldo a
+pagar**, lo pagado **a cuenta**, la **antigüedad** de la deuda, las **compras
+pendientes de pago** con su vencimiento y los **últimos pagos**.
+
 ## Editar
 
-Clic en la razón social del listado → `/proveedores/{id}`.
+Desde la ficha, botón **Editar** (ruta `/proveedores/{id}/editar`).
 
 ## Columnas del listado
 

@@ -8,7 +8,7 @@ import { proveedores } from "../../db/schema/proveedores.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { aplicarOrden } from "../_comunes/orden.js";
-import { vencimientoImpagoProveedores } from "../_comunes/vencimientos.js";
+import { primerVencimientoImpago, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ProveedorActualizar, ProveedoresListar, ProveedorInput } from "./schema.js";
 
@@ -147,9 +147,12 @@ export async function listarProveedores(
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
-    const vencimientos = await vencimientoImpagoProveedores(
-      tx,
-      filas.map((f) => f.proveedor.id),
+    const vencimientos = primerVencimientoImpago(
+      (
+        await saldosCuentaCorriente(tx, "compras", {
+          contraparteIds: filas.map((f) => f.proveedor.id),
+        })
+      ).comprobantes,
     );
     const items: ProveedorConSaldo[] = filas.map((fila) => ({
       ...fila.proveedor,

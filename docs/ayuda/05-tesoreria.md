@@ -27,8 +27,7 @@ Cada movimiento es un ingreso o un egreso sobre una cuenta.
 | Medio de pago | Sí | Efectivo, Transferencia o Cheque |
 | Concepto | No | Hasta 300 caracteres |
 | Importe | Sí | **Siempre positivo**: el signo lo pone el tipo |
-| Cliente | No | |
-| Proveedor | No | |
+| Contraparte | No | Un cliente o un proveedor |
 | Cheque | Condicional | Obligatorio si el medio de pago es Cheque |
 | Conciliado | No | Tilde |
 
@@ -38,6 +37,24 @@ Cada movimiento es un ingreso o un egreso sobre una cuenta.
    otro, o ninguno.
 2. Si el medio de pago es **Cheque**, hay que vincular el cheque. Sin eso no
    guarda.
+
+### Imputar un cobro o un pago
+
+Cuando el movimiento es un **ingreso de un cliente** o un **egreso a un
+proveedor**, aparece la lista de sus comprobantes pendientes. Ahí se escribe
+cuánto cancela de cada uno:
+
+- Se puede repartir entre **varias** facturas y pagar **parte** de una.
+- **Repartir automáticamente** completa los importes empezando por lo que vence
+  antes.
+- Lo que no se imputa queda **a cuenta** del cliente o proveedor. Está
+  permitido: el sistema lo aplica a sus comprobantes más viejos al calcular
+  saldos, y se ve en su ficha.
+- No se puede imputar más que el importe del movimiento, ni más de lo que le
+  queda a cada comprobante.
+
+Si el medio de pago es **Cheque**, al elegir el cheque se completan solos el
+importe y el cliente que lo libró.
 
 ### Filtros
 

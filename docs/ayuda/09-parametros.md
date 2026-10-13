@@ -5,7 +5,7 @@ los semáforos del panel y el de concentración en Clientes.
 
 | Parámetro | Qué hace |
 |---|---|
-| Umbral de mora (días) | Días de mora a partir de los cuales el DSO pasa a rojo en el panel. Entre 1 y 365 |
+| Umbral de mora (días) | Días de atraso a partir de los cuales un cliente queda **en mora**, y el DSO pasa a rojo en el panel. Entre 1 y 365 |
 | Margen objetivo (%) | Margen bruto que la empresa se propone. Vacío = sin objetivo definido |
 | Mínimo operativo | Piso de caja de la proyección a 13 semanas, en pesos. Vacío = sin piso |
 | Umbral de concentración (%) | Cuánto puede representar un solo cliente dentro del total a cobrar antes de que la pantalla de Clientes lo marque. Por defecto 20% |

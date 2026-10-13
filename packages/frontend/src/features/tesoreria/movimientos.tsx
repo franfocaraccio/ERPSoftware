@@ -31,6 +31,7 @@ import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { type Imputaciones, lineasDeImputacion, PanelImputacion } from "./imputacion.js";
 
 const ETIQUETA_MEDIO = {
   efectivo: "Efectivo",
@@ -53,9 +54,31 @@ const movimientoSchema = z.object({
     ),
   contraparte: z.string(),
   chequeId: z.string(),
+  imputaciones: z.record(z.string(), z.string()),
 });
 
 type ValoresMovimiento = z.infer<typeof movimientoSchema>;
+
+/**
+ * Un cobro a un cliente imputa ventas; un pago a un proveedor, compras.
+ * Cualquier otra combinación (un reintegro, un movimiento sin contraparte) no
+ * imputa nada.
+ */
+function ladoDeImputacion(
+  v: Pick<ValoresMovimiento, "tipo" | "contraparte">,
+): { lado: "ventas" | "compras"; contraparteId: string } | null {
+  const [clase, id] = v.contraparte.split(":");
+  if (!id) {
+    return null;
+  }
+  if (v.tipo === "ingreso" && clase === "cliente") {
+    return { lado: "ventas", contraparteId: id };
+  }
+  if (v.tipo === "egreso" && clase === "proveedor") {
+    return { lado: "compras", contraparteId: id };
+  }
+  return null;
+}
 
 function FormularioMovimiento({ onListo }: { onListo: () => void }) {
   const trpc = useTRPC();
@@ -85,6 +108,7 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
       importe: "",
       contraparte: "",
       chequeId: "",
+      imputaciones: {} as Imputaciones,
     } as ValoresMovimiento,
     validators: { onBlur: movimientoSchema },
     onSubmit: async ({ value }) => {
@@ -102,9 +126,13 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
         proveedorId: clase === "proveedor" ? id : null,
         chequeId: value.chequeId || null,
         conciliado: false,
+        // Sólo si el movimiento es de la contraparte que se eligió: si después
+        // se cambió el tipo o la contraparte, lo tipeado ya no corresponde.
+        imputaciones: ladoDeImputacion(value) ? lineasDeImputacion(value.imputaciones) : [],
       });
-      await queryClient.invalidateQueries({ queryKey: trpc.tesoreria.pathKey() });
-      await queryClient.invalidateQueries({ queryKey: trpc.proveedores.pathKey() });
+      // Un cobro o un pago cambia saldos en todas partes: tesorería, clientes,
+      // proveedores, comprobantes y el panel.
+      await queryClient.invalidateQueries();
       onListo();
     },
   });
@@ -278,7 +306,22 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
                       <Selector
                         id={id}
                         value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
+                        onChange={(e) => {
+                          field.handleChange(e.target.value);
+                          // El cheque ya dice cuánto y de quién: se completa solo.
+                          const cheque = chequesEnCartera.data?.items.find(
+                            (c) => c.id === e.target.value,
+                          );
+                          if (cheque) {
+                            form.setFieldValue("importe", cheque.importe);
+                            if (cheque.libradorClienteId) {
+                              form.setFieldValue(
+                                "contraparte",
+                                `cliente:${cheque.libradorClienteId}`,
+                              );
+                            }
+                          }
+                        }}
                       >
                         <option value="">Elegí un cheque</option>
                         {chequesEnCartera.data?.items.map((c) => (
@@ -293,6 +336,30 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
               </form.Field>
             ) : null
           }
+        </form.Subscribe>
+
+        <form.Subscribe
+          selector={(s) => ({
+            tipo: s.values.tipo,
+            contraparte: s.values.contraparte,
+            importe: s.values.importe,
+            imputaciones: s.values.imputaciones,
+          })}
+        >
+          {(v) => {
+            const lado = ladoDeImputacion(v);
+            return lado ? (
+              <PanelImputacion
+                // Otra contraparte, otra lista: lo tipeado no se arrastra.
+                key={lado.contraparteId}
+                lado={lado.lado}
+                contraparteId={lado.contraparteId}
+                importe={v.importe}
+                valores={v.imputaciones}
+                onCambio={(nuevos) => form.setFieldValue("imputaciones", nuevos)}
+              />
+            ) : null;
+          }}
         </form.Subscribe>
 
         <form.Field name="concepto">

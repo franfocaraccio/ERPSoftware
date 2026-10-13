@@ -10,6 +10,7 @@ import { AceptarInvitacion } from "./features/auth/aceptar-invitacion.js";
 import { Login } from "./features/auth/login.js";
 import { Recuperar } from "./features/auth/recuperar.js";
 import { Restablecer } from "./features/auth/restablecer.js";
+import { FichaCliente } from "./features/clientes/ficha.js";
 import { FormularioCliente } from "./features/clientes/formulario.js";
 import { ListaClientes } from "./features/clientes/lista.js";
 import { DetalleComprobante } from "./features/comprobantes/detalle.js";
@@ -23,6 +24,7 @@ import { ListaImpuestos } from "./features/impuestos/lista.js";
 import { Landing } from "./features/landing/landing.js";
 import { Panel } from "./features/panel/panel.js";
 import { Parametros, ParametrosSinPermiso } from "./features/parametros/formulario.js";
+import { FichaProveedor } from "./features/proveedores/ficha.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
@@ -195,9 +197,19 @@ const rutaClienteNuevo = createRoute({
   ),
 });
 
-const rutaClienteEditar = createRoute({
+/** La ficha: saldo, antigüedad, mora y crédito. Se puede ver en modo lectura. */
+const rutaClienteFicha = createRoute({
   getParentRoute: () => rutaApp,
   path: "/clientes/$clienteId",
+  component: function VerCliente() {
+    const { clienteId } = rutaClienteFicha.useParams();
+    return <FichaCliente clienteId={clienteId} />;
+  },
+});
+
+const rutaClienteEditar = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/clientes/$clienteId/editar",
   component: function EditarCliente() {
     const { clienteId } = rutaClienteEditar.useParams();
     return (
@@ -224,9 +236,18 @@ const rutaProveedorNuevo = createRoute({
   ),
 });
 
-const rutaProveedorEditar = createRoute({
+const rutaProveedorFicha = createRoute({
   getParentRoute: () => rutaApp,
   path: "/proveedores/$proveedorId",
+  component: function VerProveedor() {
+    const { proveedorId } = rutaProveedorFicha.useParams();
+    return <FichaProveedor proveedorId={proveedorId} />;
+  },
+});
+
+const rutaProveedorEditar = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/proveedores/$proveedorId/editar",
   component: function EditarProveedor() {
     const { proveedorId } = rutaProveedorEditar.useParams();
     return (
@@ -342,9 +363,11 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaAccesos,
     rutaClientes,
     rutaClienteNuevo,
+    rutaClienteFicha,
     rutaClienteEditar,
     rutaProveedores,
     rutaProveedorNuevo,
+    rutaProveedorFicha,
     rutaProveedorEditar,
     rutaStock,
     rutaProductoNuevo,

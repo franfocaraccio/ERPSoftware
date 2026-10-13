@@ -1,4 +1,5 @@
-import { saldoCuentaCorriente } from "@erp/core/balances";
+import { enMora, saldoCuentaCorriente } from "@erp/core/balances";
+import { hoyEnArgentina } from "@erp/core/dates";
 import { type Concentracion, concentracionMaxima, type Semaforo, semaforoDe } from "@erp/core/kpis";
 import { Money } from "@erp/core/money";
 import { and, count, eq, ilike, inArray, or, type SQL, sql, sum } from "drizzle-orm";
@@ -9,7 +10,11 @@ import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { ESTADOS_QUE_DEBEN, totalConSigno } from "../_comunes/comprobantes.js";
 import { aplicarOrden } from "../_comunes/orden.js";
-import { vencimientoImpagoClientes } from "../_comunes/vencimientos.js";
+import {
+  primerVencimientoImpago,
+  type SaldosCuentaCorriente,
+  saldosCuentaCorriente,
+} from "../cuenta-corriente/saldos.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ClienteActualizar, ClienteInput, ClientesListar } from "./schema.js";
 
@@ -21,6 +26,13 @@ export interface ClienteConSaldo extends Cliente {
   saldo: string;
   /** Vencimiento de la deuda impaga más vieja. Puede estar en el pasado. */
   proximoVencimiento: string | null;
+  /**
+   * Tiene deuda vencida hace más días que el umbral de Parámetros. Calculado:
+   * no depende del `estado` guardado.
+   */
+  enMora: boolean;
+  /** El saldo supera el límite de crédito. Se avisa; no bloquea nada. */
+  excedeLimite: boolean;
   /**
    * Tiene comprobantes en otra moneda, que NO entran en `saldo`. Mezclar pesos
    * y dólares en un solo número sería mentir; la pantalla lo avisa en vez de
@@ -50,7 +62,7 @@ interface Actor {
 /** Los filtros de la pantalla. Compartidos por el listado y el resumen de arriba. */
 export type FiltrosClientes = Pick<ClientesListar, "busqueda" | "condicionIva" | "estado">;
 
-function filtrosDe(input: FiltrosClientes): SQL | undefined {
+function filtrosDe(input: FiltrosClientes, moraIds?: ReadonlySet<string>): SQL | undefined {
   // Los tres filtros se combinan. `condicionIva` y `estado` llegaban al
   // service y no se usaban en ninguna condición: la pantalla ofrecía los dos
   // desplegables y elegir cualquiera de ellos no cambiaba nada.
@@ -67,10 +79,31 @@ function filtrosDe(input: FiltrosClientes): SQL | undefined {
   if (input.condicionIva) {
     condiciones.push(eq(clientes.condicionIva, input.condicionIva));
   }
-  if (input.estado) {
+  if (input.estado === "en_mora") {
+    // La mora no es una columna: es el conjunto que calculó la cuenta corriente.
+    const ids = [...(moraIds ?? [])];
+    condiciones.push(ids.length > 0 ? inArray(clientes.id, ids) : sql`false`);
+  } else if (input.estado) {
     condiciones.push(eq(clientes.estado, input.estado));
   }
   return condiciones.length > 0 ? and(...condiciones) : undefined;
+}
+
+/**
+ * Los clientes en mora: con algo impago vencido hace más días que el umbral
+ * de la empresa. Sale de la misma cuenta corriente que el saldo.
+ */
+function clientesEnMora(cc: SaldosCuentaCorriente, umbralDias: number): Set<string> {
+  const hoy = hoyEnArgentina();
+  const porCliente = new Map<string, typeof cc.comprobantes>();
+  for (const c of cc.comprobantes) {
+    porCliente.set(c.contraparteId, [...(porCliente.get(c.contraparteId) ?? []), c]);
+  }
+  return new Set(
+    [...porCliente.entries()]
+      .filter(([, propios]) => enMora(propios, hoy, umbralDias))
+      .map(([id]) => id),
+  );
 }
 
 /**
@@ -131,7 +164,10 @@ export async function listarClientes(
   input: ClientesListar,
 ): Promise<{ items: ClienteConSaldo[]; total: number }> {
   return withTenant(tenantId, async (tx) => {
-    const filtro = filtrosDe(input);
+    const { umbralMoraDias } = await leerParametros(tx, tenantId);
+    const cc = await saldosCuentaCorriente(tx, "ventas");
+    const moraIds = clientesEnMora(cc, umbralMoraDias);
+    const filtro = filtrosDe(input, moraIds);
     const { facturado, cobrado } = agregadosDe(tx);
 
     const filas = await tx
@@ -162,16 +198,20 @@ export async function listarClientes(
       .limit(input.tamanoPagina)
       .offset((input.pagina - 1) * input.tamanoPagina);
 
-    const vencimientos = await vencimientoImpagoClientes(
-      tx,
-      filas.map((f) => f.cliente.id),
-    );
-    const items: ClienteConSaldo[] = filas.map((fila) => ({
-      ...fila.cliente,
-      saldo: saldoDe(fila.facturado, fila.cobrado).aStringFiscal(),
-      proximoVencimiento: vencimientos.get(fila.cliente.id) ?? null,
-      tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
-    }));
+    const vencimientos = primerVencimientoImpago(cc.comprobantes);
+    const items: ClienteConSaldo[] = filas.map((fila) => {
+      const saldo = saldoDe(fila.facturado, fila.cobrado);
+      return {
+        ...fila.cliente,
+        saldo: saldo.aStringFiscal(),
+        proximoVencimiento: vencimientos.get(fila.cliente.id) ?? null,
+        enMora: moraIds.has(fila.cliente.id),
+        excedeLimite:
+          fila.cliente.limiteCredito !== null &&
+          saldo.mayorQue(Money.desdeString(fila.cliente.limiteCredito, "ARS")),
+        tieneMonedaExtranjera: Number(fila.otraMoneda ?? 0) > 0,
+      };
+    });
 
     const [fila] = await tx.select({ total: count() }).from(clientes).where(filtro);
     return { items, total: fila?.total ?? 0 };
@@ -189,8 +229,12 @@ export async function resumenClientes(
   input: FiltrosClientes,
 ): Promise<ResumenClientes> {
   return withTenant(actor.tenantId, async (tx) => {
-    const { umbralConcentracion } = await leerParametros(tx, actor.tenantId);
-    const filtro = filtrosDe(input);
+    const { umbralConcentracion, umbralMoraDias } = await leerParametros(tx, actor.tenantId);
+    const moraIds =
+      input.estado === "en_mora"
+        ? clientesEnMora(await saldosCuentaCorriente(tx, "ventas"), umbralMoraDias)
+        : undefined;
+    const filtro = filtrosDe(input, moraIds);
     const { facturado, cobrado } = agregadosDe(tx);
 
     const filas = await tx

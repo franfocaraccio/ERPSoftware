@@ -44,7 +44,7 @@ const formularioSchema = z.object({
       (v) => v === "" || /^\d+(\.\d{1,2})?$/.test(v),
       "Usá punto decimal, máximo 2 decimales",
     ),
-  estado: z.enum(["activo", "inactivo", "en_mora"]),
+  estado: z.enum(["activo", "inactivo"]),
 });
 
 type ValoresFormulario = z.infer<typeof formularioSchema>;
@@ -67,10 +67,11 @@ const CONDICIONES_IVA = [
   { valor: "consumidor_final", etiqueta: "Consumidor Final" },
 ] as const;
 
+// "En mora" ya no se elige: lo calcula el sistema con el umbral de
+// Parámetros, y se ve en la lista y en la ficha del cliente.
 const ESTADOS = [
   { valor: "activo", etiqueta: "Activo" },
   { valor: "inactivo", etiqueta: "Inactivo" },
-  { valor: "en_mora", etiqueta: "En mora" },
 ] as const;
 
 export function FormularioCliente({ clienteId }: { clienteId?: string }) {
@@ -99,7 +100,9 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
           telefono: cliente.telefono ?? "",
           direccion: cliente.direccion ?? "",
           limiteCredito: cliente.limiteCredito ?? "",
-          estado: cliente.estado,
+          // Un cliente que quedó marcado a mano antes de que la mora se
+          // calculara se edita como activo.
+          estado: cliente.estado === "inactivo" ? ("inactivo" as const) : ("activo" as const),
         }
       : VALORES_INICIALES,
     validators: { onBlur: formularioSchema },
@@ -347,7 +350,10 @@ export function FormularioCliente({ clienteId }: { clienteId?: string }) {
               {esEdicion && (
                 <form.Field name="estado">
                   {(field) => (
-                    <Campo etiqueta="Estado">
+                    <Campo
+                      etiqueta="Estado"
+                      ayuda="La mora no se marca: se calcula sola con el umbral de Parámetros"
+                    >
                       {({ id, describedBy }) => (
                         <Selector
                           id={id}

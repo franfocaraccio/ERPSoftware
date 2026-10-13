@@ -10,6 +10,11 @@ import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
+import {
+  guardarImputaciones,
+  type Imputacion,
+  imputacionesDe,
+} from "../cuenta-corriente/imputaciones.js";
 import type {
   ChequeActualizar,
   ChequeInput,
@@ -195,10 +200,16 @@ export async function listarMovimientos(
   });
 }
 
-export async function obtenerMovimiento(actor: Actor, id: string): Promise<Movimiento | null> {
+export async function obtenerMovimiento(
+  actor: Actor,
+  id: string,
+): Promise<(Movimiento & { imputaciones: Imputacion[] }) | null> {
   return withTenant(actor.tenantId, async (tx) => {
     const [movimiento] = await tx.select().from(movimientos).where(eq(movimientos.id, id));
-    return movimiento ?? null;
+    if (!movimiento) {
+      return null;
+    }
+    return { ...movimiento, imputaciones: await imputacionesDe(tx, id) };
   });
 }
 
@@ -238,12 +249,13 @@ export async function crearMovimiento(actor: Actor, input: MovimientoInput): Pro
     if (!creado) {
       throw new Error("No se pudo registrar el movimiento");
     }
+    const imputadas = await guardarImputaciones(tx, creado, input.imputaciones ?? []);
     // Impacta saldos: la auditoría es obligatoria.
     await auditar(tx, actor, {
       tabla: "movimientos",
       registroId: creado.id,
       accion: "alta",
-      detalle: { despues: creado },
+      detalle: { despues: { ...creado, imputaciones: imputadas } },
     });
     return creado;
   });
@@ -258,6 +270,7 @@ export async function actualizarMovimiento(
     if (!antes) {
       return null;
     }
+    const imputacionesAntes = await imputacionesDe(tx, id);
     await exigirReferenciasMovimiento(tx, datos);
     const [despues] = await tx
       .update(movimientos)
@@ -267,11 +280,15 @@ export async function actualizarMovimiento(
     if (!despues) {
       return null;
     }
+    const imputadas = await guardarImputaciones(tx, despues, datos.imputaciones ?? []);
     await auditar(tx, actor, {
       tabla: "movimientos",
       registroId: id,
       accion: "modificacion",
-      detalle: { antes, despues },
+      detalle: {
+        antes: { ...antes, imputaciones: imputacionesAntes },
+        despues: { ...despues, imputaciones: imputadas },
+      },
     });
     return despues;
   });

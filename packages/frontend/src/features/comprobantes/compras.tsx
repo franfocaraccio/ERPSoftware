@@ -23,6 +23,7 @@ import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { CeldaCobranza } from "./cobranza.js";
 
 const importe = (mensaje: string) =>
   z
@@ -419,6 +420,15 @@ export function Compras() {
                       {h}
                     </th>
                   ))}
+                  <th
+                    scope="col"
+                    className={cn(
+                      clasesEncabezado(densidad),
+                      "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                    )}
+                  >
+                    Pago
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -464,6 +474,9 @@ export function Compras() {
                       )}
                     >
                       {formatearImporte(c.total, c.moneda)}
+                    </td>
+                    <td className={clasesCelda(densidad)}>
+                      <CeldaCobranza cobranza={c.cobranza} lado="compras" moneda={c.moneda} />
                     </td>
                   </tr>
                 ))}

@@ -25,6 +25,7 @@ import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.j
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { CeldaCobranza } from "./cobranza.js";
 
 type Estado = "borrador" | "enviada" | "aprobada" | "rechazada";
 type Evento = "emitir" | "aprobar" | "rechazar" | "corregir";
@@ -260,6 +261,15 @@ export function Ventas() {
                   ))}
                   {encabezado("Total", "total", "derecha")}
                   {encabezado("Estado", "estado")}
+                  <th
+                    scope="col"
+                    className={cn(
+                      clasesEncabezado(densidad),
+                      "text-left text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                    )}
+                  >
+                    Cobro
+                  </th>
                   <th scope="col" className={clasesEncabezado(densidad)} />
                 </tr>
               </thead>
@@ -313,6 +323,9 @@ export function Ventas() {
                       <Insignia tono={TONO_ESTADO[v.estado as Estado]}>
                         {ETIQUETA_ESTADO[v.estado as Estado]}
                       </Insignia>
+                    </td>
+                    <td className={clasesCelda(densidad)}>
+                      <CeldaCobranza cobranza={v.cobranza} lado="ventas" moneda={v.moneda} />
                     </td>
                     <td className={clasesCelda(densidad)}>
                       <div className="flex justify-end gap-1.5">
