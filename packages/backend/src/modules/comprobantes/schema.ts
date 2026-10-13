@@ -85,6 +85,19 @@ export const compraInputSchema = z.object({
   neto: importe.default("0"),
   iva: importe.default("0"),
   total: importe,
+  /**
+   * De qué archivo salió, cuando vino de la lectura automática.
+   *
+   * El archivo no se guarda: queda el nombre y el SHA-256, que alcanzan para
+   * reconocer que un comprobante ya se cargó desde ese mismo papel sin tener
+   * que conservarlo. Va al audit log, no a una columna.
+   */
+  origenArchivo: z
+    .object({
+      nombre: z.string().trim().min(1).max(255),
+      hash: z.string().regex(/^[0-9a-f]{64}$/, "Hash inválido"),
+    })
+    .optional(),
 });
 
 export const compraActualizarSchema = z.object({

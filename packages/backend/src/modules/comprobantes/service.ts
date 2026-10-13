@@ -396,7 +396,12 @@ export async function crearCompra(actor: Actor, input: CompraInput): Promise<Com
       tabla: "comprobantes_compra",
       registroId: creada.id,
       accion: "alta",
-      detalle: { despues: creada },
+      // El origen queda asentado para poder responder después "¿esto lo tipeó
+      // alguien o lo leyó la máquina?", que es la primera pregunta cuando un
+      // importe no cuadra.
+      detalle: input.origenArchivo
+        ? { despues: creada, origen: "archivo", archivo: input.origenArchivo }
+        : { despues: creada },
     });
     return creada;
   });

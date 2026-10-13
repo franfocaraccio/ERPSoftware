@@ -204,13 +204,14 @@ export function interpretar(leido: ComprobanteLeido): CompraPropuesta {
   // En una A es un campo que no se pudo leer: la A siempre lo discrimina.
   const ivaVacio = leido.iva.trim() === "";
   const discrimina = letra !== null && discriminaIva(letra);
-  let iva = ivaVacio ? "0" : aImporte(leido.iva);
+  let iva = ivaVacio ? "0.00" : aImporte(leido.iva);
   if (iva === null || (ivaVacio && discrimina)) {
     faltante("iva");
     iva = null;
   }
 
-  const otros = leido.otrosTributos.trim() === "" ? "0" : (aImporte(leido.otrosTributos) ?? "0");
+  const otros =
+    leido.otrosTributos.trim() === "" ? "0.00" : (aImporte(leido.otrosTributos) ?? "0.00");
 
   // El chequeo de que el total cierre vive en `core`, y sólo se puede hacer
   // con los tres números leídos.

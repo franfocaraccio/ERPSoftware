@@ -163,7 +163,7 @@ describe("interpretar", () => {
     // Focaraccio, monotributo: 3.500.000 y ni una línea de IVA. El IVA vacío
     // acá es lo normal, no un campo que no se pudo leer.
     const p = interpretar(leido({ letra: "C", neto: "3500000,00", iva: "", total: "3500000,00" }));
-    expect(p.iva).toBe("0");
+    expect(p.iva).toBe("0.00");
     expect(p.reparos).toEqual([]);
   });
 

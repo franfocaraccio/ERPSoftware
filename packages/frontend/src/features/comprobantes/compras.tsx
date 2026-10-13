@@ -11,8 +11,8 @@ import {
 } from "@erp/design-system";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { FileCheck, FileUp, Plus, ShoppingCart, TriangleAlert } from "lucide-react";
+import { useRef, useState } from "react";
 import { z } from "zod";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { RangoFechas } from "../../components/filtros.js";
@@ -22,6 +22,7 @@ import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.j
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
+import { type Lectura, leerComprobante, textoReparo } from "../../lib/lectura.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 const importe = (mensaje: string) =>
@@ -34,6 +35,9 @@ const compraSchema = z.object({
   proveedorId: z.string().min(1, "Elegí un proveedor"),
   letra: z.string(),
   numeroCompleto: z.string().trim(),
+  // La pone el proveedor y puede faltar; la de recepción es la obligatoria,
+  // porque de ella cuelga el plazo de pago y la proyección de egresos.
+  fechaEmision: z.string().trim(),
   fechaRecepcion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Elegí una fecha"),
   condicionPagoDias: z
     .string()
@@ -47,7 +51,76 @@ const compraSchema = z.object({
 
 type ValoresCompra = z.infer<typeof compraSchema>;
 
-function FormularioCompra({ onListo }: { onListo: () => void }) {
+/**
+ * Los valores con los que arranca el formulario.
+ *
+ * Lo que la lectura no pudo entender queda **vacío**, nunca relleno con un
+ * valor por defecto: un campo precargado se lee como un dato que alguien
+ * confirmó, y acá nadie lo confirmó todavía.
+ */
+function valoresIniciales(lectura?: Lectura | null): ValoresCompra {
+  const p = lectura?.propuesta;
+  return {
+    proveedorId: lectura?.proveedorId ?? "",
+    letra: p?.letra ?? "A",
+    numeroCompleto: p?.numeroCompleto ?? "",
+    fechaEmision: p?.fechaEmision ?? "",
+    // La recepción no está en el papel: es cuándo nos llegó, y hoy es la mejor
+    // suposición.
+    fechaRecepcion: hoyEnArgentina(),
+    condicionPagoDias: "30",
+    concepto: p?.concepto ?? "",
+    neto: p?.neto ?? "",
+    iva: p?.iva ?? "",
+    total: p?.total ?? "",
+  };
+}
+
+/** El reparo de ese campo, listo para mostrar debajo del input. */
+function ayudaDe(lectura: Lectura | null | undefined, campo: string): string | undefined {
+  const reparo = lectura?.propuesta.reparos.find((r) => r.campo === campo);
+  return reparo ? textoReparo(reparo) : undefined;
+}
+
+/**
+ * Lo que hay que mirar antes de guardar.
+ *
+ * Va arriba y además en cada campo: el resumen dice cuántos son, para que no
+ * haya que recorrer el formulario buscándolos, y el campo dice qué pasa con
+ * ese dato en particular.
+ */
+function AvisoReparos({ lectura }: { lectura: Lectura }) {
+  const { reparos } = lectura.propuesta;
+  return (
+    <div className="mb-4 flex gap-2.5 rounded-lg border border-border bg-surface-muted p-3">
+      {reparos.length > 0 ? (
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+      ) : (
+        <FileCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+      )}
+      <div className="text-sm">
+        <p className="font-medium text-foreground">
+          Leído de <span className="font-normal">{lectura.archivo.nombre}</span>
+        </p>
+        <p className="mt-0.5 text-muted-foreground">
+          {reparos.length === 0
+            ? "Todo se entendió y los totales cierran. Revisalo igual antes de guardar: nada se carga solo."
+            : `Hay ${reparos.length} ${reparos.length === 1 ? "dato" : "datos"} para revisar, marcados abajo.`}
+        </p>
+        {lectura.proveedorId === null && lectura.propuesta.emisorRazonSocial !== "" && (
+          <p className="mt-1 text-muted-foreground">
+            El emisor es{" "}
+            <strong className="font-medium">{lectura.propuesta.emisorRazonSocial}</strong>
+            {lectura.propuesta.emisorCuit !== null && ` (CUIT ${lectura.propuesta.emisorCuit})`},
+            que no está cargado como proveedor. Elegilo de la lista o crealo primero.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FormularioCompra({ onListo, lectura }: { onListo: () => void; lectura?: Lectura | null }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const crear = useMutation(trpc.comprobantes.compras.crear.mutationOptions());
@@ -56,23 +129,14 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
   );
 
   const form = useForm({
-    defaultValues: {
-      proveedorId: "",
-      letra: "A",
-      numeroCompleto: "",
-      fechaRecepcion: hoyEnArgentina(),
-      condicionPagoDias: "30",
-      concepto: "",
-      neto: "",
-      iva: "",
-      total: "",
-    } as ValoresCompra,
+    defaultValues: valoresIniciales(lectura),
     validators: { onBlur: compraSchema },
     onSubmit: async ({ value }) => {
       await crear.mutateAsync({
         proveedorId: value.proveedorId,
         letra: (value.letra || null) as "A" | "B" | "C" | "E" | null,
         numeroCompleto: opcional(value.numeroCompleto),
+        ...(value.fechaEmision ? { fechaEmision: value.fechaEmision } : {}),
         fechaRecepcion: value.fechaRecepcion,
         condicionPagoDias: Number(value.condicionPagoDias),
         concepto: opcional(value.concepto),
@@ -80,6 +144,8 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
         neto: value.neto.trim(),
         iva: value.iva.trim(),
         total: value.total.trim(),
+        // Queda en el audit log: el archivo no se guarda, pero sí de cuál salió.
+        ...(lectura ? { origenArchivo: lectura.archivo } : {}),
       });
       await queryClient.invalidateQueries({ queryKey: trpc.comprobantes.pathKey() });
       // El saldo a pagar del proveedor depende de esta compra.
@@ -90,6 +156,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
 
   return (
     <Tarjeta className="mb-4 p-5">
+      {lectura && <AvisoReparos lectura={lectura} />}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -149,11 +216,31 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
 
           <form.Field name="numeroCompleto">
             {(field) => (
-              <Campo etiqueta="Número" ayuda="Como figura en el comprobante">
+              <Campo
+                etiqueta="Número"
+                ayuda={ayudaDe(lectura, "numeroCompleto") ?? "Como figura en el comprobante"}
+              >
                 {({ id }) => (
                   <Entrada
                     id={id}
                     placeholder="0003-00004567"
+                    className="tabular"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                  />
+                )}
+              </Campo>
+            )}
+          </form.Field>
+
+          <form.Field name="fechaEmision">
+            {(field) => (
+              <Campo etiqueta="Fecha de emisión" ayuda={ayudaDe(lectura, "fechaEmision")}>
+                {({ id }) => (
+                  <Entrada
+                    id={id}
+                    type="date"
                     className="tabular"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -236,6 +323,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
                 <Campo
                   etiqueta={campo === "iva" ? "IVA" : campo === "neto" ? "Neto" : "Total"}
                   requerido={campo === "total"}
+                  ayuda={ayudaDe(lectura, campo)}
                   error={
                     field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
                   }
@@ -305,11 +393,69 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaExportCompra>[] = [
   { encabezado: "Total", valor: (c) => c.total, tipo: "dinero" },
 ];
 
+/**
+ * Subir una factura y que la lea.
+ *
+ * El archivo **no se guarda**: viaja, se lee y se descarta. Lo que vuelve es
+ * un formulario precargado que una persona confirma; nada se carga solo.
+ */
+function BotonLeer({ onLeido }: { onLeido: (lectura: Lectura) => void }) {
+  const entradaRef = useRef<HTMLInputElement>(null);
+  const [leyendo, setLeyendo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function alElegir(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    // Se limpia enseguida para que elegir el mismo archivo otra vez vuelva a
+    // disparar el change.
+    e.target.value = "";
+    if (!archivo) {
+      return;
+    }
+    setError(null);
+    setLeyendo(true);
+    try {
+      onLeido(await leerComprobante(archivo));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo leer el comprobante.");
+    } finally {
+      setLeyendo(false);
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={entradaRef}
+        type="file"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
+        className="sr-only"
+        onChange={(e) => void alElegir(e)}
+      />
+      <Boton
+        tamano="sm"
+        variante="secundario"
+        cargando={leyendo}
+        onClick={() => entradaRef.current?.click()}
+      >
+        <FileUp className="size-4" aria-hidden="true" />
+        {leyendo ? "Leyendo…" : "Leer de un archivo"}
+      </Boton>
+      {error !== null && (
+        <p role="alert" className="text-xs font-medium text-danger">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
 export function Compras() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [creando, setCreando] = useState(false);
+  const [lectura, setLectura] = useState<Lectura | null>(null);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [densidad, setDensidad] = useDensidad("comprobantes-compra");
@@ -357,16 +503,41 @@ export function Compras() {
         )}
         <div className="ml-auto flex items-center gap-2">
           {!creando && !soloLectura && (
-            <Boton tamano="sm" onClick={() => setCreando(true)}>
-              <Plus className="size-4" aria-hidden="true" />
-              Nueva compra
-            </Boton>
+            <>
+              <BotonLeer
+                onLeido={(l) => {
+                  setLectura(l);
+                  setCreando(true);
+                }}
+              />
+              <Boton
+                tamano="sm"
+                onClick={() => {
+                  setLectura(null);
+                  setCreando(true);
+                }}
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                Nueva compra
+              </Boton>
+            </>
           )}
           <SelectorDensidad valor={densidad} onCambio={setDensidad} />
         </div>
       </div>
 
-      {creando && <FormularioCompra onListo={() => setCreando(false)} />}
+      {creando && (
+        <FormularioCompra
+          // Remonta el formulario al llegar una lectura nueva: TanStack Form
+          // toma los defaultValues una sola vez.
+          key={lectura?.archivo.hash ?? "manual"}
+          lectura={lectura}
+          onListo={() => {
+            setCreando(false);
+            setLectura(null);
+          }}
+        />
+      )}
 
       <Tarjeta className="overflow-hidden">
         {isError ? (
