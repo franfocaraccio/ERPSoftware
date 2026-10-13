@@ -674,9 +674,11 @@ producción y lo que quedó afuera:
 - **La demo cambió**: `scripts/datos-demo.sql` carga pagos imputables con
   contraparte, IVA calculado, IIBB con retenciones, categorías, gastos
   recurrentes y movimientos de stock. Para verla hay que borrar y volver a
-  cargar la organización. Con estos números **la empresa de demo pierde plata**
-  casi todos los meses (factura 1 a 2 M netos y paga 1,65 M de sueldos): es un
-  dato de la demo, y conviene revisar los volúmenes antes de mostrarla.
+  cargar la organización (el bloque de limpieza está al final del script).
+  Desde el 13/10/2026 la demo factura unos 10 M netos por mes con todos los
+  gastos fijos cargados mes a mes: gana entre 4 y 9 % salvo un mes flojo a
+  propósito, con un cliente en mora, uno pasado del límite, tres productos
+  para reponer y una semana bajo el mínimo operativo.
 - **La "Lectura del mes" usa OpenAI** con la misma key del asistente y un tope
   propio (`EXPLICACION_LIMITE_DIARIO`, 10 por defecto). No se probó contra la
   API real, para no gastar: está cubierta con tests que reemplazan al modelo.
