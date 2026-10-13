@@ -7,6 +7,7 @@ import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
+import { totalConSigno } from "../_comunes/comprobantes.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { leerParametros } from "../parametros/service.js";
 import type { ClienteActualizar, ClienteInput, ClientesListar } from "./schema.js";
@@ -88,21 +89,15 @@ function filtrosDe(input: FiltrosClientes): SQL | undefined {
  * comprobantes. Una factura en dólares tiene fecha de vencimiento aunque su
  * importe no entre en el saldo en pesos.
  *
- * Sobre notas de crédito: restan en vez de sumar. Son el único mecanismo de
- * corrección de un comprobante con CAE, así que si sumaran, emitir una nota de
- * crédito aumentaría la deuda del cliente al que se le está devolviendo plata.
- * Las notas de débito sí suman, como una factura.
+ * Sobre notas de crédito: restan en vez de sumar, y el por qué está en
+ * `totalConSigno`, que es de donde sale el signo. El `min` del próximo
+ * vencimiento las excluye aparte: una nota de crédito no tiene fecha de cobro.
  */
 function agregadosDe(tx: TenantTx) {
   const facturado = tx
     .select({
       clienteId: comprobantesVenta.clienteId,
-      total: sql<string | null>`sum(
-        case when ${comprobantesVenta.clase} = 'nota_credito'
-          then -${comprobantesVenta.total}
-          else ${comprobantesVenta.total}
-        end
-      ) filter (
+      total: sql<string | null>`sum(${totalConSigno()}) filter (
         where ${comprobantesVenta.moneda} = 'ARS'
       )`.as("total_facturado"),
       otraMoneda: sql<number>`count(*) filter (

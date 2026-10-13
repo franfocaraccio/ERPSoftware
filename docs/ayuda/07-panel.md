@@ -12,7 +12,21 @@ Administrador desde **Equipo**.
   son los cobros y los pagos esperados; la línea es el saldo acumulado.
   Los cobros salen de los comprobantes de venta más la condición de venta en
   días; los pagos, de las compras más el plazo de pago del proveedor.
-- **Evolución de ventas mensuales**.
+- **Evolución de ventas mensuales**: el total facturado por mes.
+
+## Qué pasa con las notas de crédito
+
+En todo el panel —las ventas por mes, el DSO, el margen y la proyección de
+caja— una **nota de crédito resta** y una **nota de débito suma**, igual que en
+la pantalla de clientes.
+
+Dos consecuencias que conviene conocer:
+
+- Un mes puede mostrar un total **negativo** si se emitieron notas de crédito
+  que corrigen facturas de meses anteriores. No es un error: el mes muestra lo
+  que efectivamente se facturó.
+- En la proyección, una nota de crédito descuenta de los cobros de la semana en
+  que vence, así que una semana puede quedar con cobros negativos.
 
 ## Indicadores
 

@@ -5,6 +5,12 @@ falta; lo que no está, está hecho.
 
 Fase 1 y Fase 2 no tienen nada pendiente.
 
+**Este archivo es el inventario: una línea por cosa, con el por qué y quién la
+bloquea.** Las instrucciones para trabajar una tarea —archivos, decisiones ya
+tomadas, cómo verificarla— viven en `docs/handoff/tareas.md`, una sección por
+tarea. Si algo tiene sección allá, acá va **una línea y el link, nunca el
+contenido repetido**: lo que se cuenta dos veces se actualiza una sola.
+
 ## Pedidos de Jesi (11 de octubre de 2026)
 
 Diez puntos revisados contra el código. Tres no eran trabajo sino preguntas con
@@ -47,21 +53,24 @@ dólar oficial con compra y venta en el panel.
 **Pendiente, grande:**
 
 - **Leer extractos bancarios y comprobantes de pago subidos.** Los dos son OCR.
-  **Fran lo habilitó el 12 de octubre de 2026**: se hace. El alcance, el estado
-  verificado del código, las decisiones ya tomadas y cómo verificarlo están en
-  `docs/handoff/tareas.md` (tareas 2, 3 y 4). Dos cosas que conviene saber antes
-  de arrancar: **no existe ninguna forma de subir un archivo** a la aplicación
-  todavía, así que hay una tarea previa de adjuntos; y en el extracto lo difícil
-  no es leer el PDF sino **conciliar** cada línea contra el movimiento ya
-  cargado.
+  **Fran lo habilitó el 12 de octubre de 2026**: se hace. Listo para trabajar en
+  `docs/handoff/tareas.md`, tareas 3 y 4. La aplicación **no guarda** los archivos
+  (se leen y se descartan), así que no hay una tarea previa de adjuntos: la
+  tarea 2 se descartó el 12 de octubre de 2026.
 
-## Un problema transversal pendiente
+## Dos cosas sueltas del panel financiero
 
-- **Las notas de crédito suman en vez de restar** en el DSO, la proyección de
-  caja y el gráfico de ventas por mes (`financiero/service.ts`). Como es el
-  único mecanismo de corrección de un comprobante con CAE, devolverle plata a un
-  cliente hoy le aumenta las ventas. En clientes ya se resta. Listo para
-  trabajar: `docs/handoff/tareas.md`, tarea 1.
+Salieron de arreglar el signo de las notas de crédito y no se tocaron ahí a
+propósito: mueven todos los KPIs a la vez y mezclarlas hubiera vuelto el diff
+imposible de verificar.
+
+- **`financiero/service.ts` no filtra por estado.** Cuenta comprobantes en
+  `borrador`, así que un presupuesto a medio tipear entra en el DSO y en las
+  ventas del mes. Clientes ya usa `ESTADOS_QUE_DEBEN = ["enviada", "aprobada"]`.
+- **`financiero/service.ts` no filtra por moneda.** Suma pesos y dólares en el
+  mismo total y después lo trata como ARS. Es el mismo bug que ya se corrigió en
+  proveedores y en clientes; en dev se ve con una factura de US$ 900 sumada como
+  si fueran pesos.
 
 ## Postergado
 
