@@ -48,6 +48,22 @@ export const ventaInputSchema = z.object({
   condicionVentaDias: z.number().int().min(0).max(365).default(0),
   moneda: z.enum(["ARS", "USD"]).default("ARS"),
   items: z.array(itemInputSchema).min(1, "Cargá al menos un ítem"),
+  /**
+   * El CAE de un comprobante ya emitido en el sitio de ARCA y cargado acá
+   * después.
+   *
+   * Mientras no haya integración con ARCA, la factura se emite allá y se carga
+   * acá: si el CAE no se guardara, el comprobante quedaría sin su único dato
+   * de autorización y no habría forma de cruzarlo contra ARCA. En Fase 3, con
+   * la emisión electrónica, lo va a escribir el proceso de emisión.
+   */
+  cae: z
+    .string()
+    .trim()
+    .regex(/^\d{14}$/, "El CAE son 14 dígitos")
+    .nullable()
+    .optional(),
+  caeVencimiento: fecha.nullable().optional(),
 });
 
 export const ventaActualizarSchema = z.object({

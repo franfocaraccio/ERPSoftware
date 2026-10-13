@@ -16,11 +16,12 @@ import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/factur
 import { proveedores } from "../../db/schema/proveedores.js";
 import { categorias } from "../../db/schema/resultados.js";
 import { productos } from "../../db/schema/stock.js";
-import { withTenant } from "../../db/tenant-db.js";
+import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
 import { type SaldosCuentaCorriente, saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
+import { leerParametros } from "../parametros/service.js";
 import { registrarMovimientoStock } from "../stock/movimientos.js";
 import type {
   CompraActualizar,
@@ -174,25 +175,33 @@ export async function obtenerVenta(
   });
 }
 
-/** La letra la determina la condición IVA del cliente, no el usuario. */
+/**
+ * La letra sale de las dos condiciones frente al IVA, no del usuario: la de la
+ * empresa (el régimen fiscal de Parámetros) y la del cliente.
+ *
+ * El régimen de la empresa importa: un monotributista emite C siempre, le
+ * venda a quien le venda. Mientras esto estuvo fijo en "responsable inscripto",
+ * una empresa monotributista veía sus facturas guardadas como A o B.
+ */
 async function resolverCliente(
-  tx: Parameters<Parameters<typeof withTenant>[1]>[0],
+  tx: TenantTx,
+  tenantId: string,
   clienteId: string,
 ): Promise<{ condicionIva: string; letra: LetraComprobante }> {
   const [cliente] = await tx.select().from(clientes).where(eq(clientes.id, clienteId));
   if (!cliente) {
     throw new Error("Cliente no encontrado");
   }
+  const { regimenFiscal } = await leerParametros(tx, tenantId);
   return {
     condicionIva: cliente.condicionIva,
-    // TODO(fase 3): la condición del emisor sale de la configuración del tenant.
-    letra: letraPermitida("responsable_inscripto", cliente.condicionIva),
+    letra: letraPermitida(regimenFiscal, cliente.condicionIva),
   };
 }
 
 export async function crearVenta(actor: Actor, input: VentaInput): Promise<ComprobanteVenta> {
   return withTenant(actor.tenantId, async (tx) => {
-    const cliente = await resolverCliente(tx, input.clienteId);
+    const cliente = await resolverCliente(tx, actor.tenantId, input.clienteId);
     await exigirPropios(
       tx,
       productos,
@@ -219,6 +228,11 @@ export async function crearVenta(actor: Actor, input: VentaInput): Promise<Compr
         neto: calculo.neto.aStringFiscal(),
         iva: calculo.iva.aStringFiscal(),
         total: calculo.total.aStringFiscal(),
+        // Viene cargado sólo cuando la factura se emitió en el sitio de ARCA y
+        // se está transcribiendo acá. Con la emisión electrónica lo escribirá
+        // el proceso de emisión, no el usuario.
+        cae: input.cae ?? null,
+        caeVencimiento: input.caeVencimiento ?? null,
       })
       .returning();
     if (!creado) {
@@ -262,7 +276,7 @@ export async function actualizarVenta(
       throw new ComprobanteInmutableError();
     }
 
-    const cliente = await resolverCliente(tx, datos.clienteId);
+    const cliente = await resolverCliente(tx, actor.tenantId, datos.clienteId);
     await exigirPropios(
       tx,
       productos,

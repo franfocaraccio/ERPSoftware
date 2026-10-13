@@ -18,11 +18,13 @@ import { generateObject } from "ai";
 process.loadEnvFile(new URL("../.env", import.meta.url).pathname.slice(1));
 
 const { detectarTipo } = await import("../src/modules/_comunes/tipo-archivo.js");
-const { comprobanteLeidoSchema, interpretar, INSTRUCCIONES } = await import(
+const { comprobanteLeidoSchema, interpretar, interpretarVenta, INSTRUCCIONES } = await import(
   "../src/modules/comprobantes/lectura.js"
 );
 
-for (const ruta of process.argv.slice(2)) {
+const comoVenta = process.argv.includes("--venta");
+
+for (const ruta of process.argv.slice(2).filter((a) => !a.startsWith("--"))) {
   const bytes = readFileSync(ruta);
   const tipo = detectarTipo(bytes);
   console.log(`\n=== ${ruta.split(/[/]/).pop()}  (${tipo}, ${(bytes.length / 1024) | 0} KB)`);
@@ -42,6 +44,9 @@ for (const ruta of process.argv.slice(2)) {
     ],
   });
   console.log("crudo:", object);
-  console.log("interpretado:", interpretar(object));
+  console.log(
+    comoVenta ? "como venta:" : "como compra:",
+    comoVenta ? interpretarVenta(object) : interpretar(object),
+  );
   console.log(`tokens: ${usage.inputTokens} in / ${usage.outputTokens} out — ${Date.now() - t} ms`);
 }

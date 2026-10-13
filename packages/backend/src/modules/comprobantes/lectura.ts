@@ -1,4 +1,10 @@
-import { discriminaIva, type LetraComprobante, revisarTotalesLeidos } from "@erp/core/invoicing";
+import {
+  type AlicuotaIva,
+  calcularComprobante,
+  discriminaIva,
+  type LetraComprobante,
+  revisarTotalesLeidos,
+} from "@erp/core/invoicing";
 import { Money } from "@erp/core/money";
 import { normalizarCuit, validarCuit } from "@erp/core/tax";
 import { z } from "zod";
@@ -112,6 +118,9 @@ export function aNumeracion(puntoVenta: string, numero?: string): Numeracion | n
 export const comprobanteLeidoSchema = z.object({
   emisorRazonSocial: z.string(),
   emisorCuit: z.string(),
+  /** A quién se le emitió. Es lo que identifica al cliente en una venta. */
+  receptorRazonSocial: z.string(),
+  receptorCuit: z.string(),
   letra: z.string(),
   puntoVenta: z.string(),
   numero: z.string(),
@@ -123,6 +132,22 @@ export const comprobanteLeidoSchema = z.object({
   iva: z.string(),
   otrosTributos: z.string(),
   total: z.string(),
+  /** Vacíos salvo que el comprobante los traiga; una compra no tiene CAE propio. */
+  cae: z.string(),
+  caeVencimiento: z.string(),
+  /**
+   * El detalle, línea por línea. En una venta no es opcional: los totales se
+   * recalculan de acá, así que el total impreso sirve para contrastar la
+   * lectura y no para guardarlo.
+   */
+  items: z.array(
+    z.object({
+      descripcion: z.string(),
+      cantidad: z.string(),
+      precioUnitario: z.string(),
+      alicuotaIva: z.string(),
+    }),
+  ),
 });
 
 export type ComprobanteLeido = z.infer<typeof comprobanteLeidoSchema>;
@@ -277,4 +302,181 @@ Reglas que importan:
    el comprobante, que suelen estar en el mismo lugar.
 5. El concepto es la descripción de los bienes o servicios que figura en el
    detalle, no el título del documento ni la palabra "FACTURA". Si hay varias
-   líneas, unilas con "; ".`;
+   líneas, unilas con "; ".
+6. El receptor es a quien se le emitió el comprobante: la razón social y el
+   CUIT que figuran en el cuerpo, debajo de los datos del emisor. Si el
+   receptor es consumidor final y sólo hay un DNI, dejá el CUIT vacío.
+7. En "items" va una entrada por línea del detalle, con su descripción,
+   cantidad, precio unitario y alícuota de IVA tal como están impresos. La
+   alícuota va sólo como número ("21", "10.5") o como "exento" o "no gravado".
+   Si el comprobante no discrimina IVA por línea, dejá la alícuota vacía.
+8. El CAE y su fecha de vencimiento están al pie, junto al código de barras.
+   Si no figuran, dejalos vacíos.`;
+
+// ---------------------------------------------------------------------------
+// Ventas
+// ---------------------------------------------------------------------------
+
+const ALICUOTAS: readonly AlicuotaIva[] = [
+  "0",
+  "2.5",
+  "5",
+  "10.5",
+  "21",
+  "27",
+  "exento",
+  "no_gravado",
+];
+
+/**
+ * "21 %" → "21"; "Exento" → "exento".
+ *
+ * Una alícuota no es un importe libre: es una de las ocho que acepta ARCA. Lo
+ * que no cae en esa lista vuelve null y queda como un campo a completar.
+ */
+export function aAlicuota(valor: string): AlicuotaIva | null {
+  const limpio = valor.trim().toLowerCase().replace("%", "").replace(",", ".").trim();
+  if (limpio === "") {
+    return null;
+  }
+  if (limpio.startsWith("exento")) {
+    return "exento";
+  }
+  if (limpio.startsWith("no gravado") || limpio.startsWith("no_gravado")) {
+    return "no_gravado";
+  }
+  // "21.00" y "21" son la misma alícuota; el papel imprime cualquiera de las dos.
+  const normalizado = String(Number(limpio));
+  return (ALICUOTAS as readonly string[]).includes(normalizado)
+    ? (normalizado as AlicuotaIva)
+    : null;
+}
+
+export interface ItemLeido {
+  descripcion: string;
+  cantidad: string | null;
+  precioUnitario: string | null;
+  alicuotaIva: AlicuotaIva | null;
+}
+
+export interface VentaPropuesta {
+  receptorRazonSocial: string;
+  receptorCuit: string | null;
+  clase: "factura" | "nota_credito" | "nota_debito";
+  /** Lo que dice el papel. La que vale la calcula el sistema por el cliente. */
+  letraLeida: LetraComprobante | null;
+  puntoVenta: number | null;
+  numero: number | null;
+  fechaEmision: string | null;
+  cae: string | null;
+  caeVencimiento: string | null;
+  items: ItemLeido[];
+  /** El total impreso, sólo para contrastar: no se guarda. */
+  totalImpreso: string | null;
+  reparos: Reparo[];
+}
+
+/** "NOTA DE CRÉDITO" → nota_credito. Lo que no se reconoce es una factura. */
+function aClase(texto: string): "factura" | "nota_credito" | "nota_debito" {
+  const t = texto.toLowerCase();
+  if (t.includes("crédito") || t.includes("credito")) {
+    return "nota_credito";
+  }
+  if (t.includes("débito") || t.includes("debito")) {
+    return "nota_debito";
+  }
+  return "factura";
+}
+
+/**
+ * Convierte lo leído en una propuesta para el formulario de venta.
+ *
+ * La diferencia con una compra no es cosmética. Una compra es un papel ajeno y
+ * sus totales se transcriben; una venta la emite el sistema, así que los
+ * totales **se recalculan de los ítems** con la misma función que usa el
+ * backend. El total impreso no se guarda: se compara contra el calculado, y si
+ * no coinciden es que algún ítem se leyó mal. Esa comparación es la que valida
+ * la lectura entera.
+ */
+export function interpretarVenta(leido: ComprobanteLeido): VentaPropuesta {
+  const reparos: Reparo[] = [];
+  const faltante = (campo: string) => reparos.push({ campo, motivo: "ilegible" });
+
+  const receptorCuit = leido.receptorCuit.trim() === "" ? null : cuitLeido(leido.receptorCuit);
+  if (receptorCuit === null) {
+    faltante("receptorCuit");
+  }
+
+  const numeracion =
+    aNumeracion(leido.puntoVenta, leido.numero) ?? aNumeracion(leido.numeroCompleto);
+  if (numeracion === null) {
+    faltante("numeroCompleto");
+  }
+
+  const fechaEmision = aFechaIso(leido.fechaEmision);
+  if (fechaEmision === null) {
+    faltante("fechaEmision");
+  }
+
+  const letraLeida = (LETRAS as readonly string[]).includes(leido.letra.trim().toUpperCase())
+    ? (leido.letra.trim().toUpperCase() as LetraComprobante)
+    : null;
+
+  const items: ItemLeido[] = leido.items.map((i) => ({
+    descripcion: i.descripcion.trim(),
+    cantidad: aImporte(i.cantidad),
+    precioUnitario: aImporte(i.precioUnitario),
+    alicuotaIva: aAlicuota(i.alicuotaIva),
+  }));
+
+  if (items.length === 0) {
+    faltante("items");
+  }
+  items.forEach((item, i) => {
+    if (item.descripcion === "" || item.cantidad === null || item.precioUnitario === null) {
+      faltante(`items.${i}`);
+    }
+  });
+
+  const totalImpreso = aImporte(leido.total);
+
+  // El contraste: si los ítems leídos no dan el total impreso, algo se leyó
+  // mal, y conviene decir cuánto da la cuenta para que se vea dónde.
+  const completos = items.every(
+    (i) => i.cantidad !== null && i.precioUnitario !== null && i.alicuotaIva !== null,
+  );
+  if (completos && items.length > 0 && totalImpreso !== null) {
+    const calculado = calcularComprobante(
+      items.map((i) => ({
+        cantidad: i.cantidad ?? "0",
+        precioUnitario: i.precioUnitario ?? "0",
+        alicuotaIva: i.alicuotaIva ?? "21",
+      })),
+      "ARS",
+    );
+    if (
+      calculado.total.aStringFiscal() !== Money.desdeString(totalImpreso, "ARS").aStringFiscal()
+    ) {
+      reparos.push({
+        campo: "total",
+        motivo: "no_cierra",
+        esperado: calculado.total.aStringFiscal(),
+      });
+    }
+  }
+
+  return {
+    receptorRazonSocial: leido.receptorRazonSocial.trim(),
+    receptorCuit,
+    clase: aClase(`${leido.letra} ${leido.concepto}`),
+    letraLeida,
+    puntoVenta: numeracion?.puntoVenta ?? null,
+    numero: numeracion?.numero ?? null,
+    fechaEmision,
+    cae: leido.cae.trim() === "" ? null : leido.cae.trim(),
+    caeVencimiento: leido.caeVencimiento.trim() === "" ? null : aFechaIso(leido.caeVencimiento),
+    items,
+    totalImpreso,
+    reparos,
+  };
+}

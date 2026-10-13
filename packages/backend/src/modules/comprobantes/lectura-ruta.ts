@@ -4,16 +4,20 @@ import { generateObject } from "ai";
 import { fromNodeHeaders } from "better-auth/node";
 import express, { type Request, type Response } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { ROLES_ESCRITURA } from "../../auth/roles.js";
 import { resolverSesion } from "../../trpc/context.js";
 import { detectarTipo, TIPOS_PERMITIDOS } from "../_comunes/tipo-archivo.js";
 import { crearContador } from "../asistente/limite.js";
+import { buscarClientePorCuit } from "../clientes/service.js";
 import { buscarProveedorPorCuit } from "../proveedores/service.js";
 import {
   type CompraPropuesta,
   comprobanteLeidoSchema,
   INSTRUCCIONES,
   interpretar,
+  interpretarVenta,
+  type VentaPropuesta,
 } from "./lectura.js";
 
 /**
@@ -30,6 +34,9 @@ import {
 
 /** 10 MB: una foto de celular de una factura pesa 3 o 4. */
 const TOPE_BYTES = 10 * 1024 * 1024;
+
+/** Los dos lados del mostrador; cualquier otra cosa es un pedido mal armado. */
+const tipoSchema = z.enum(["compra", "venta"]);
 
 const recibirArchivo = multer({
   storage: multer.memoryStorage(),
@@ -59,12 +66,31 @@ export const lecturaComprobantesRouter: express.Router = express.Router();
 
 lecturaComprobantesRouter.post("/api/comprobantes/leer", manejarLectura);
 
-interface RespuestaLectura {
+/**
+ * La misma lectura sirve para los dos lados del mostrador, pero lo que se
+ * arma con ella no: una compra transcribe los totales del papel ajeno, una
+ * venta los recalcula de los ítems. Por eso el tipo viene en el pedido y hay
+ * dos interpretaciones, no un `if` adentro de una.
+ */
+type TipoComprobante = "compra" | "venta";
+
+interface RespuestaCompra {
+  tipo: "compra";
   propuesta: CompraPropuesta;
   /** El proveedor que coincide con el CUIT leído, si ya está cargado. */
-  proveedorId: string | null;
+  contraparteId: string | null;
   archivo: { nombre: string; hash: string };
 }
+
+interface RespuestaVenta {
+  tipo: "venta";
+  propuesta: VentaPropuesta;
+  /** El cliente que coincide con el CUIT leído, si ya está cargado. */
+  contraparteId: string | null;
+  archivo: { nombre: string; hash: string };
+}
+
+type RespuestaLectura = RespuestaCompra | RespuestaVenta;
 
 async function manejarLectura(req: Request, res: Response): Promise<void> {
   if (!process.env.OPENAI_API_KEY) {
@@ -98,6 +124,13 @@ async function manejarLectura(req: Request, res: Response): Promise<void> {
     res.status(400).json({ error: "Falta el archivo." });
     return;
   }
+
+  const tipoParseado = tipoSchema.safeParse(req.body?.tipo);
+  if (!tipoParseado.success) {
+    res.status(400).json({ error: "Decí si es una compra o una venta." });
+    return;
+  }
+  const tipo_: TipoComprobante = tipoParseado.data;
 
   // El tipo sale del contenido, no de la extensión ni del Content-Type: los
   // dos los elige quien sube el archivo.
@@ -133,24 +166,30 @@ async function manejarLectura(req: Request, res: Response): Promise<void> {
       ],
     });
 
+    const actor = { tenantId: sesion.activeOrganizationId, usuarioId: sesion.usuarioId };
+    const archivoLeido = {
+      nombre: archivo.originalname,
+      hash: createHash("sha256").update(archivo.buffer).digest("hex"),
+    };
+
+    // En una compra la contraparte es el emisor —el proveedor nos factura—; en
+    // una venta es el receptor. Es el mismo papel leído desde el otro lado.
+    if (tipo_ === "venta") {
+      const propuesta = interpretarVenta(object);
+      const contraparteId =
+        propuesta.receptorCuit === null
+          ? null
+          : await buscarClientePorCuit(actor, propuesta.receptorCuit);
+      res.json({ tipo: "venta", propuesta, contraparteId, archivo: archivoLeido });
+      return;
+    }
+
     const propuesta = interpretar(object);
-    const proveedorId =
+    const contraparteId =
       propuesta.emisorCuit === null
         ? null
-        : await buscarProveedorPorCuit(
-            { tenantId: sesion.activeOrganizationId, usuarioId: sesion.usuarioId },
-            propuesta.emisorCuit,
-          );
-
-    const respuesta: RespuestaLectura = {
-      propuesta,
-      proveedorId,
-      archivo: {
-        nombre: archivo.originalname,
-        hash: createHash("sha256").update(archivo.buffer).digest("hex"),
-      },
-    };
-    res.json(respuesta);
+        : await buscarProveedorPorCuit(actor, propuesta.emisorCuit);
+    res.json({ tipo: "compra", propuesta, contraparteId, archivo: archivoLeido });
   } catch (e) {
     console.error("[lectura] No se pudo leer el comprobante:", e);
     res.status(502).json({

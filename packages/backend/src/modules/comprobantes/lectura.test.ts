@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  aAlicuota,
   aFechaIso,
   aImporte,
   aNumeracion,
   type ComprobanteLeido,
   cuitLeido,
   interpretar,
+  interpretarVenta,
 } from "./lectura.js";
 
 /**
@@ -134,6 +136,11 @@ describe("interpretar", () => {
     return {
       emisorRazonSocial: "AXCER S.R.L.",
       emisorCuit: "30716644495",
+      receptorRazonSocial: "Cliente SA",
+      receptorCuit: "30692138747",
+      cae: "",
+      caeVencimiento: "",
+      items: [],
       letra: "A",
       puntoVenta: "00002",
       numero: "00000080",
@@ -219,5 +226,145 @@ describe("interpretar", () => {
 
   it("no inventa reparos cuando todo cierra", () => {
     expect(interpretar(leido()).reparos).toEqual([]);
+  });
+});
+
+describe("aAlicuota", () => {
+  it("acepta las formas en que se imprime", () => {
+    expect(aAlicuota("21")).toBe("21");
+    expect(aAlicuota("21 %")).toBe("21");
+    expect(aAlicuota("21,00")).toBe("21");
+    expect(aAlicuota("10,5%")).toBe("10.5");
+    expect(aAlicuota("Exento")).toBe("exento");
+    expect(aAlicuota("No gravado")).toBe("no_gravado");
+  });
+
+  it("rechaza una alícuota que no existe", () => {
+    // No es un porcentaje libre: ARCA acepta ocho. Un 15% leído mal tiene que
+    // quedar como campo a completar, no entrar al comprobante.
+    for (const basura of ["", "15", "21.5", "cualquiera"]) {
+      expect(aAlicuota(basura)).toBeNull();
+    }
+  });
+});
+
+describe("interpretarVenta", () => {
+  function venta(parcial: Partial<ComprobanteLeido> = {}): ComprobanteLeido {
+    return {
+      emisorRazonSocial: "Mi Empresa SA",
+      emisorCuit: "30716644495",
+      receptorRazonSocial: "Farmcity S.A",
+      receptorCuit: "30-69213874-7",
+      letra: "A",
+      puntoVenta: "00003",
+      numero: "00001234",
+      numeroCompleto: "",
+      fechaEmision: "13/10/2026",
+      concepto: "Servicios",
+      neto: "10000,00",
+      iva: "2100,00",
+      otrosTributos: "0,00",
+      total: "12100,00",
+      cae: "70417054367476",
+      caeVencimiento: "23/10/2026",
+      items: [
+        {
+          descripcion: "Un producto",
+          cantidad: "1,00",
+          precioUnitario: "10000,00",
+          alicuotaIva: "21",
+        },
+      ],
+      ...parcial,
+    };
+  }
+
+  it("arma la propuesta con el cliente, el número y el CAE", () => {
+    const p = interpretarVenta(venta());
+    expect(p).toMatchObject({
+      receptorCuit: "30692138747",
+      clase: "factura",
+      letraLeida: "A",
+      puntoVenta: 3,
+      numero: 1234,
+      fechaEmision: "2026-10-13",
+      cae: "70417054367476",
+      caeVencimiento: "2026-10-23",
+    });
+    expect(p.reparos).toEqual([]);
+  });
+
+  it("lee los ítems con su alícuota", () => {
+    const p = interpretarVenta(venta());
+    expect(p.items).toEqual([
+      {
+        descripcion: "Un producto",
+        cantidad: "1.00",
+        precioUnitario: "10000.00",
+        alicuotaIva: "21",
+      },
+    ]);
+  });
+
+  it("avisa cuando los ítems no dan el total impreso", () => {
+    // Es la validación que cubre toda la lectura de una sola vez: si una
+    // cantidad o un precio se leyó mal, la cuenta no cierra contra el papel.
+    const p = interpretarVenta(
+      venta({
+        items: [
+          {
+            descripcion: "Un producto",
+            cantidad: "2,00",
+            precioUnitario: "10000,00",
+            alicuotaIva: "21",
+          },
+        ],
+      }),
+    );
+    expect(p.reparos).toContainEqual({
+      campo: "total",
+      motivo: "no_cierra",
+      esperado: "24200.00",
+    });
+  });
+
+  it("una venta sin ítems no se puede cargar", () => {
+    // El comprobante de venta se arma de los ítems: sin ellos no hay nada que
+    // guardar, por más que el total esté impreso.
+    expect(interpretarVenta(venta({ items: [] })).reparos).toContainEqual({
+      campo: "items",
+      motivo: "ilegible",
+    });
+  });
+
+  it("marca el ítem incompleto, diciendo cuál", () => {
+    const p = interpretarVenta(
+      venta({
+        items: [
+          { descripcion: "Bueno", cantidad: "1", precioUnitario: "100", alicuotaIva: "21" },
+          { descripcion: "", cantidad: "1", precioUnitario: "100", alicuotaIva: "21" },
+        ],
+      }),
+    );
+    expect(p.reparos).toContainEqual({ campo: "items.1", motivo: "ilegible" });
+    expect(p.reparos).not.toContainEqual({ campo: "items.0", motivo: "ilegible" });
+  });
+
+  it("reconoce una nota de crédito", () => {
+    expect(interpretarVenta(venta({ concepto: "NOTA DE CRÉDITO A" })).clase).toBe("nota_credito");
+    expect(interpretarVenta(venta({ concepto: "Nota de debito" })).clase).toBe("nota_debito");
+  });
+
+  it("sin CAE no inventa uno", () => {
+    // Una factura vieja cargada a mano puede no tenerlo, y es válido.
+    const p = interpretarVenta(venta({ cae: "", caeVencimiento: "" }));
+    expect(p.cae).toBeNull();
+    expect(p.caeVencimiento).toBeNull();
+  });
+
+  it("el total impreso no se guarda, sólo se contrasta", () => {
+    // Queda a la vista para la persona, pero lo que se persiste sale de los
+    // ítems, calculado con la misma función que usa el backend al guardar.
+    expect(interpretarVenta(venta()).totalImpreso).toBe("12100.00");
   });
 });

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { crearCliente } from "../clientes/service.js";
+import { guardarParametros } from "../parametros/service.js";
 import { crearProveedor } from "../proveedores/service.js";
 import { crearProducto } from "../stock/service.js";
 import {
@@ -30,6 +31,59 @@ afterAll(async () => {
 });
 
 describe("comprobantes de venta (integración, RLS activo)", () => {
+  it("una empresa monotributista emite C, le venda a quien le venda", async () => {
+    // La letra sale de las DOS condiciones: la de la empresa y la del cliente.
+    // Mientras la de la empresa estuvo fija en responsable inscripto, un
+    // monotributista veía sus facturas guardadas como A, que es un comprobante
+    // que no puede emitir.
+    const tenant = await crearTenantDePrueba();
+    await guardarParametros(tenant, { umbralMoraDias: 60, regimenFiscal: "monotributo" });
+    const cliente = await crearCliente(tenant, {
+      razonSocial: "Cliente RI SA",
+      condicionIva: "responsable_inscripto",
+    });
+
+    const venta = await crearVenta(tenant, {
+      clase: "factura",
+      puntoVenta: 1,
+      clienteId: cliente.id,
+      fechaEmision: "2026-08-01",
+      condicionVentaDias: 0,
+      moneda: "ARS",
+      items: [
+        { descripcion: "Servicio", cantidad: "1", precioUnitario: "100000", alicuotaIva: "21" },
+      ],
+    });
+
+    expect(venta.letra).toBe("C");
+  });
+
+  it("guarda el CAE de una factura emitida en el sitio de ARCA", async () => {
+    // Sin integración con ARCA la factura se emite allá y se carga acá: si el
+    // CAE no se guardara, el comprobante quedaría sin su dato de autorización.
+    const cliente = await crearCliente(tenantA, {
+      razonSocial: "Con CAE SA",
+      condicionIva: "responsable_inscripto",
+    });
+
+    const venta = await crearVenta(tenantA, {
+      clase: "factura",
+      puntoVenta: 1,
+      clienteId: cliente.id,
+      fechaEmision: "2026-08-01",
+      condicionVentaDias: 0,
+      moneda: "ARS",
+      cae: "70417054367476",
+      caeVencimiento: "2026-08-11",
+      items: [
+        { descripcion: "Servicio", cantidad: "1", precioUnitario: "100000", alicuotaIva: "21" },
+      ],
+    });
+
+    expect(venta.cae).toBe("70417054367476");
+    expect(venta.caeVencimiento).toBe("2026-08-11");
+  });
+
   it("calcula los totales desde los ítems e infiere la letra del cliente", async () => {
     const cliente = await crearCliente(tenantA, {
       razonSocial: "Mayorista RI SA",

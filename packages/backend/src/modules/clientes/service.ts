@@ -283,6 +283,24 @@ export async function obtenerCliente(actor: Actor, id: string): Promise<Cliente 
   });
 }
 
+/**
+ * El cliente que tiene ese CUIT, si ya está cargado.
+ *
+ * Lo usa la lectura de comprobantes para sugerir el cliente en vez de hacerlo
+ * elegir de una lista. El CUIT tiene índice único por empresa, así que o hay
+ * uno o no hay ninguno.
+ */
+export async function buscarClientePorCuit(actor: Actor, cuit: string): Promise<string | null> {
+  return withTenant(actor.tenantId, async (tx) => {
+    const [cliente] = await tx
+      .select({ id: clientes.id })
+      .from(clientes)
+      .where(eq(clientes.cuit, cuit))
+      .limit(1);
+    return cliente?.id ?? null;
+  });
+}
+
 export async function crearCliente(actor: Actor, input: ClienteInput): Promise<Cliente> {
   return withTenant(actor.tenantId, async (tx) => {
     const [creado] = await tx
