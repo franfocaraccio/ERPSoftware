@@ -9,6 +9,7 @@ import { guardarParametros } from "../parametros/service.js";
 import { actualizarMovimiento, crearCuenta, crearMovimiento } from "../tesoreria/service.js";
 import { fichaCliente } from "./fichas.js";
 import { comprobantesAbiertos } from "./imputaciones.js";
+import { comprobantesPendientes } from "./pendientes.js";
 
 type Actor = { tenantId: string; usuarioId: string };
 
@@ -298,5 +299,50 @@ describe("ficha del cliente", () => {
     const f = await ficha(e);
     expect(f.excedeLimite).toBe(true);
     expect(f.creditoUsado).toBe("125.00");
+  });
+});
+
+describe("pendientes de toda la empresa", () => {
+  it("lista lo pendiente por vencimiento y arma el ranking de quién debe más", async () => {
+    const e = await escenario();
+    const otro = await crearCliente(e.actor, {
+      razonSocial: "Otro SA",
+      condicionIva: "responsable_inscripto",
+    });
+    // Cliente SA: 100 vencida hace 20 días y 300 por vencer; Otro SA: 250 por vencer.
+    const vieja = await e.factura("100.00", { emitidaHace: 50, plazo: 30 });
+    await e.factura("300.00", { emitidaHace: 0, plazo: 30 });
+    await e.factura("250.00", { emitidaHace: 0, plazo: 10, clienteId: otro.id });
+    // Una cobrada no aparece.
+    const cobrada = await e.factura("80.00", { emitidaHace: 5, plazo: 30 });
+    await e.cobro("80.00", [{ comprobanteId: cobrada, importe: "80.00" }]);
+
+    const p = await comprobantesPendientes(e.actor, "ventas");
+
+    expect(p.comprobantes.map((c) => [c.contraparte, c.pendiente])).toEqual([
+      ["Cliente SA", "100.00"],
+      ["Otro SA", "250.00"],
+      ["Cliente SA", "300.00"],
+    ]);
+    expect(p.comprobantes[0]).toMatchObject({ id: vieja, estado: "vencida", diasDeAtraso: 20 });
+    expect(p.porContraparte.map((c) => [c.nombre, c.pendiente, c.vencido])).toEqual([
+      ["Cliente SA", "400.00", "100.00"],
+      ["Otro SA", "250.00", "0.00"],
+    ]);
+    expect(p.totalPendiente).toBe("650.00");
+    expect(p.totalVencido).toBe("100.00");
+  });
+
+  it("filtra lo vencido y lo que vence hasta una fecha", async () => {
+    const e = await escenario();
+    await e.factura("100.00", { emitidaHace: 50, plazo: 30 });
+    await e.factura("300.00", { emitidaHace: 0, plazo: 30 });
+    await e.factura("200.00", { emitidaHace: 0, plazo: 5 });
+
+    const vencidos = await comprobantesPendientes(e.actor, "ventas", { soloVencidos: true });
+    expect(vencidos.comprobantes.map((c) => c.pendiente)).toEqual(["100.00"]);
+
+    const semana = await comprobantesPendientes(e.actor, "ventas", { venceHasta: enDias(7) });
+    expect(semana.comprobantes.map((c) => c.pendiente)).toEqual(["100.00", "200.00"]);
   });
 });

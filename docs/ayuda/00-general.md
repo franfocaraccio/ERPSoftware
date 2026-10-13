@@ -63,9 +63,20 @@ El botón redondo de abajo a la derecha abre el asistente. Responde dos tipos de
 preguntas:
 
 - **Cómo usar el sistema**: dónde está cada cosa y qué pasos seguir.
-- **Los números de la empresa**: "¿quién me debe más?", "¿cuánto le vendí a
-  Corralón Belgrano este año?", "¿qué vence esta semana?", "¿cómo me fue el mes
-  pasado?".
+- **Los números de la empresa**, de todos los módulos. Por ejemplo:
+  - Cobros y pagos: "¿quién me debe más?", "¿qué facturas tengo vencidas?",
+    "¿qué cobro esta semana?", "¿qué le tengo que pagar a proveedores este mes?".
+  - Ventas y resultados: "¿cómo me fue el mes pasado?", "¿cuánto le vendí a
+    Corralón Belgrano este año, con IVA?", "¿qué producto deja más margen?",
+    "¿qué productos me compra Aráoz?", "¿cómo vengo contra el año pasado?".
+  - Stock: "¿qué tengo que reponer?", "¿cuánto vale mi stock?", "¿cuándo entró
+    hierro por última vez?".
+  - Tesorería e impuestos: "¿cuánta plata tengo en el banco?", "¿qué cheques
+    cobro este mes?", "¿qué impuestos vencen este mes?", "¿cuánto IVA pago?".
+  - Detalle: "¿qué tiene la factura 15?", "¿cuál es el CBU de Aceros?", "¿a
+    cuánto está el dólar?".
+  - Sólo administradores: "¿quién modificó el stock ayer?", "¿quiénes tienen
+    acceso al sistema?".
 
 Ve lo mismo que el usuario ve en pantalla: un link de solo lectura limitado a
 algunos módulos no puede consultar los otros por el chat. **No modifica nada**:

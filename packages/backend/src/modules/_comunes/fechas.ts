@@ -9,7 +9,7 @@ import { z } from "zod";
  * Las columnas son `date` (sin hora), así que alcanza con comparar contra el
  * texto YYYY-MM-DD y no hay que pelear con zonas horarias.
  */
-const fechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)");
+export const fechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)");
 
 export const rangoFechasSchema = {
   desde: fechaSchema.optional(),

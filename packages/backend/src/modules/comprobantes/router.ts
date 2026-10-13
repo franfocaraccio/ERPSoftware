@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js";
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
+import { fechaSchema } from "../_comunes/fechas.js";
 import { ReferenciaAjenaError } from "../_comunes/pertenencia.js";
 import {
   compraActualizarSchema,
@@ -25,8 +26,11 @@ import {
   TransicionInvalidaError,
   transicionarVenta,
 } from "./service.js";
+import { totalesDeCompraPorProveedor, totalesDeVentaPorCliente } from "./totales.js";
 
 const idSchema = z.object({ id: z.uuid() });
+
+const rangoSchema = z.object({ desde: fechaSchema, hasta: fechaSchema });
 
 /** Los errores de dominio se traducen a códigos tRPC semánticos. */
 function traducirError(error: unknown): never {
@@ -44,6 +48,11 @@ function traducirError(error: unknown): never {
 
 export const comprobantesRouter = router({
   ventas: router({
+    /** Cuánto se le facturó a cada cliente entre dos fechas, con y sin IVA. */
+    totales: tenantProcedure
+      .input(rangoSchema)
+      .query(({ ctx, input }) => totalesDeVentaPorCliente(ctx, input)),
+
     listar: tenantProcedure.input(ventasListarSchema).query(({ ctx, input }) => {
       return listarVentas(ctx, input);
     }),
@@ -83,6 +92,11 @@ export const comprobantesRouter = router({
   }),
 
   compras: router({
+    /** Cuánto se le compró a cada proveedor entre dos fechas. */
+    totales: tenantProcedure
+      .input(rangoSchema)
+      .query(({ ctx, input }) => totalesDeCompraPorProveedor(ctx, input)),
+
     listar: tenantProcedure.input(comprasListarSchema).query(({ ctx, input }) => {
       return listarCompras(ctx, input);
     }),

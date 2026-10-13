@@ -4,8 +4,17 @@ import { withTenant } from "../../db/tenant-db.js";
 import { router, tenantProcedure } from "../../trpc/trpc.js";
 import { fichaCliente, fichaProveedor } from "./fichas.js";
 import { comprobantesAbiertos } from "./imputaciones.js";
+import { comprobantesPendientes } from "./pendientes.js";
 
 const idSchema = z.object({ id: z.uuid() });
+
+const pendientesSchema = z.object({
+  soloVencidos: z.boolean().default(false),
+  venceHasta: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (AAAA-MM-DD)")
+    .optional(),
+});
 
 export const cuentaCorrienteRouter = router({
   /**
@@ -25,6 +34,16 @@ export const cuentaCorrienteRouter = router({
         comprobantesAbiertos(tx, input.lado, input.contraparteId, input.movimientoId),
       ),
     ),
+
+  /** Lo que queda por cobrar de toda la empresa, comprobante por comprobante. */
+  pendientesClientes: tenantProcedure
+    .input(pendientesSchema)
+    .query(({ ctx, input }) => comprobantesPendientes(ctx, "ventas", input)),
+
+  /** Lo que queda por pagar a todos los proveedores. */
+  pendientesProveedores: tenantProcedure
+    .input(pendientesSchema)
+    .query(({ ctx, input }) => comprobantesPendientes(ctx, "compras", input)),
 
   cliente: tenantProcedure.input(idSchema).query(async ({ ctx, input }) => {
     const ficha = await fichaCliente(ctx, input.id);
