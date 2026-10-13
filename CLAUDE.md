@@ -1,7 +1,9 @@
 # CLAUDE.md — ERP PyME
 
 ERP SaaS multi-tenant para PyMEs argentinas con facturación electrónica contra ARCA (ex AFIP).
-Monorepo pnpm + Turborepo. Documentación y UI en castellano; **mensajes de commit siempre en inglés**.
+Monorepo pnpm + Turborepo. Documentación y UI en castellano; **mensajes de commit siempre en inglés**,
+y también **todo lo que se escribe en GitHub**: título y descripción de PRs, comentarios en PRs e
+issues, respuestas a reviews y descripciones de issues.
 
 ## Comandos
 
