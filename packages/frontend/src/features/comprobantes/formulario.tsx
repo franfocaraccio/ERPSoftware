@@ -5,12 +5,15 @@ import { Boton, Campo, clasesBoton, Entrada, Selector, Tarjeta } from "@erp/desi
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, ArrowLeft, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileCheck, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { z } from "zod";
+import { BotonLeerComprobante } from "../../components/boton-leer-comprobante.js";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { mensajeDeError } from "../../lib/errores.js";
 import { formatearImporte } from "../../lib/formato.js";
 import { primerError } from "../../lib/formulario.js";
+import { type LecturaVenta, leerComprobante, textoReparo } from "../../lib/lectura.js";
 import { useTRPC } from "../../lib/trpc.js";
 
 const ALICUOTAS: { valor: AlicuotaIva; etiqueta: string }[] = [
@@ -52,6 +55,11 @@ const ventaSchema = z.object({
     .string()
     .trim()
     .refine((v) => /^\d+$/.test(v) && Number(v) <= 365, "Días entre 0 y 365"),
+  cae: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{14}$/.test(v), "El CAE son 14 dígitos"),
+  caeVencimiento: z.string().trim(),
   items: z.array(itemSchema).min(1, "Cargá al menos un ítem"),
 });
 
@@ -79,7 +87,129 @@ function totalesPreview(items: ValoresVenta["items"]) {
   return calcularComprobante(validos, "ARS");
 }
 
+/**
+ * Los valores con los que arranca el formulario cuando viene de un archivo.
+ *
+ * Lo que no se pudo leer queda **vacío**, nunca con un valor por defecto: un
+ * campo precargado se lee como un dato que alguien confirmó, y acá todavía no
+ * lo confirmó nadie. El CAE y su vencimiento se guardan tal como vinieron: son
+ * la única autorización que lleva el comprobante mientras se emita en ARCA.
+ */
+/** El reparo de ese campo, listo para mostrar debajo del input. */
+function ayudaDe(lectura: LecturaVenta | null, campo: string): string | undefined {
+  const reparo = lectura?.propuesta.reparos.find((r) => r.campo === campo);
+  return reparo ? textoReparo(reparo) : undefined;
+}
+
+/**
+ * Lo que hay que mirar antes de guardar.
+ *
+ * El total impreso va a la vista aunque no se guarde: lo que se persiste sale
+ * de los ítems, y tenerlo al lado es lo que permite ver de un vistazo si la
+ * lectura cerró.
+ */
+function AvisoLectura({ lectura }: { lectura: LecturaVenta }) {
+  const { propuesta } = lectura;
+  const { reparos } = propuesta;
+  return (
+    <div className="mb-4 flex max-w-4xl gap-2.5 rounded-lg border border-border bg-surface-muted p-3">
+      {reparos.length > 0 ? (
+        <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
+      ) : (
+        <FileCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+      )}
+      <div className="text-sm">
+        <p className="font-medium text-foreground">
+          Leído de <span className="font-normal">{lectura.archivo.nombre}</span>
+        </p>
+        <p className="mt-0.5 text-muted-foreground">
+          {reparos.length === 0
+            ? "Todo se entendió. Revisalo igual antes de guardar: nada se carga solo."
+            : `Hay ${reparos.length} ${reparos.length === 1 ? "dato" : "datos"} para revisar, marcados abajo.`}
+        </p>
+        {propuesta.totalImpreso !== null && (
+          <p className="mt-1 text-muted-foreground">
+            El papel dice{" "}
+            <span className="tabular font-medium text-foreground">
+              {formatearImporte(propuesta.totalImpreso)}
+            </span>
+            . El total que se guarda se calcula de los ítems: si no coinciden, algún ítem se leyó
+            mal.
+          </p>
+        )}
+        {lectura.contraparteId === null && propuesta.receptorRazonSocial !== "" && (
+          <p className="mt-1 text-muted-foreground">
+            El comprobante es para{" "}
+            <strong className="font-medium">{propuesta.receptorRazonSocial}</strong>
+            {propuesta.receptorCuit !== null && ` (CUIT ${propuesta.receptorCuit})`}, que no está
+            cargado como cliente. Elegilo de la lista o crealo primero.
+          </p>
+        )}
+        {propuesta.items.some((i) => i.alicuotaIva === null) && (
+          <p className="mt-1 text-muted-foreground">
+            El comprobante lleva el IVA incluido en el precio y no dice a qué tasa, así que la
+            alícuota quedó en 21 % y el precio unitario está cargado con el IVA adentro. Revisá los
+            dos: de ellos sale el total que se guarda.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function valoresIniciales(lectura?: LecturaVenta | null): ValoresVenta {
+  const p = lectura?.propuesta;
+  return {
+    clase: p?.clase ?? "factura",
+    clienteId: lectura?.contraparteId ?? "",
+    puntoVenta: p?.puntoVenta === null || p?.puntoVenta === undefined ? "1" : String(p.puntoVenta),
+    numero: p?.numero === null || p?.numero === undefined ? "" : String(p.numero),
+    fechaEmision: p?.fechaEmision ?? hoyEnArgentina(),
+    condicionVentaDias: "30",
+    cae: p?.cae ?? "",
+    caeVencimiento: p?.caeVencimiento ?? "",
+    items:
+      p && p.items.length > 0
+        ? p.items.map((i) => ({
+            // El producto no se vincula solo: vincularlo es lo que hace que al
+            // confirmar la factura se descuente stock, y eso lo decide una
+            // persona. Una factura vieja se carga sin tocar la mercadería.
+            productoId: "",
+            descripcion: i.descripcion,
+            cantidad: i.cantidad ?? "",
+            precioUnitario: i.precioUnitario ?? "",
+            alicuotaIva: (i.alicuotaIva ?? "21") as AlicuotaIva,
+          }))
+        : [ITEM_VACIO],
+  };
+}
+
+/**
+ * La pantalla, que es la que recuerda la lectura.
+ *
+ * El formulario va aparte y con `key`: TanStack Form toma los `defaultValues`
+ * una sola vez, al montarse, así que la única forma de precargarlo con lo
+ * leído es montarlo de nuevo. Sin esto el archivo se lee bien y el formulario
+ * queda vacío.
+ */
 export function FormularioComprobante() {
+  const [lectura, setLectura] = useState<LecturaVenta | null>(null);
+  return (
+    <FormularioVenta
+      key={lectura?.archivo.hash ?? "manual"}
+      lectura={lectura}
+      onLeido={setLectura}
+    />
+  );
+}
+
+function FormularioVenta({
+  lectura,
+  onLeido,
+}: {
+  lectura: LecturaVenta | null;
+  onLeido: (lectura: LecturaVenta) => void;
+}) {
   const trpc = useTRPC();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -91,15 +221,7 @@ export function FormularioComprobante() {
   const crear = useMutation(trpc.comprobantes.ventas.crear.mutationOptions());
 
   const form = useForm({
-    defaultValues: {
-      clase: "factura",
-      clienteId: "",
-      puntoVenta: "1",
-      numero: "",
-      fechaEmision: hoyEnArgentina(),
-      condicionVentaDias: "30",
-      items: [ITEM_VACIO],
-    } as ValoresVenta,
+    defaultValues: valoresIniciales(lectura),
     validators: { onBlur: ventaSchema },
     onSubmit: async ({ value }) => {
       await crear.mutateAsync({
@@ -110,6 +232,8 @@ export function FormularioComprobante() {
         fechaEmision: value.fechaEmision,
         condicionVentaDias: Number(value.condicionVentaDias),
         moneda: "ARS",
+        ...(value.cae ? { cae: value.cae } : {}),
+        ...(value.caeVencimiento ? { caeVencimiento: value.caeVencimiento } : {}),
         items: value.items.map((i) => ({
           productoId: i.productoId || null,
           descripcion: i.descripcion.trim(),
@@ -133,10 +257,15 @@ export function FormularioComprobante() {
         Volver a comprobantes
       </Link>
 
-      <EncabezadoPagina
-        titulo="Nuevo comprobante"
-        descripcion="La letra se determina sola por la condición IVA del cliente. Se crea en borrador."
-      />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <EncabezadoPagina
+          titulo="Nuevo comprobante"
+          descripcion="La letra se determina sola por la condición IVA del cliente. Se crea en borrador."
+        />
+        <BotonLeerComprobante<LecturaVenta> tipo="venta" onLeido={onLeido} />
+      </div>
+
+      {lectura && <AvisoLectura lectura={lectura} />}
 
       <Tarjeta className="max-w-4xl p-6">
         <form
@@ -286,6 +415,46 @@ export function FormularioComprobante() {
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+
+              <form.Field name="cae">
+                {(field) => (
+                  <Campo
+                    etiqueta="CAE"
+                    ayuda={ayudaDe(lectura, "cae") ?? "Si ya se emitió en ARCA"}
+                    error={
+                      field.state.meta.isBlurred ? primerError(field.state.meta.errors) : undefined
+                    }
+                  >
+                    {({ id, invalido }) => (
+                      <Entrada
+                        id={id}
+                        inputMode="numeric"
+                        className="tabular"
+                        invalido={invalido}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                      />
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+
+              <form.Field name="caeVencimiento">
+                {(field) => (
+                  <Campo etiqueta="Vencimiento del CAE">
+                    {({ id }) => (
+                      <Entrada
+                        id={id}
+                        type="date"
+                        className="tabular"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
                       />
                     )}
                   </Campo>

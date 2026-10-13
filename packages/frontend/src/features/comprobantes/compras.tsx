@@ -15,6 +15,7 @@ import { FileCheck, FileUp, Plus, ShoppingCart, TriangleAlert } from "lucide-rea
 import { useRef, useState } from "react";
 import { z } from "zod";
 import { BotonExportar } from "../../components/boton-exportar.js";
+import { BotonLeerComprobante } from "../../components/boton-leer-comprobante.js";
 import { RangoFechas } from "../../components/filtros.js";
 import { SelectorDensidad } from "../../components/selector-densidad.js";
 import { useModoLectura } from "../../components/sesion.js";
@@ -22,7 +23,7 @@ import { clasesCelda, clasesEncabezado, useDensidad } from "../../lib/densidad.j
 import type { ColumnaExport } from "../../lib/exportar.js";
 import { formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { opcional, primerError } from "../../lib/formulario.js";
-import { type Lectura, leerComprobante, textoReparo } from "../../lib/lectura.js";
+import { type LecturaCompra, textoReparo } from "../../lib/lectura.js";
 import { useTRPC } from "../../lib/trpc.js";
 import { CeldaCobranza } from "./cobranza.js";
 
@@ -65,10 +66,10 @@ type ValoresCompra = z.infer<typeof compraSchema>;
  * valor por defecto: un campo precargado se lee como un dato que alguien
  * confirmó, y acá nadie lo confirmó todavía.
  */
-function valoresIniciales(lectura?: Lectura | null): ValoresCompra {
+function valoresIniciales(lectura?: LecturaCompra | null): ValoresCompra {
   const p = lectura?.propuesta;
   return {
-    proveedorId: lectura?.proveedorId ?? "",
+    proveedorId: lectura?.contraparteId ?? "",
     letra: p?.letra ?? "A",
     numeroCompleto: p?.numeroCompleto ?? "",
     fechaEmision: p?.fechaEmision ?? "",
@@ -88,7 +89,7 @@ function valoresIniciales(lectura?: Lectura | null): ValoresCompra {
 }
 
 /** El reparo de ese campo, listo para mostrar debajo del input. */
-function ayudaDe(lectura: Lectura | null | undefined, campo: string): string | undefined {
+function ayudaDe(lectura: LecturaCompra | null | undefined, campo: string): string | undefined {
   const reparo = lectura?.propuesta.reparos.find((r) => r.campo === campo);
   return reparo ? textoReparo(reparo) : undefined;
 }
@@ -100,7 +101,7 @@ function ayudaDe(lectura: Lectura | null | undefined, campo: string): string | u
  * haya que recorrer el formulario buscándolos, y el campo dice qué pasa con
  * ese dato en particular.
  */
-function AvisoReparos({ lectura }: { lectura: Lectura }) {
+function AvisoReparos({ lectura }: { lectura: LecturaCompra }) {
   const { reparos } = lectura.propuesta;
   return (
     <div className="mb-4 flex gap-2.5 rounded-lg border border-border bg-surface-muted p-3">
@@ -118,7 +119,7 @@ function AvisoReparos({ lectura }: { lectura: Lectura }) {
             ? "Todo se entendió y los totales cierran. Revisalo igual antes de guardar: nada se carga solo."
             : `Hay ${reparos.length} ${reparos.length === 1 ? "dato" : "datos"} para revisar, marcados abajo.`}
         </p>
-        {lectura.proveedorId === null && lectura.propuesta.emisorRazonSocial !== "" && (
+        {lectura.contraparteId === null && lectura.propuesta.emisorRazonSocial !== "" && (
           <p className="mt-1 text-muted-foreground">
             El emisor es{" "}
             <strong className="font-medium">{lectura.propuesta.emisorRazonSocial}</strong>
@@ -131,7 +132,13 @@ function AvisoReparos({ lectura }: { lectura: Lectura }) {
   );
 }
 
-function FormularioCompra({ onListo, lectura }: { onListo: () => void; lectura?: Lectura | null }) {
+function FormularioCompra({
+  onListo,
+  lectura,
+}: {
+  onListo: () => void;
+  lectura?: LecturaCompra | null;
+}) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const crear = useMutation(trpc.comprobantes.compras.crear.mutationOptions());
@@ -547,69 +554,12 @@ const COLUMNAS_EXPORT: ColumnaExport<FilaExportCompra>[] = [
   { encabezado: "Total", valor: (c) => c.total, tipo: "dinero" },
 ];
 
-/**
- * Subir una factura y que la lea.
- *
- * El archivo **no se guarda**: viaja, se lee y se descarta. Lo que vuelve es
- * un formulario precargado que una persona confirma; nada se carga solo.
- */
-function BotonLeer({ onLeido }: { onLeido: (lectura: Lectura) => void }) {
-  const entradaRef = useRef<HTMLInputElement>(null);
-  const [leyendo, setLeyendo] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function alElegir(e: React.ChangeEvent<HTMLInputElement>) {
-    const archivo = e.target.files?.[0];
-    // Se limpia enseguida para que elegir el mismo archivo otra vez vuelva a
-    // disparar el change.
-    e.target.value = "";
-    if (!archivo) {
-      return;
-    }
-    setError(null);
-    setLeyendo(true);
-    try {
-      onLeido(await leerComprobante(archivo));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo leer el comprobante.");
-    } finally {
-      setLeyendo(false);
-    }
-  }
-
-  return (
-    <>
-      <input
-        ref={entradaRef}
-        type="file"
-        accept="application/pdf,image/png,image/jpeg,image/webp"
-        className="sr-only"
-        onChange={(e) => void alElegir(e)}
-      />
-      <Boton
-        tamano="sm"
-        variante="secundario"
-        cargando={leyendo}
-        onClick={() => entradaRef.current?.click()}
-      >
-        <FileUp className="size-4" aria-hidden="true" />
-        {leyendo ? "Leyendo…" : "Leer de un archivo"}
-      </Boton>
-      {error !== null && (
-        <p role="alert" className="text-xs font-medium text-danger">
-          {error}
-        </p>
-      )}
-    </>
-  );
-}
-
 export function Compras() {
   const soloLectura = useModoLectura();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [creando, setCreando] = useState(false);
-  const [lectura, setLectura] = useState<Lectura | null>(null);
+  const [lectura, setLectura] = useState<LecturaCompra | null>(null);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [densidad, setDensidad] = useDensidad("comprobantes-compra");
@@ -658,7 +608,8 @@ export function Compras() {
         <div className="ml-auto flex items-center gap-2">
           {!creando && !soloLectura && (
             <>
-              <BotonLeer
+              <BotonLeerComprobante<LecturaCompra>
+                tipo="compra"
                 onLeido={(l) => {
                   setLectura(l);
                   setCreando(true);

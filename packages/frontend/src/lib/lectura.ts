@@ -19,12 +19,51 @@ export interface CompraPropuesta {
   reparos: Reparo[];
 }
 
-export interface Lectura {
+export interface ItemLeido {
+  descripcion: string;
+  cantidad: string | null;
+  precioUnitario: string | null;
+  alicuotaIva: string | null;
+}
+
+export interface VentaPropuesta {
+  receptorRazonSocial: string;
+  receptorCuit: string | null;
+  clase: "factura" | "nota_credito" | "nota_debito";
+  letraLeida: "A" | "B" | "C" | "E" | null;
+  puntoVenta: number | null;
+  numero: number | null;
+  fechaEmision: string | null;
+  cae: string | null;
+  caeVencimiento: string | null;
+  items: ItemLeido[];
+  /** Lo que dice el papel. No se guarda: sirve para contrastar la lectura. */
+  totalImpreso: string | null;
+  reparos: Reparo[];
+}
+
+interface Archivo {
+  nombre: string;
+  hash: string;
+}
+
+export interface LecturaCompra {
+  tipo: "compra";
   propuesta: CompraPropuesta;
   /** El proveedor ya cargado que tiene el CUIT leído, si existe. */
-  proveedorId: string | null;
-  archivo: { nombre: string; hash: string };
+  contraparteId: string | null;
+  archivo: Archivo;
 }
+
+export interface LecturaVenta {
+  tipo: "venta";
+  propuesta: VentaPropuesta;
+  /** El cliente ya cargado que tiene el CUIT leído, si existe. */
+  contraparteId: string | null;
+  archivo: Archivo;
+}
+
+export type Lectura = LecturaCompra | LecturaVenta;
 
 /**
  * Manda el archivo al backend para que lo lea.
@@ -35,9 +74,14 @@ export interface Lectura {
  * `credentials: "include"` porque la sesión viaja en cookie y el backend está
  * en otro dominio.
  */
-export async function leerComprobante(archivo: File): Promise<Lectura> {
+export async function leerComprobante(archivo: File, tipo: "compra"): Promise<LecturaCompra>;
+export async function leerComprobante(archivo: File, tipo: "venta"): Promise<LecturaVenta>;
+export async function leerComprobante(archivo: File, tipo: "compra" | "venta"): Promise<Lectura> {
   const cuerpo = new FormData();
   cuerpo.append("archivo", archivo);
+  // Qué se arma con lo leído lo decide quien pide, no el papel: la misma
+  // factura es una compra para uno y una venta para el otro.
+  cuerpo.append("tipo", tipo);
 
   const respuesta = await fetch(`${API}/api/comprobantes/leer`, {
     method: "POST",

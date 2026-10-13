@@ -126,7 +126,31 @@ la fecha de recepción y el importe. La fecha de recepción, más el plazo de pa
 del proveedor, es lo que alimenta el próximo vencimiento y la proyección de
 egresos.
 
-### Leer una factura de un archivo
+### Leer una factura de venta de un archivo
+
+Mientras no haya integración con ARCA, la factura se emite en el sitio de ARCA
+y se carga acá. Para no tipearla dos veces, en **Nuevo comprobante** hay un
+botón **Leer de un archivo**: subís el PDF que te dio ARCA (o una foto) y el
+formulario se completa solo, incluidos el **CAE** y su vencimiento.
+
+Sirve igual para cargar facturas viejas al historial.
+
+Lo que conviene saber:
+
+- **El total no se toma del papel: se calcula de los ítems**, con la misma
+  cuenta que usa el sistema al guardar. El total impreso queda a la vista al
+  lado para comparar: si no coinciden, algún ítem se leyó mal.
+- **El producto del catálogo no se vincula solo.** Vincularlo es lo que hace
+  que, al confirmar la factura, se descuente stock. Por eso lo decidís vos: una
+  factura vieja se carga sin tocar la mercadería, y una de hoy con el producto
+  puesto sí la mueve.
+- **La letra la decide el sistema**, por tu régimen fiscal y la condición del
+  cliente. La del papel se usa para entender el comprobante, no se copia.
+- En una factura **C** no hay IVA, así que la alícuota queda en cero y el total
+  cierra solo. En una **B** el IVA va adentro del precio y el papel no dice a
+  qué tasa: ahí hay que revisar la alícuota y el precio a mano.
+
+### Leer una factura de compra de un archivo
 
 En la pestaña **Compras** hay un botón **Leer de un archivo**. Subís la factura
 del proveedor —un PDF o una foto, hasta 10 MB— y el sistema la lee y **completa

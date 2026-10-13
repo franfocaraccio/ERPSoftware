@@ -350,6 +350,42 @@ describe("interpretarVenta", () => {
     expect(p.reparos).not.toContainEqual({ campo: "items.0", motivo: "ilegible" });
   });
 
+  it("en una C sin IVA impreso la alícuota es cero, y el total cierra", () => {
+    // Una C no tiene IVA: el precio es el precio. Con cero, el total calculado
+    // da igual al impreso y no aparece un reparo que no existe.
+    const p = interpretarVenta(
+      venta({
+        letra: "C",
+        total: "3500000,00",
+        items: [
+          {
+            descripcion: "Servicio",
+            cantidad: "1,00",
+            precioUnitario: "3500000,00",
+            alicuotaIva: "",
+          },
+        ],
+      }),
+    );
+    expect(p.items[0]?.alicuotaIva).toBe("0");
+    expect(p.reparos).toEqual([]);
+  });
+
+  it("en una B sin IVA impreso la alícuota queda sin decidir", () => {
+    // El IVA está adentro del precio y la tasa no se puede deducir: 7.963
+    // puede llevar 21% o 10,5%. Lo completa una persona.
+    const p = interpretarVenta(
+      venta({
+        letra: "B",
+        total: "7963,00",
+        items: [
+          { descripcion: "Producto", cantidad: "1,00", precioUnitario: "7963,00", alicuotaIva: "" },
+        ],
+      }),
+    );
+    expect(p.items[0]?.alicuotaIva).toBeNull();
+  });
+
   it("reconoce una nota de crédito", () => {
     expect(interpretarVenta(venta({ concepto: "NOTA DE CRÉDITO A" })).clase).toBe("nota_credito");
     expect(interpretarVenta(venta({ concepto: "Nota de debito" })).clase).toBe("nota_debito");

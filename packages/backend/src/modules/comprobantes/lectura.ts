@@ -376,6 +376,22 @@ export interface VentaPropuesta {
   reparos: Reparo[];
 }
 
+/**
+ * Qué alícuota corresponde cuando el comprobante no la imprime por ítem.
+ *
+ * En una **C** no hay IVA: el emisor es monotributista o exento, el precio es
+ * el precio, y la alícuota es cero. Eso hace que el total calculado dé igual
+ * al impreso, que es lo que se quiere.
+ *
+ * En una **B** el IVA existe pero va adentro del precio, y de ahí no se puede
+ * deducir la tasa: un precio de 7.963 puede llevar 21% o 10,5% adentro. Queda
+ * en `null` para que lo complete una persona, que es lo honesto; poner 0
+ * guardaría todo como neto e inflaría las ventas.
+ */
+function alicuotaPorLetra(letra: LetraComprobante | null): AlicuotaIva | null {
+  return letra === "C" ? "0" : null;
+}
+
 /** "NOTA DE CRÉDITO" → nota_credito. Lo que no se reconoce es una factura. */
 function aClase(texto: string): "factura" | "nota_credito" | "nota_debito" {
   const t = texto.toLowerCase();
@@ -426,7 +442,7 @@ export function interpretarVenta(leido: ComprobanteLeido): VentaPropuesta {
     descripcion: i.descripcion.trim(),
     cantidad: aImporte(i.cantidad),
     precioUnitario: aImporte(i.precioUnitario),
-    alicuotaIva: aAlicuota(i.alicuotaIva),
+    alicuotaIva: aAlicuota(i.alicuotaIva) ?? alicuotaPorLetra(letraLeida),
   }));
 
   if (items.length === 0) {
