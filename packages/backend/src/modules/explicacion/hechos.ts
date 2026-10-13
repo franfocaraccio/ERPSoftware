@@ -83,6 +83,39 @@ export async function armarHechos(actor: Actor): Promise<Hechos> {
     );
   }
 
+  // Por producto: precio y costo unitario promedio de cada mes. Es lo que
+  // separa "subió el costo" de "bajó el precio" cuando un margen cae. Los
+  // costos son los de cuando se vendió (movimientos de stock), no los de hoy.
+  const [prodActual, prodAnterior] = await Promise.all([
+    obtenerRentabilidad(actor, {
+      agrupar: "producto",
+      desde: `${actual.periodo}-01`,
+      hasta: ultimoDia(actual.periodo),
+    }),
+    obtenerRentabilidad(actor, {
+      agrupar: "producto",
+      desde: `${anterior.periodo}-01`,
+      hasta: ultimoDia(anterior.periodo),
+    }),
+  ]);
+  const porUnidad = (nombre: string, a: string | null, b: string | null | undefined) => {
+    if (a === null || !b) {
+      return `${nombre} ${a === null ? "sin dato" : formatearPesos(a)}`;
+    }
+    const v = variacion(ars(a), ars(b));
+    const signo = v.porcentaje?.startsWith("-") ? "" : "+";
+    return `${nombre} ${formatearPesos(a)} contra ${formatearPesos(b)}${v.porcentaje === null ? "" : ` (${signo}${v.porcentaje.replace(".", ",")} %)`}`;
+  };
+  for (const r of prodActual.slice(0, 8)) {
+    const previo = prodAnterior.find((x) => x.clave === r.clave);
+    if (!previo) {
+      continue;
+    }
+    lineas.push(
+      `Producto ${r.clave}: margen ${pct(r.margenPorcentual)} contra ${pct(previo.margenPorcentual)}; ${porUnidad("costo unitario promedio", r.costoPromedio, previo.costoPromedio)}; ${porUnidad("precio unitario promedio", r.precioPromedio, previo.precioPromedio)}.`,
+    );
+  }
+
   const panel = await resumenFinanciero(actor);
   if (panel.alertas.primeraBajoMinimo) {
     const a = panel.alertas.primeraBajoMinimo;

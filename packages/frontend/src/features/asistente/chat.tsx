@@ -10,17 +10,17 @@ import { Markdown } from "./markdown.js";
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
 const SUGERENCIAS = [
+  "¿Quién me debe más plata?",
+  "¿Cómo me fue el mes pasado?",
   "¿Cómo creo un comprobante?",
-  "¿Cómo invito a un usuario?",
-  "¿De dónde sale el próximo vencimiento?",
 ];
 
 /**
  * Asistente de ayuda: burbuja abajo a la derecha que abre un panel de chat.
  *
- * Responde sobre cómo usar la aplicación. No tiene acceso a los datos de la
- * empresa —eso es una fase posterior—, y el prompt del servidor le exige
- * decirlo en vez de improvisar una cifra.
+ * Responde sobre cómo usar la aplicación y sobre los datos de la empresa, con
+ * herramientas de solo lectura que ven lo mismo que el usuario en pantalla
+ * (ver `modules/asistente/herramientas.ts` en el backend).
  */
 /**
  * Si el backend no tiene API key, el asistente está apagado y la burbuja no se
@@ -92,6 +92,11 @@ export function Asistente() {
 
   const largoTotal = burbujas.reduce((total, b) => total + b.texto.length, 0);
 
+  // Mientras consulta los datos, el asistente todavía no escribió nada: sin
+  // este aviso el chat parece colgado.
+  const ultima = burbujas.at(-1);
+  const consultando = status === "streaming" && ultima?.role === "assistant" && !ultima.texto;
+
   useEffect(() => {
     if (abierto) {
       entradaRef.current?.focus();
@@ -155,8 +160,8 @@ export function Asistente() {
         >
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">Ayuda</h2>
-              <p className="text-xs text-muted-foreground">Cómo usar el sistema</p>
+              <h2 className="text-sm font-semibold tracking-tight text-foreground">Asistente</h2>
+              <p className="text-xs text-muted-foreground">Tus números y cómo usar el sistema</p>
             </div>
             <Boton
               variante="fantasma"
@@ -172,8 +177,8 @@ export function Asistente() {
             {messages.length === 0 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground">
-                  Preguntame cómo hacer algo en el sistema. Todavía no puedo ver los datos de tu
-                  empresa, así que para cifras concretas te digo dónde mirarlas.
+                  Preguntame por los números de tu empresa o cómo hacer algo en el sistema. Veo lo
+                  mismo que vos en pantalla, y no puedo cambiar nada.
                 </p>
                 <div className="flex flex-col items-start gap-1.5">
                   {SUGERENCIAS.map((sugerencia) => (
@@ -210,9 +215,9 @@ export function Asistente() {
               ) : null,
             )}
 
-            {status === "submitted" && (
+            {(status === "submitted" || consultando) && (
               <p className="text-xs text-muted-foreground" role="status">
-                Pensando…
+                {consultando ? "Consultando los datos…" : "Pensando…"}
               </p>
             )}
 

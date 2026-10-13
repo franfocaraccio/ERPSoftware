@@ -1,3 +1,4 @@
+import { Decimal } from "decimal.js";
 import { participacion } from "../kpis/kpis.js";
 import { Money } from "../money/index.js";
 
@@ -137,6 +138,25 @@ export interface FilaRentabilidad {
   costo: Money;
   margen: Money;
   margenPorcentual: string | null;
+  /** Unidades vendidas, si se pasaron. Sólo tiene sentido por producto. */
+  cantidad: string | null;
+  /** Ventas / unidades: el precio promedio al que se vendió. */
+  precioPromedio: Money | null;
+  /** Costo / unidades: lo que costó en promedio cada unidad vendida. */
+  costoPromedio: Money | null;
+}
+
+function porUnidad(total: Money, cantidad: Decimal | null): Money | null {
+  if (cantidad === null || cantidad.lessThanOrEqualTo(0)) {
+    return null;
+  }
+  return Money.desdeString(
+    new Decimal(total.aString())
+      .dividedBy(cantidad)
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toFixed(2),
+    total.moneda,
+  );
 }
 
 /**
@@ -145,14 +165,16 @@ export interface FilaRentabilidad {
  * arriba; las fugas, abajo.
  */
 export function rentabilidad(
-  filas: readonly { clave: string; ventas: Money; costo: Money }[],
+  filas: readonly { clave: string; ventas: Money; costo: Money; cantidad?: string }[],
 ): FilaRentabilidad[] {
-  const grupos = new Map<string, { ventas: Money; costo: Money }>();
+  const grupos = new Map<string, { ventas: Money; costo: Money; cantidad: Decimal | null }>();
   for (const f of filas) {
     const g = grupos.get(f.clave);
+    const cantidad = f.cantidad === undefined ? null : new Decimal(f.cantidad);
     grupos.set(f.clave, {
       ventas: g ? g.ventas.sumar(f.ventas) : f.ventas,
       costo: g ? g.costo.sumar(f.costo) : f.costo,
+      cantidad: g ? (g.cantidad && cantidad ? g.cantidad.plus(cantidad) : null) : cantidad,
     });
   }
   return [...grupos.entries()]
@@ -164,6 +186,9 @@ export function rentabilidad(
         costo: g.costo,
         margen,
         margenPorcentual: g.ventas.esPositivo() ? participacion(margen, g.ventas) : null,
+        cantidad: g.cantidad === null ? null : g.cantidad.toString(),
+        precioPromedio: porUnidad(g.ventas, g.cantidad),
+        costoPromedio: porUnidad(g.costo, g.cantidad),
       };
     })
     .sort((a, b) => (b.margen.mayorQue(a.margen) ? 1 : a.margen.mayorQue(b.margen) ? -1 : 0));

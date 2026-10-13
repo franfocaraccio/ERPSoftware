@@ -703,11 +703,10 @@ producción y lo que quedó afuera:
 - **La "Lectura del mes" usa OpenAI** con la misma key del asistente y un tope
   propio (`EXPLICACION_LIMITE_DIARIO`, 10 por defecto). No se probó contra la
   API real, para no gastar: está cubierta con tests que reemplazan al modelo.
-- **Simplificaciones asumidas**: los KPIs y el estado de resultados usan el
-  costo actual del producto para el costo de ventas (los movimientos de venta
-  guardan el costo histórico, pero todavía no se leen de ahí); el saldo a
-  favor de IIBB se arrastra igual que el de IVA; Ganancias no entra en el
-  resultado neto. El IVA calculado necesita **validación de un contador**.
+- **Simplificaciones asumidas**: el saldo a favor de IIBB se arrastra igual
+  que el de IVA; Ganancias no entra en el resultado neto. (El costo de ventas
+  ya no usa el costo actual: desde el 13/10/2026 lee el costo histórico de los
+  movimientos de venta.) El IVA calculado necesita **validación de un contador**.
 - **Revalidación del 13/10/2026** contra el análisis original: faltaba la
   **sugerencia de compra con costo de reposición** para lo marcado "Reponer",
   que no había entrado en ninguna etapa. Se agregó en Stock (regla en

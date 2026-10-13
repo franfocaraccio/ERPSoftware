@@ -1,5 +1,6 @@
 import { type AnyColumn, and, eq, inArray, type SQL, sql } from "drizzle-orm";
-import { comprobantesVenta } from "../../db/schema/facturacion.js";
+import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
+import { movimientosStock, productos } from "../../db/schema/stock.js";
 
 /**
  * Estados de comprobante que son deuda real.
@@ -56,4 +57,28 @@ export function conSigno(valor: AnyColumn | SQL): SQL<string> {
       then -(${valor})
     else ${valor}
   end`;
+}
+
+/**
+ * El costo de un ítem vendido: cantidad × el costo **de cuando se vendió**.
+ *
+ * Al confirmarse una venta, su movimiento de stock guarda el costo que tenía
+ * el producto en ese momento. Leerlo de ahí es lo que permite ver que el
+ * margen cayó porque subió el costo: con el costo actual, todos los meses
+ * se valuaban igual y una suba se repartía hacia atrás.
+ *
+ * Si la venta no tiene movimiento (un comprobante enviado que todavía no se
+ * confirmó, o datos anteriores a los movimientos), se usa el costo actual del
+ * producto. Pide que la consulta tenga `itemsComprobanteVenta` y `productos`
+ * en el FROM; el signo de la clase lo pone quien la usa, con `conSigno`.
+ */
+export function costoDelItem(): SQL<string> {
+  return sql<string>`${itemsComprobanteVenta.cantidad} * coalesce(
+    (select ${movimientosStock.costoUnitario}
+       from ${movimientosStock}
+      where ${movimientosStock.comprobanteVentaId} = ${itemsComprobanteVenta.comprobanteId}
+        and ${movimientosStock.productoId} = ${itemsComprobanteVenta.productoId}
+        and ${movimientosStock.costoUnitario} is not null
+      limit 1),
+    ${productos.costoUnitario}, 0)`;
 }

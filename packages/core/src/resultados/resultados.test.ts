@@ -112,4 +112,23 @@ describe("rentabilidad", () => {
     ]);
     expect(r.map((x) => x.clave)).toEqual(["grande", "chico"]);
   });
+  it("con cantidades, da el precio y el costo unitario promedio", () => {
+    // 2 a 100 de costo y 3 a 120: costo 560 por 5 unidades, 112 promedio.
+    const [fila] = rentabilidad([
+      { clave: "Hierro", ventas: ars("400"), costo: ars("200"), cantidad: "2" },
+      { clave: "Hierro", ventas: ars("600"), costo: ars("360"), cantidad: "3" },
+    ]);
+    expect(fila?.cantidad).toBe("5");
+    expect(fila?.precioPromedio?.aStringFiscal()).toBe("200.00");
+    expect(fila?.costoPromedio?.aStringFiscal()).toBe("112.00");
+  });
+
+  it("sin cantidades o con cantidad cero, no hay promedios", () => {
+    const [sin] = rentabilidad([{ clave: "A", ventas: ars("10"), costo: ars("5") }]);
+    expect(sin?.costoPromedio).toBeNull();
+    const [cero] = rentabilidad([
+      { clave: "A", ventas: ars("10"), costo: ars("5"), cantidad: "0" },
+    ]);
+    expect(cero?.precioPromedio).toBeNull();
+  });
 });

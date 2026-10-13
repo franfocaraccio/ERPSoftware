@@ -27,7 +27,12 @@ import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/factur
 import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
-import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
+import {
+  conSigno,
+  costoDelItem,
+  totalConSigno,
+  ventasQueCuentan,
+} from "../_comunes/comprobantes.js";
 import { cotizacionesDolar } from "../cotizaciones/dolar.js";
 import { saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { obligacionesImpositivas } from "../impuestos/obligaciones.js";
@@ -224,7 +229,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const [salidas] = await tx
       .select({
         cantidad: sql<string>`coalesce(sum(${conSigno(itemsComprobanteVenta.cantidad)}), 0)`,
-        costo: sql<string>`coalesce(sum(${conSigno(sql`${itemsComprobanteVenta.cantidad} * coalesce(${productos.costoUnitario}, 0)`)}), 0)`,
+        costo: sql<string>`coalesce(sum(${conSigno(costoDelItem())}), 0)`,
       })
       .from(itemsComprobanteVenta)
       .innerJoin(comprobantesVenta, eq(comprobantesVenta.id, itemsComprobanteVenta.comprobanteId))
