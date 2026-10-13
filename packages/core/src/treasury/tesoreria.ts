@@ -27,3 +27,14 @@ export function diasParaCobro(fechaPago: string, hoy: string): number {
   const referencia = Date.parse(`${hoy}T00:00:00Z`);
   return Math.round((pago - referencia) / MS_POR_DIA);
 }
+
+/**
+ * Un cheque se puede presentar al cobro hasta 30 días corridos después de su
+ * fecha de pago (Ley 24.452 de cheques). Pasado ese plazo, el banco lo rechaza.
+ */
+export const DIAS_PRESENTACION_CHEQUE = 30;
+
+/** Días que quedan para presentar el cheque. Negativo: ya no se puede. */
+export function diasParaPresentar(fechaPago: string, hoy: string): number {
+  return diasParaCobro(fechaPago, hoy) + DIAS_PRESENTACION_CHEQUE;
+}

@@ -17,6 +17,7 @@ import {
   semaforoDe,
 } from "@erp/core/kpis";
 import { Money } from "@erp/core/money";
+import { DIAS_PRESENTACION_CHEQUE } from "@erp/core/treasury";
 import { and, eq, gte, isNotNull, sql } from "drizzle-orm";
 import type { Actor } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
@@ -26,6 +27,7 @@ import { productos } from "../../db/schema/stock.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
+import { cotizacionesDolar } from "../cotizaciones/dolar.js";
 import { saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { obligacionesImpositivas } from "../impuestos/obligaciones.js";
 import { recurrentesAProyectar } from "../resultados/service.js";
@@ -34,8 +36,11 @@ import { obtenerParametros } from "./parametros.js";
 const ARS = "ARS" as const;
 const ars = (valor: string | null | undefined) => Money.desdeString(valor ?? "0", ARS);
 
-/** Un cheque que pasó 30 días de su fecha de pago ya no se puede presentar. */
-const DIAS_PRESENTACION_CHEQUE = 30;
+export interface ComponenteKpi {
+  etiqueta: string;
+  valor: string;
+  unidad: "moneda" | "dias" | "cantidad" | "conteo";
+}
 
 export interface Kpi {
   id: string;
@@ -44,6 +49,10 @@ export interface Kpi {
   unidad: "moneda" | "dias" | "porcentaje" | "ratio" | "conteo";
   semaforo: Semaforo;
   detalle: string;
+  /** Los números con los que se calcula: lo que se ve al abrir la tarjeta. */
+  desglose: ComponenteKpi[];
+  /** Por qué no hay valor, en palabras de quien usa el sistema. Null si hay. */
+  motivoSinDatos: string | null;
 }
 
 export interface ResumenFinanciero {
@@ -66,6 +75,20 @@ export interface ResumenFinanciero {
   /** Pagos vencidos e impagos que la proyección pone en la semana en curso. */
   pagosVencidos: string;
   saldoPorCuenta: { nombre: string; moneda: string; saldo: string }[];
+  /**
+   * Todas las cuentas en pesos, con las de dólares convertidas al oficial
+   * comprador (decisión de Fran del 12/10/2026): lo que te darían por vender
+   * esos dólares en el banco. Sólo para mostrar: la liquidez y la proyección
+   * siguen en pesos, para no depender de una cotización de mercado.
+   */
+  consolidado: {
+    pesos: string;
+    dolares: string;
+    /** Pesos por dólar. Null si no se pudo traer: los dólares no se suman. */
+    cotizacion: string | null;
+    fechaCotizacion: string | null;
+    total: string;
+  };
   /** Ventas netas (sin IVA) por mes. */
   ventasPorMes: { mes: string; total: string }[];
   minimoOperativo: string | null;
@@ -100,6 +123,11 @@ function movimientosEnPesosPor(
  * los agregados y se los pasa a las funciones puras.
  */
 export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFinanciero> {
+  // Antes de abrir la transacción: no tener una conexión tomada mientras se
+  // espera a un servicio externo. Si falla, el panel sale igual, sin convertir.
+  const oficial = await cotizacionesDolar()
+    .then((c) => c.oficial)
+    .catch(() => null);
   return withTenant(tenantId, async (tx) => {
     const hoy = hoyEnArgentina();
     const hace30 = diasAtras(hoy, 30);
@@ -120,14 +148,23 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const saldoPorCuenta = saldosCuentas.map((c) => ({
       nombre: c.nombre,
       moneda: c.moneda,
-      saldo: ars(c.ingresos).restar(ars(c.egresos)).aStringFiscal(),
+      saldo: Money.desdeString(c.ingresos, c.moneda)
+        .restar(Money.desdeString(c.egresos, c.moneda))
+        .aStringFiscal(),
     }));
 
-    // Solo pesos: consolidar monedas exigiría una cotización, fuera de alcance.
+    // La liquidez y la proyección van sólo en pesos.
     const saldoTesoreria = Money.sumarTodos(
       saldoPorCuenta.filter((c) => c.moneda === ARS).map((c) => ars(c.saldo)),
       ARS,
     );
+    const saldoDolares = Money.sumarTodos(
+      saldoPorCuenta
+        .filter((c) => c.moneda === "USD")
+        .map((c) => Money.desdeString(c.saldo, "USD")),
+      "USD",
+    );
+    const dolaresEnPesos = oficial ? saldoDolares.convertir(ARS, oficial.compra) : null;
 
     // --- Ventas y cobranzas ---
     // Sólo deuda real en pesos (`ventasQueCuentan`), igual que Clientes. Las
@@ -227,6 +264,21 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
 
     const umbralMargen = parametros.margenObjetivo ? Number(parametros.margenObjetivo) : null;
 
+    const plata = (etiqueta: string, valor: Money): ComponenteKpi => ({
+      etiqueta,
+      valor: valor.aStringFiscal(),
+      unidad: "moneda",
+    });
+    const sinVentas = "No hubo ventas en los últimos 30 días.";
+    const saldoVencido = Money.sumarTodos(
+      obligaciones.filter((o) => o.estado === "vencido").map((o) => ars(o.saldo)),
+      ARS,
+    );
+    const enCartera = Money.sumarTodos(
+      chequesEnCartera.map((c) => ars(c.importe)),
+      ARS,
+    );
+
     const kpis: Kpi[] = [
       {
         id: "liquidez",
@@ -238,6 +290,13 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
           direccion: "mayor_es_mejor",
         }),
         detalle: "Caja más cobranzas sobre lo que hay que pagar",
+        desglose: [
+          plata("Caja y bancos en pesos", saldoTesoreria),
+          plata("Por cobrar a clientes", porCobrar),
+          plata("Por pagar a proveedores", porPagar),
+        ],
+        motivoSinDatos:
+          liquidez === null ? "No hay deudas con proveedores contra las que compararla." : null,
       },
       {
         id: "dso",
@@ -249,6 +308,11 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
           direccion: "menor_es_mejor",
         }),
         detalle: `Días promedio de cobro (umbral ${parametros.umbralMoraDias})`,
+        desglose: [
+          plata("Por cobrar a clientes", porCobrar),
+          plata("Ventas de los últimos 30 días (con IVA)", ars(ventas?.totalPeriodo)),
+        ],
+        motivoSinDatos: diasCobro === null ? sinVentas : null,
       },
       {
         id: "dpo",
@@ -257,6 +321,11 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         unidad: "dias",
         semaforo: "sin_datos",
         detalle: "Días promedio de pago a proveedores",
+        desglose: [
+          plata("Por pagar a proveedores", porPagar),
+          plata("Compras de los últimos 30 días", ars(compras?.totalPeriodo)),
+        ],
+        motivoSinDatos: diasPago === null ? "No hubo compras en los últimos 30 días." : null,
       },
       {
         id: "ciclo",
@@ -265,6 +334,27 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         unidad: "dias",
         semaforo: "sin_datos",
         detalle: "Días que la plata queda inmovilizada",
+        desglose: [
+          ...(diasCobro === null
+            ? []
+            : [{ etiqueta: "DSO", valor: String(diasCobro), unidad: "dias" as const }]),
+          ...(rotacion === null
+            ? []
+            : [
+                {
+                  etiqueta: "+ Rotación de stock",
+                  valor: String(rotacion),
+                  unidad: "dias" as const,
+                },
+              ]),
+          ...(diasPago === null
+            ? []
+            : [{ etiqueta: "− DPO", valor: String(diasPago), unidad: "dias" as const }]),
+        ],
+        motivoSinDatos:
+          ciclo === null
+            ? "Necesita DSO, DPO y rotación de stock: falta alguno de los tres."
+            : null,
       },
       {
         id: "rotacion",
@@ -273,6 +363,22 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         unidad: "dias",
         semaforo: semaforoDe(rotacion, { umbral: 60, direccion: "menor_es_mejor" }),
         detalle: "Días que tarda en salir el stock promedio",
+        desglose: [
+          {
+            etiqueta: "Unidades vendidas en 30 días",
+            valor: salidas?.cantidad ?? "0",
+            unidad: "cantidad",
+          },
+          {
+            etiqueta: "Stock promedio por producto",
+            valor: stock?.promedio ?? "0",
+            unidad: "cantidad",
+          },
+        ],
+        motivoSinDatos:
+          rotacion === null
+            ? "No hubo ventas de productos del stock en los últimos 30 días, o no hay stock cargado. Los ítems de texto libre no cuentan."
+            : null,
       },
       {
         id: "margen",
@@ -288,6 +394,11 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
               }),
         detalle:
           umbralMargen === null ? "Sin margen objetivo definido" : `Objetivo ${umbralMargen}%`,
+        desglose: [
+          plata("Ventas netas de 30 días (sin IVA)", ars(ventas?.netoPeriodo)),
+          plata("Costo de lo vendido", ars(salidas?.costo)),
+        ],
+        motivoSinDatos: margen === null ? sinVentas : null,
       },
       {
         id: "cheques",
@@ -301,6 +412,11 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         detalle: concentracion
           ? `Mayor librador: ${concentracion.librador}`
           : "Sin cheques en cartera",
+        desglose: [
+          plata("Cheques en cartera", enCartera),
+          { etiqueta: "Cantidad", valor: String(chequesEnCartera.length), unidad: "conteo" },
+        ],
+        motivoSinDatos: concentracion === null ? "No hay cheques en cartera." : null,
       },
       {
         id: "impuestos_vencidos",
@@ -309,6 +425,8 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
         unidad: "conteo",
         semaforo: semaforoDe(impuestosVencidos, { umbral: 0, direccion: "menor_es_mejor" }),
         detalle: "Obligaciones cuyo vencimiento ya pasó",
+        desglose: [plata("Saldo vencido", saldoVencido)],
+        motivoSinDatos: null,
       },
     ];
 
@@ -417,6 +535,16 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
       cobrosVencidos: facturasACobrar.totalVencido.aStringFiscal(),
       pagosVencidos: pagos.totalVencido.aStringFiscal(),
       saldoPorCuenta,
+      consolidado: {
+        pesos: saldoTesoreria.aStringFiscal(),
+        dolares: saldoDolares.aStringFiscal(),
+        cotizacion: oficial?.compra ?? null,
+        fechaCotizacion: oficial?.fecha ?? null,
+        total: (dolaresEnPesos
+          ? saldoTesoreria.sumar(dolaresEnPesos)
+          : saldoTesoreria
+        ).aStringFiscal(),
+      },
       ventasPorMes,
       minimoOperativo: parametros.minimoOperativo,
     };

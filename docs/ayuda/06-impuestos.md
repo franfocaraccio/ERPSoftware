@@ -23,7 +23,7 @@ comprobantes:
   negativo no se paga nada y la diferencia pasa como **saldo a favor** al mes
   siguiente.
 
-Sólo cuentan los comprobantes **Enviados** o **Aprobados**, en pesos.
+Sólo cuentan los comprobantes **Enviados** o **Confirmados**, en pesos.
 
 Debajo del listado está la tabla **Posición de IVA**, mes por mes, con cada uno
 de esos números.

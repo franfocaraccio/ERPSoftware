@@ -89,6 +89,20 @@ Si no indicás librador —ni cliente ni nombre libre— da error.
 
 Los cheques son siempre en pesos.
 
+### Depositar o endosar desde la lista
+
+Los cheques **En cartera** tienen en su fila los botones **Depositar** y
+**Endosar**, que cambian el estado sin abrir el formulario.
+
+### Plazo para presentarlos
+
+Un cheque se puede presentar al banco hasta **30 días después de su fecha de
+pago**. Pasado ese plazo, el banco lo rechaza.
+
+En la columna de cobro, un cheque vencido muestra cuántos días quedan para
+presentarlo, en rojo cuando faltan 7 o menos. Si hay cheques en cartera que
+caducan en los próximos 7 días, la pantalla lo avisa arriba de la lista.
+
 ### Filtros
 
 Por estado y por rango de fechas, que aplica sobre la **fecha de pago** —que es

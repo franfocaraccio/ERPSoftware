@@ -12,7 +12,10 @@ los datos sin poder tocar nada y sin necesidad de usuario ni contraseña.
 
 1. Entrá a **Accesos** en el menú.
 2. Generá uno nuevo, poniéndole una descripción que te recuerde para quién es.
-3. Copiá el link y mandáselo a esa persona.
+3. Elegí **qué puede ver**: Panel, Clientes, Proveedores, Stock, Tesorería,
+   Impuestos, Comprobantes y Resultados. Por ejemplo, sólo Panel e Impuestos
+   para el contador. Vienen todos marcados.
+4. Copiá el link y mandáselo a esa persona.
 
 ### Revocar
 
@@ -21,8 +24,10 @@ si la persona lo tiene abierto en ese instante.
 
 ### Qué ve quien entra por el link
 
-Una vista consolidada de la empresa, en modo solo lectura: no aparece ningún
-botón de crear ni de editar.
+Una vista de la empresa en modo solo lectura: no aparece ningún botón de crear
+ni de editar. El menú muestra **sólo los módulos que elegiste**, y el sistema
+rechaza cualquier intento de ver los demás, aunque se escriba la dirección a
+mano. La lista de accesos dice qué ve cada uno.
 
 ## Historial
 

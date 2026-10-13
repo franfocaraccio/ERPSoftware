@@ -29,7 +29,7 @@ Administrador desde **Equipo**.
   de su librador, así que la misma plata no se cuenta dos veces. Un cheque con
   la fecha pasada entra en la semana en curso (se puede depositar), salvo que
   hayan pasado más de 30 días, porque ya no se puede presentar.
-- Sólo cuentan comprobantes **Enviados** o **Aprobados** y en **pesos**, igual
+- Sólo cuentan comprobantes **Enviados** o **Confirmados** y en **pesos**, igual
   que en Clientes.
 
 ## Qué pasa con las notas de crédito
@@ -51,6 +51,11 @@ Dos consecuencias que conviene conocer:
 Cada tarjeta tiene un semáforo de tres estados: **ok**, **alerta** y **sin
 datos**. "Sin datos" no es un error: significa que falta información para
 calcular ese indicador (por ejemplo, margen sin costos cargados).
+
+Cuando un indicador no tiene valor, la tarjeta dice **qué falta** para
+calcularlo. Y cada tarjeta tiene un **Cómo se calcula** desplegable con los
+números que lo componen (por ejemplo, la liquidez muestra la caja, lo que hay
+por cobrar y lo que hay por pagar).
 
 DSO, DPO, rotación de stock, ciclo de conversión y margen miran los **últimos
 30 días**. Si en ese período no hubo ventas (o compras, para el DPO), dicen
@@ -92,8 +97,11 @@ Los datos salen de Ámbito. Su venta del oficial es **exactamente** la que
 publica el BCRA, hasta el centavo; la compra la releva Ámbito, porque el BCRA no
 la publica.
 
-Es informativo: **el sistema no lo usa para convertir ningún importe**. Un
-comprobante en dólares se guarda en dólares y no se mezcla con los pesos.
+Se usa para una sola cosa: el **consolidado en pesos** de la tarjeta **Saldo
+por cuenta** suma las cuentas en dólares al **dólar oficial comprador** (lo que
+te darían por venderlos en el banco), y dice qué cotización usó. Fuera de eso
+**no convierte ningún importe**: la liquidez y la proyección de caja son en
+pesos, y un comprobante en dólares se guarda en dólares.
 
 Si alguna cotización no se pudo traer, en su fila dice "Sin datos" y la otra se
 muestra igual. No es un error del sistema.

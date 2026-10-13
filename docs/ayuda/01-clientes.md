@@ -78,7 +78,7 @@ El listado muestra tres columnas que no se cargan a mano, se calculan solas:
 | Próx. vencimiento | El vencimiento de su deuda impaga **más vieja**. Si ya pasó, aparece en rojo como "Vencido el …" |
 | Concentración | Qué porcentaje del total a cobrar representa ese cliente |
 
-El saldo cuenta solo los comprobantes en estado **Enviada** o **Aprobada**: un
+El saldo cuenta solo los comprobantes en estado **Enviada** o **Confirmada**: un
 borrador todavía no se le reclamó a nadie y un rechazado ya no se reclama.
 
 El vencimiento de cada comprobante es su fecha de emisión más los días de la

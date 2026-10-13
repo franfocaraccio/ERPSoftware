@@ -25,6 +25,11 @@ export interface Sesion {
    * del rol, que en ese caso es `solo_lectura`.
    */
   esAccesoPorLink: boolean;
+  /**
+   * Los módulos que puede ver un link de solo lectura con alcance. Null para
+   * un miembro, o para un link sin alcance (ve todo).
+   */
+  modulosPermitidos: string[] | null;
 }
 
 export interface Context {
@@ -75,6 +80,7 @@ async function sesionPorLink(headers: Headers): Promise<Sesion | null> {
     esAdminPlataforma: false,
     dosFactoresVerificado: false,
     esAccesoPorLink: true,
+    modulosPermitidos: acceso.modulos,
   };
 }
 
@@ -130,6 +136,7 @@ export async function resolverSesion(headers: Headers): Promise<Sesion | null> {
     esAdminPlataforma: user.role === ROL_PLATAFORMA_ADMIN,
     dosFactoresVerificado: Boolean(user.twoFactorEnabled),
     esAccesoPorLink: false,
+    modulosPermitidos: null,
   };
 }
 

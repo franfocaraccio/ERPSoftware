@@ -25,6 +25,7 @@ import {
   MenuUsuario,
   SelectorOrganizacion,
   useRolOrganizacion,
+  useRutasPermitidas,
 } from "./sesion.js";
 
 interface ItemNav {
@@ -119,6 +120,7 @@ function ItemNavegacion({
 function Navegacion({ onNavegar }: { onNavegar?: () => void }) {
   const ruta = useRouterState({ select: (s) => s.location.pathname });
   const rol = useRolOrganizacion();
+  const permitidas = useRutasPermitidas();
   const idSubmenu = useId();
 
   const enConfiguracion = CONFIGURACION.some((item) => ruta.startsWith(item.a));
@@ -128,7 +130,7 @@ function Navegacion({ onNavegar }: { onNavegar?: () => void }) {
 
   return (
     <nav className="flex flex-col gap-0.5 px-3" aria-label="Módulos">
-      {NAVEGACION.map((item) => (
+      {NAVEGACION.filter((item) => !permitidas || permitidas.has(item.a)).map((item) => (
         <ItemNavegacion
           key={item.a}
           item={item}

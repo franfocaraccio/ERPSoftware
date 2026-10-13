@@ -56,20 +56,33 @@ Solo la letra A discrimina IVA. En B y C el IVA va incluido en el total.
 Un comprobante pasa por estos estados:
 
 ```
-borrador  --emitir-->  enviada  --aprobar-->  aprobada
+borrador  --emitir-->  enviada  --confirmar-->  confirmada
                           |
                           --rechazar--> rechazada --corregir--> borrador
 ```
 
 - **Borrador**: es el único estado editable.
 - **Enviada**: ya salió, esperando respuesta.
-- **Aprobada**: estado final. **No se puede editar ni anular.** Una vez
-  aprobado, un comprobante se corrige únicamente emitiendo una nota de crédito
-  o de débito.
+- **Confirmada**: estado final. **No se puede editar ni anular.** Una vez
+  confirmado, un comprobante se corrige únicamente emitiendo una nota de
+  crédito o de débito.
+
+"Confirmada" no quiere decir que ARCA lo haya autorizado: el sistema todavía no
+emite factura electrónica, así que ningún comprobante tiene CAE. Cuando exista
+la emisión, el estado final va a ser el autorizado por ARCA.
 - **Rechazada**: se puede volver a borrador con la acción "Corregir".
 
 Los botones de acción que aparecen en la pantalla dependen del estado: si no
 ves "Editar", es porque el comprobante ya no está en borrador.
+
+## Registrar el cobro desde la factura
+
+El detalle de una factura dice su estado de cobro, cuánto queda pendiente y
+cuándo vence. Si queda algo, el botón **Registrar cobro** registra el ingreso
+en Tesorería ya **imputado a esa factura**: se elige la cuenta, el medio
+(transferencia o efectivo) y el importe, que viene con lo pendiente. Si se
+cobra menos, la factura queda parcial. Un cobro con cheque se carga desde
+Tesorería, porque hay que elegir el cheque.
 
 ## Compras: mercadería o gasto
 

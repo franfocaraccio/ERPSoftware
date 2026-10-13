@@ -282,12 +282,38 @@ function FormularioCheque({ onListo }: { onListo: () => void }) {
 }
 
 /** Los días para cobro se muestran con su urgencia, no solo el número. */
-function TextoDias({ dias, estado }: { dias: number; estado: string }) {
+function TextoDias({
+  dias,
+  diasParaPresentar,
+  estado,
+}: {
+  dias: number;
+  diasParaPresentar: number;
+  estado: string;
+}) {
   if (estado !== "en_cartera") {
     return <span className="text-muted-foreground">—</span>;
   }
   if (dias < 0) {
-    return <span className="font-medium text-danger">Vencido hace {Math.abs(dias)} d</span>;
+    // Ya se puede cobrar: lo que importa es cuánto falta para que el banco
+    // deje de aceptarlo (30 días desde la fecha de pago).
+    return (
+      <span className="block">
+        <span className="font-medium text-danger">Vencido hace {Math.abs(dias)} d</span>
+        <span
+          className={cn(
+            "block text-xs",
+            diasParaPresentar <= 7 ? "font-medium text-danger" : "text-muted-foreground",
+          )}
+        >
+          {diasParaPresentar < 0
+            ? "Ya no se puede presentar"
+            : diasParaPresentar === 0
+              ? "Último día para presentarlo"
+              : `Quedan ${diasParaPresentar} d para presentarlo`}
+        </span>
+      </span>
+    );
   }
   if (dias === 0) {
     return <span className="font-medium text-warning">Hoy</span>;
@@ -332,6 +358,11 @@ export function Cheques() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [densidad, setDensidad] = useDensidad("cheques");
+  // Depositar o endosar desde la lista, sin abrir el formulario.
+  const cambiarEstado = useMutation({
+    ...trpc.tesoreria.cheques.actualizar.mutationOptions(),
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
 
   const { data, isPending, isError, refetch } = useQuery(
     trpc.tesoreria.cheques.listar.queryOptions({
@@ -403,6 +434,28 @@ export function Cheques() {
 
       {creando && <FormularioCheque onListo={() => setCreando(false)} />}
 
+      {(() => {
+        // El aviso va antes de que caduque, no después.
+        const porCaducar = (data?.items ?? []).filter(
+          (c) =>
+            c.estado === "en_cartera" &&
+            c.diasParaCobro < 0 &&
+            c.diasParaPresentar >= 0 &&
+            c.diasParaPresentar <= 7,
+        );
+        return porCaducar.length > 0 ? (
+          <div
+            role="alert"
+            className="mb-4 rounded-lg border border-danger/40 bg-danger-subtle px-3 py-2 text-sm text-danger"
+          >
+            {porCaducar.length === 1
+              ? "Hay 1 cheque en cartera que caduca"
+              : `Hay ${porCaducar.length} cheques en cartera que caducan`}{" "}
+            en los próximos 7 días si no se presentan al banco.
+          </div>
+        ) : null;
+      })()}
+
       <Tarjeta className="overflow-hidden">
         {isError ? (
           <EstadoVacio
@@ -451,6 +504,11 @@ export function Cheques() {
                   >
                     Importe
                   </th>
+                  {!soloLectura && (
+                    <th scope="col" className={clasesEncabezado(densidad)}>
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -474,7 +532,11 @@ export function Cheques() {
                       {formatearFecha(c.fechaPago)}
                     </td>
                     <td className={clasesCelda(densidad)}>
-                      <TextoDias dias={c.diasParaCobro} estado={c.estado} />
+                      <TextoDias
+                        dias={c.diasParaCobro}
+                        diasParaPresentar={c.diasParaPresentar}
+                        estado={c.estado}
+                      />
                     </td>
                     <td className={clasesCelda(densidad)}>
                       <Insignia tono={TONO_ESTADO[c.estado]}>{ETIQUETA_ESTADO[c.estado]}</Insignia>
@@ -487,6 +549,41 @@ export function Cheques() {
                     >
                       {formatearImporte(c.importe)}
                     </td>
+                    {!soloLectura && (
+                      <td className={cn(clasesCelda(densidad), "text-right")}>
+                        {c.estado === "en_cartera" && (
+                          <div className="flex justify-end gap-1.5">
+                            {(["depositado", "endosado"] as const).map((nuevo) => (
+                              <Boton
+                                key={nuevo}
+                                variante="secundario"
+                                tamano="sm"
+                                cargando={
+                                  cambiarEstado.isPending && cambiarEstado.variables?.id === c.id
+                                }
+                                onClick={() =>
+                                  cambiarEstado.mutate({
+                                    id: c.id,
+                                    datos: {
+                                      numero: c.numero,
+                                      libradorClienteId: c.libradorClienteId,
+                                      libradorNombre: c.libradorNombre ?? undefined,
+                                      banco: c.banco ?? undefined,
+                                      fechaEmision: c.fechaEmision ?? undefined,
+                                      fechaPago: c.fechaPago,
+                                      importe: c.importe,
+                                      estado: nuevo,
+                                    },
+                                  })
+                                }
+                              >
+                                {nuevo === "depositado" ? "Depositar" : "Endosar"}
+                              </Boton>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

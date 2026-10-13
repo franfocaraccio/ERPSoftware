@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../../db/client.js";
 import { organization } from "../../db/schema/auth.js";
 import { administradorProcedure, publicProcedure, router } from "../../trpc/trpc.js";
+import { MODULOS_LINK } from "./modulos.js";
 import {
   crearAcceso,
   HORAS_DE_VIDA,
@@ -31,9 +32,15 @@ export const consolidadoRouter = router({
           .trim()
           .min(1, "Poné para quién es, así después sabés cuál revocar")
           .max(80),
+        /** Qué módulos ve. Null = todos. */
+        modulos: z
+          .array(z.enum(MODULOS_LINK))
+          .min(1, "Elegí al menos un módulo")
+          .nullable()
+          .default(null),
       }),
     )
-    .mutation(({ ctx, input }) => crearAcceso(ctx, input.descripcion)),
+    .mutation(({ ctx, input }) => crearAcceso(ctx, input.descripcion, input.modulos)),
 
   revocar: administradorProcedure
     .input(z.object({ id: z.uuid() }))
@@ -75,6 +82,7 @@ export const consolidadoRouter = router({
         empresa: empresa?.nombre ?? "",
         descripcion: acceso.descripcion,
         expira: acceso.expira,
+        modulos: acceso.modulos,
       };
     }),
 });

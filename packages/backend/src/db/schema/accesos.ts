@@ -30,6 +30,8 @@ export const accesosConsolidado = pgTable(
     expira: timestamp("expira", { withTimezone: true }).notNull(),
     revocadoEn: timestamp("revocado_en", { withTimezone: true }),
     ultimoUso: timestamp("ultimo_uso", { withTimezone: true }),
+    /** Qué módulos puede ver. Null = todos (los links anteriores al alcance). */
+    modulos: text("modulos").array(),
   },
   (t) => [
     uniqueIndex("accesos_consolidado_token_unq").on(t.token),

@@ -1,6 +1,6 @@
 import { hoyEnArgentina } from "@erp/core/dates";
 import { Money } from "@erp/core/money";
-import { diasParaCobro, saldoCuenta } from "@erp/core/treasury";
+import { diasParaCobro, diasParaPresentar, saldoCuenta } from "@erp/core/treasury";
 import { and, asc, count, eq, gte, lte, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
@@ -39,6 +39,8 @@ export interface CuentaConSaldo extends Cuenta {
 export interface ChequeConDerivados extends Cheque {
   libradorNombreEfectivo: string;
   diasParaCobro: number;
+  /** Días que quedan para presentarlo al banco. Negativo: ya no se puede. */
+  diasParaPresentar: number;
 }
 
 // "Hoy" es un concepto local: en UTC, a partir de las 21:00 argentinas ya
@@ -342,6 +344,7 @@ export async function listarCheques(
       ...cheque,
       libradorNombreEfectivo: libradorCliente ?? cheque.libradorNombre ?? "—",
       diasParaCobro: diasParaCobro(cheque.fechaPago, hoy),
+      diasParaPresentar: diasParaPresentar(cheque.fechaPago, hoy),
     }));
 
     const [fila] = await tx.select({ total: count() }).from(cheques).where(filtro);

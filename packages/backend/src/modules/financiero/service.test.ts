@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { pool } from "../../db/client.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
@@ -8,6 +8,22 @@ import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { crearCliente } from "../clientes/service.js";
+
+// El panel trae la cotización del dólar de Ámbito. Los tests no salen a
+// internet: una cotización fija.
+vi.mock("../cotizaciones/dolar.js", () => ({
+  cotizacionesDolar: async () => ({
+    oficial: {
+      compra: "1000.00",
+      venta: "1050.00",
+      fecha: "2026-10-09",
+      variacion: "0.00",
+      tendencia: "igual",
+    },
+    blue: null,
+  }),
+}));
+
 import { resumenFinanciero } from "./service.js";
 
 /**
@@ -392,5 +408,41 @@ describe("proyección de caja", () => {
     const r = await resumenFinanciero(e.actor);
     expect(totalProyectado(r, "cobros")).toBe(10000000);
     expect(r.proyeccion[0]?.cobros).toBe("0.00");
+  });
+});
+
+describe("saldo consolidado", () => {
+  it("suma las cuentas en dólares al oficial comprador, sin tocar la liquidez", async () => {
+    const e = await escenario();
+    await withTenant(e.actor.tenantId, async (tx) => {
+      const [usd] = await tx
+        .insert(cuentas)
+        .values({
+          tenantId: e.actor.tenantId,
+          nombre: "Dólares",
+          tipo: "caja_ahorro",
+          moneda: "USD",
+        })
+        .returning();
+      await tx.insert(movimientos).values({
+        tenantId: e.actor.tenantId,
+        fecha: enDias(0),
+        cuentaId: usd?.id ?? "",
+        tipo: "ingreso",
+        medioPago: "transferencia",
+        importe: "100.00",
+      });
+    });
+    await e.cobrar("5000.00");
+
+    const r = await resumenFinanciero(e.actor);
+    // 5000 pesos + 100 dólares × 1000 (compra).
+    expect(r.consolidado).toMatchObject({
+      pesos: "5000.00",
+      dolares: "100.00",
+      cotizacion: "1000.00",
+      total: "105000.00",
+    });
+    expect(r.saldoPorCuenta.find((c) => c.moneda === "USD")?.saldo).toBe("100.00");
   });
 });

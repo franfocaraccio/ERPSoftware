@@ -178,6 +178,28 @@ export function SelectorOrganizacion() {
 }
 
 /**
+ * Las rutas del menú que puede ver un link de solo lectura con alcance, o null
+ * si puede ver todo (un miembro, o un link sin alcance). Es sólo navegación:
+ * quien controla de verdad es el backend, que rechaza el resto.
+ */
+export function useRutasPermitidas(): Set<string> | null {
+  const trpc = useTRPC();
+  const acceso = cabeceraAcceso();
+  const [tenantId = "", token = ""] = acceso
+    ? [acceso.slice(0, acceso.indexOf(":")), acceso.slice(acceso.indexOf(":") + 1)]
+    : [];
+  const { data } = useQuery({
+    ...trpc.consolidado.abrir.queryOptions({ tenantId, token }),
+    enabled: Boolean(acceso),
+    retry: false,
+  });
+  if (!acceso || !data?.modulos) {
+    return null;
+  }
+  return new Set(data.modulos.map((m) => `/${m}`));
+}
+
+/**
  * Aviso para quien entró por un link de acceso. Dice qué está viendo y hasta
  * cuándo: nadie debería tener que adivinar por qué no puede tocar nada.
  */

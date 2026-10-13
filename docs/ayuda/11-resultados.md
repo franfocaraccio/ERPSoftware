@@ -9,7 +9,7 @@ Una tabla con un mes por columna (3, 6 o 12 meses) y estos renglones:
 
 | Renglón | De dónde sale |
 |---|---|
-| Ventas netas | El neto (sin IVA) de las facturas Enviadas o Aprobadas, por fecha de emisión. Las notas de crédito restan |
+| Ventas netas | El neto (sin IVA) de las facturas Enviadas o Confirmadas, por fecha de emisión. Las notas de crédito restan |
 | Costo de ventas | El costo de los productos vendidos. Un ítem de texto libre no tiene costo |
 | Margen bruto | Ventas netas − costo de ventas, y su porcentaje |
 | Gastos | Por categoría (ver abajo) |

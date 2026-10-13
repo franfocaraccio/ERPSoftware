@@ -82,6 +82,18 @@ export class Money {
     return this.multiplicarPor(tasa).multiplicarPor("0.01");
   }
 
+  /**
+   * El mismo importe en otra moneda, a una cotización dada (pesos por dólar),
+   * redondeado al centavo. Es la única forma de pasar de una moneda a otra:
+   * sumar pesos y dólares sin convertir sigue tirando MonedaDistintaError.
+   */
+  convertir(a: Moneda, cotizacion: string): Money {
+    if (!FORMATO_DECIMAL.test(cotizacion)) {
+      throw new ImporteInvalidoError(cotizacion);
+    }
+    return new Money(this.valor.times(new D(cotizacion)), a).redondeoFiscal();
+  }
+
   negar(): Money {
     return new Money(this.valor.negated(), this.moneda);
   }

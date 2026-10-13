@@ -2,9 +2,12 @@ import { Boton, clasesBoton, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { InsigniaCobro } from "../../components/cuenta-corriente.js";
 import { EncabezadoPagina } from "../../components/layout.js";
+import { useModoLectura } from "../../components/sesion.js";
 import { formatearCantidad, formatearFecha, formatearImporte } from "../../lib/formato.js";
 import { useTRPC } from "../../lib/trpc.js";
+import { RegistrarCobro } from "./registrar-cobro.js";
 
 type Estado = "borrador" | "enviada" | "aprobada" | "rechazada";
 type Evento = "emitir" | "aprobar" | "rechazar" | "corregir";
@@ -19,13 +22,16 @@ const TONO_ESTADO = {
 const ETIQUETA_ESTADO = {
   borrador: "Borrador",
   enviada: "Enviada",
-  aprobada: "Aprobada",
+  // Se muestra "Confirmada" y no "Aprobada" hasta que exista la emisión con
+  // ARCA: sin CAE, "Aprobada" sugiere una validez fiscal que no tiene. El
+  // estado interno no cambia (decisión de Fran del 12/10/2026).
+  aprobada: "Confirmada",
   rechazada: "Rechazada",
 } as const;
 
 const ETIQUETA_EVENTO: Record<Evento, string> = {
   emitir: "Emitir",
-  aprobar: "Aprobar",
+  aprobar: "Confirmar",
   rechazar: "Rechazar",
   corregir: "Volver a borrador",
 };
@@ -42,6 +48,7 @@ function etiquetaAlicuota(valor: string): string {
 export function DetalleComprobante({ comprobanteId }: { comprobanteId: string }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const soloLectura = useModoLectura();
 
   const { data, isPending, isError } = useQuery(
     trpc.comprobantes.ventas.obtener.queryOptions({ id: comprobanteId }),
@@ -115,6 +122,30 @@ export function DetalleComprobante({ comprobanteId }: { comprobanteId: string })
           </div>
         }
       />
+
+      {data.cobranza && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+          <InsigniaCobro estado={data.cobranza.estado} lado="ventas" />
+          {data.cobranza.estado !== "cobrada" && (
+            <span className="text-muted-foreground">
+              Pendiente{" "}
+              <span className="font-medium tabular text-foreground">
+                {formatearImporte(data.cobranza.pendiente, data.moneda)}
+              </span>{" "}
+              · vence {formatearFecha(data.cobranza.vencimiento)}
+            </span>
+          )}
+          {!soloLectura && data.cobranza.estado !== "cobrada" && (
+            <RegistrarCobro
+              comprobanteId={comprobanteId}
+              descripcion={numeroFormateado}
+              clienteId={data.clienteId}
+              moneda={data.moneda}
+              pendiente={data.cobranza.pendiente}
+            />
+          )}
+        </div>
+      )}
 
       {transicionar.isError && (
         <div

@@ -1,10 +1,14 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { ROLES_ESCRITURA, ROLES_GESTION_USUARIOS, type RolOrganizacion } from "../auth/roles.js";
+import { permitidoPorLink } from "../modules/consolidado/modulos.js";
 import type { Context } from "./context.js";
 
 const t = initTRPC.context<Context>().create();
 
 export const router = t.router;
+
+/** Para llamar procedures en tests, con un contexto armado a mano. */
+export const createCallerFactory = t.createCallerFactory;
 
 /** Solo para health, login e invitaciones. Nada de datos de negocio. */
 export const publicProcedure = t.procedure;
@@ -21,12 +25,21 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
  * Base de todo procedure de negocio: exige organización activa e inyecta
  * tenantId (siempre desde la sesión del servidor, jamás del cliente).
  */
-export const tenantProcedure = protectedProcedure.use(({ ctx, next }) => {
+export const tenantProcedure = protectedProcedure.use(({ ctx, next, path }) => {
   const tenantId = ctx.session.activeOrganizationId;
   if (!tenantId || !ctx.session.rolOrganizacion) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "No hay organización activa en la sesión",
+    });
+  }
+  // Un link de solo lectura con alcance ve sólo los módulos que se eligieron
+  // al generarlo. Se controla acá, una vez, y no en cada router.
+  const modulos = ctx.session.modulosPermitidos;
+  if (modulos && !permitidoPorLink(path, modulos)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Este enlace no incluye esta sección",
     });
   }
   return next({

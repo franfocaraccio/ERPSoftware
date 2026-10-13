@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { pool } from "../../db/client.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
@@ -11,6 +11,22 @@ import { resumenFinanciero } from "../financiero/service.js";
 import { crearImpuesto } from "../impuestos/service.js";
 import { movimientoInputSchema } from "../tesoreria/schema.js";
 import { crearCuenta, crearMovimiento } from "../tesoreria/service.js";
+
+// El panel trae la cotización del dólar de Ámbito. Los tests no salen a
+// internet: una cotización fija.
+vi.mock("../cotizaciones/dolar.js", () => ({
+  cotizacionesDolar: async () => ({
+    oficial: {
+      compra: "1000.00",
+      venta: "1050.00",
+      fecha: "2026-10-09",
+      variacion: "0.00",
+      tendencia: "igual",
+    },
+    blue: null,
+  }),
+}));
+
 import {
   crearCategoria,
   crearGastoRecurrente,
