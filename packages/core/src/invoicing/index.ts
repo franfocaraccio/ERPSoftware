@@ -18,3 +18,8 @@ export {
   eventosDisponibles,
   type ResultadoTransicion,
 } from "./estados.js";
+export {
+  type ReparoLectura,
+  revisarTotalesLeidos,
+  type TotalesLeidos,
+} from "./lectura.js";
