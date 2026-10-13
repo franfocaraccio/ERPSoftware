@@ -390,16 +390,19 @@ $$;
 --     join "user" u on u.id = m.user_id
 --     where u.email = 'empresa1@gmail.com' limit 1;
 --     perform set_config('app.tenant_id', v_tenant, true);
+--     -- Primero lo que apunta a otras tablas: imputaciones y movimientos
+--     -- referencian comprobantes, y los ítems referencian productos.
+--     delete from imputaciones            where tenant_id = v_tenant;
+--     delete from movimientos_stock       where tenant_id = v_tenant;
+--     delete from movimientos             where tenant_id = v_tenant;
 --     delete from items_comprobante_venta where tenant_id = v_tenant;
+--     delete from items_comprobante_compra where tenant_id = v_tenant;
 --     delete from comprobantes_venta      where tenant_id = v_tenant;
 --     delete from comprobantes_compra     where tenant_id = v_tenant;
---     delete from movimientos             where tenant_id = v_tenant;
 --     delete from cheques                 where tenant_id = v_tenant;
 --     delete from impuestos               where tenant_id = v_tenant;
 --     delete from retenciones_iibb        where tenant_id = v_tenant;
 --     delete from gastos_recurrentes      where tenant_id = v_tenant;
---     delete from imputaciones            where tenant_id = v_tenant;
---     delete from movimientos_stock       where tenant_id = v_tenant;
 --     delete from productos               where tenant_id = v_tenant;
 --     delete from proveedores             where tenant_id = v_tenant;
 --     delete from clientes                where tenant_id = v_tenant;
