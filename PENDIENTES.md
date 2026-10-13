@@ -81,19 +81,12 @@ dólar oficial con compra y venta en el panel.
   (se leen y se descartan), así que no hay una tarea previa de adjuntos: la
   tarea 2 se descartó el 12 de octubre de 2026.
 
-## Dos cosas sueltas del panel financiero
+## Lo que salió del análisis del 30 de septiembre
 
-Salieron de arreglar el signo de las notas de crédito y no se tocaron ahí a
-propósito: mueven todos los KPIs a la vez y mezclarlas hubiera vuelto el diff
-imposible de verificar.
-
-- **`financiero/service.ts` no filtra por estado.** Cuenta comprobantes en
-  `borrador`, así que un presupuesto a medio tipear entra en el DSO y en las
-  ventas del mes. Clientes ya usa `ESTADOS_QUE_DEBEN = ["enviada", "aprobada"]`.
-- **`financiero/service.ts` no filtra por moneda.** Suma pesos y dólares en el
-  mismo total y después lo trata como ARS. Es el mismo bug que ya se corrigió en
-  proveedores y en clientes; en dev se ve con una factura de US$ 900 sumada como
-  si fueran pesos.
+- **Seis etapas, con plan y decisiones tomadas** (12 de octubre de 2026):
+  números del panel, cuenta corriente, impuestos, estado de resultados,
+  pantallas, y stock con costo e IA. Ver `docs/handoff/tareas.md`, tareas 5 a 10.
+  Las dos cosas sueltas del panel (estado y moneda) quedaron dentro de la tarea 5.
 
 ## Postergado
 
