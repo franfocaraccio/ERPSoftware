@@ -11,6 +11,7 @@ import { invitacionesRouter } from "../modules/invitaciones/router.js";
 import { parametrosRouter } from "../modules/parametros/router.js";
 import { plataformaRouter } from "../modules/plataforma/router.js";
 import { proveedoresRouter } from "../modules/proveedores/router.js";
+import { resultadosRouter } from "../modules/resultados/router.js";
 import { stockRouter } from "../modules/stock/router.js";
 import { tesoreriaRouter } from "../modules/tesoreria/router.js";
 import { router } from "./trpc.js";
@@ -29,6 +30,7 @@ export const appRouter = router({
   parametros: parametrosRouter,
   plataforma: plataformaRouter,
   proveedores: proveedoresRouter,
+  resultados: resultadosRouter,
   stock: stockRouter,
   tesoreria: tesoreriaRouter,
 });

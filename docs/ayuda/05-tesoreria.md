@@ -28,6 +28,7 @@ Cada movimiento es un ingreso o un egreso sobre una cuenta.
 | Concepto | No | Hasta 300 caracteres |
 | Importe | Sí | **Siempre positivo**: el signo lo pone el tipo |
 | Contraparte | No | Un cliente o un proveedor |
+| Categoría | No | Sólo sin contraparte: en qué se gastó o de dónde entró, para el estado de resultados (ver `/resultados`) |
 | Cheque | Condicional | Obligatorio si el medio de pago es Cheque |
 | Conciliado | No | Tilde |
 

@@ -25,6 +25,10 @@ export const comprobantesCompra = pgTable(
     iva: numeric("iva", { precision: 14, scale: 2 }).default("0").notNull(),
     total: numeric("total", { precision: 14, scale: 2 }).notNull(),
     adjuntoPath: text("adjunto_path"), // comprobante escaneado en Supabase Storage
+    // Null = mercadería para stock: entra en resultados como costo cuando se
+    // vende. Con categoría = un gasto (un flete, un honorario), que entra en
+    // resultados por su neto en el mes de recepción.
+    categoriaId: uuid("categoria_id"),
   },
   (t) => [
     index("comprobantes_compra_tenant_idx").on(t.tenantId),

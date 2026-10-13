@@ -71,6 +71,16 @@ borrador  --emitir-->  enviada  --aprobar-->  aprobada
 Los botones de acción que aparecen en la pantalla dependen del estado: si no
 ves "Editar", es porque el comprobante ya no está en borrador.
 
+## Compras: mercadería o gasto
+
+Al cargar una compra, el campo **Qué es** dice cómo entra en el estado de
+resultados:
+
+- **Mercadería para stock** (el valor por defecto): no es gasto del mes; cuenta
+  como costo cuando se vende el producto.
+- **Una categoría de gasto** (fletes, honorarios, servicios): es gasto del mes
+  de recepción, por su neto.
+
 ## Estado de cobro
 
 La lista de ventas tiene una columna **Cobro**, y la de compras una de **Pago**:

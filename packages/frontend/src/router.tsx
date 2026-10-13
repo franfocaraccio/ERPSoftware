@@ -27,6 +27,7 @@ import { Parametros, ParametrosSinPermiso } from "./features/parametros/formular
 import { FichaProveedor } from "./features/proveedores/ficha.js";
 import { FormularioProveedor } from "./features/proveedores/formulario.js";
 import { ListaProveedores } from "./features/proveedores/lista.js";
+import { Resultados } from "./features/resultados/pagina.js";
 import { FormularioProducto } from "./features/stock/formulario.js";
 import { ListaStock } from "./features/stock/lista.js";
 import { Tesoreria } from "./features/tesoreria/index.js";
@@ -368,6 +369,12 @@ const rutaComprobanteDetalle = createRoute({
   },
 });
 
+const rutaResultados = createRoute({
+  getParentRoute: () => rutaApp,
+  path: "/resultados",
+  component: Resultados,
+});
+
 const arbolRutas = rutaRaiz.addChildren([
   rutaLanding,
   rutaLogin,
@@ -400,6 +407,7 @@ const arbolRutas = rutaRaiz.addChildren([
     rutaComprobantes,
     rutaComprobanteNuevo,
     rutaComprobanteDetalle,
+    rutaResultados,
   ]),
 ]);
 

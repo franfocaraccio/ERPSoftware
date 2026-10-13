@@ -81,6 +81,11 @@ export const compraInputSchema = z.object({
   fechaRecepcion: fecha,
   condicionPagoDias: z.number().int().min(0).max(365).default(0),
   concepto: z.string().trim().max(300).optional(),
+  /**
+   * Null = mercadería para stock. Con categoría, la compra es un gasto (un
+   * flete, un honorario) y entra en el estado de resultados.
+   */
+  categoriaId: z.uuid().nullable().optional(),
   moneda: z.enum(["ARS", "USD"]).default("ARS"),
   neto: importe.default("0"),
   iva: importe.default("0"),

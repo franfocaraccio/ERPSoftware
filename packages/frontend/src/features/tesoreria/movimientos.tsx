@@ -54,6 +54,7 @@ const movimientoSchema = z.object({
     ),
   contraparte: z.string(),
   chequeId: z.string(),
+  categoriaId: z.string(),
   imputaciones: z.record(z.string(), z.string()),
 });
 
@@ -90,6 +91,7 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
   const proveedores = useQuery(
     trpc.proveedores.listar.queryOptions({ pagina: 1, tamanoPagina: 100 }),
   );
+  const categorias = useQuery(trpc.resultados.categorias.listar.queryOptions());
   const chequesEnCartera = useQuery(
     trpc.tesoreria.cheques.listar.queryOptions({
       estado: "en_cartera",
@@ -108,6 +110,7 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
       importe: "",
       contraparte: "",
       chequeId: "",
+      categoriaId: "",
       imputaciones: {} as Imputaciones,
     } as ValoresMovimiento,
     validators: { onBlur: movimientoSchema },
@@ -125,6 +128,9 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
         clienteId: clase === "cliente" ? id : null,
         proveedorId: clase === "proveedor" ? id : null,
         chequeId: value.chequeId || null,
+        // Sólo sin contraparte: un cobro o pago a una contraparte cancela un
+        // comprobante, que ya cuenta en resultados.
+        categoriaId: value.contraparte ? null : value.categoriaId || null,
         conciliado: false,
         // Sólo si el movimiento es de la contraparte que se eligió: si después
         // se cambió el tipo o la contraparte, lo tipeado ya no corresponde.
@@ -335,6 +341,43 @@ function FormularioMovimiento({ onListo }: { onListo: () => void }) {
                 )}
               </form.Field>
             ) : null
+          }
+        </form.Subscribe>
+
+        <form.Subscribe
+          selector={(s) => ({ tipo: s.values.tipo, contraparte: s.values.contraparte })}
+        >
+          {(v) =>
+            v.contraparte ? null : (
+              <form.Field name="categoriaId">
+                {(field) => (
+                  <Campo
+                    etiqueta="Categoría"
+                    ayuda="Para el estado de resultados: en qué se gastó o de dónde entró"
+                  >
+                    {({ id }) => (
+                      <Selector
+                        id={id}
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                      >
+                        <option value="">Sin categoría</option>
+                        {categorias.data
+                          ?.filter(
+                            (c) =>
+                              c.activa && c.tipo === (v.tipo === "egreso" ? "gasto" : "ingreso"),
+                          )
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nombre}
+                            </option>
+                          ))}
+                      </Selector>
+                    )}
+                  </Campo>
+                )}
+              </form.Field>
+            )
           }
         </form.Subscribe>
 

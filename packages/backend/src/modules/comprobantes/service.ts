@@ -14,6 +14,7 @@ import { clientes } from "../../db/schema/clientes.js";
 import { comprobantesCompra } from "../../db/schema/compras.js";
 import { comprobantesVenta, itemsComprobanteVenta } from "../../db/schema/facturacion.js";
 import { proveedores } from "../../db/schema/proveedores.js";
+import { categorias } from "../../db/schema/resultados.js";
 import { productos } from "../../db/schema/stock.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
@@ -434,6 +435,7 @@ function aColumnasCompra(input: CompraInput) {
     fechaRecepcion: input.fechaRecepcion,
     condicionPagoDias: input.condicionPagoDias,
     concepto: input.concepto ?? null,
+    categoriaId: input.categoriaId ?? null,
     moneda: input.moneda,
     neto: input.neto,
     iva: input.iva,
@@ -449,6 +451,13 @@ export async function crearCompra(actor: Actor, input: CompraInput): Promise<Com
       proveedores.id,
       [input.proveedorId],
       "Proveedor no encontrado",
+    );
+    await exigirPropios(
+      tx,
+      categorias,
+      categorias.id,
+      [input.categoriaId],
+      "Categoría no encontrada",
     );
     const [creada] = await tx
       .insert(comprobantesCompra)
@@ -482,6 +491,13 @@ export async function actualizarCompra(
       proveedores.id,
       [datos.proveedorId],
       "Proveedor no encontrado",
+    );
+    await exigirPropios(
+      tx,
+      categorias,
+      categorias.id,
+      [datos.categoriaId],
+      "Categoría no encontrada",
     );
     const [despues] = await tx
       .update(comprobantesCompra)

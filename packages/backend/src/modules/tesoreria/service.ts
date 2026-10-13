@@ -5,6 +5,7 @@ import { and, asc, count, eq, gte, lte, sum } from "drizzle-orm";
 import { type Actor, auditar } from "../../db/auditar.js";
 import { clientes } from "../../db/schema/clientes.js";
 import { proveedores } from "../../db/schema/proveedores.js";
+import { categorias } from "../../db/schema/resultados.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
@@ -224,6 +225,7 @@ function aColumnasMovimiento(input: MovimientoInput) {
     clienteId: input.clienteId ?? null,
     proveedorId: input.proveedorId ?? null,
     chequeId: input.chequeId ?? null,
+    categoriaId: input.categoriaId ?? null,
     conciliado: input.conciliado,
   };
 }
@@ -237,6 +239,7 @@ async function exigirReferenciasMovimiento(
   await exigirPropios(tx, clientes, clientes.id, [m.clienteId], "Cliente no encontrado");
   await exigirPropios(tx, proveedores, proveedores.id, [m.proveedorId], "Proveedor no encontrado");
   await exigirPropios(tx, cheques, cheques.id, [m.chequeId], "Cheque no encontrado");
+  await exigirPropios(tx, categorias, categorias.id, [m.categoriaId], "Categoría no encontrada");
 }
 
 export async function crearMovimiento(actor: Actor, input: MovimientoInput): Promise<Movimiento> {

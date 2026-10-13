@@ -101,6 +101,10 @@ export const movimientos = pgTable(
     comprobanteVentaId: uuid("comprobante_venta_id").references(() => comprobantesVenta.id),
     comprobanteCompraId: uuid("comprobante_compra_id").references(() => comprobantesCompra.id),
     chequeId: uuid("cheque_id").references(() => cheques.id),
+    // En qué se gastó o de dónde entró, para el estado de resultados. Sólo en
+    // movimientos sin contraparte: un pago a un proveedor cancela una compra,
+    // que ya cuenta como gasto (o como mercadería) por su cuenta.
+    categoriaId: uuid("categoria_id"),
     conciliado: boolean("conciliado").default(false).notNull(),
   },
   (t) => [

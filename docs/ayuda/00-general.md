@@ -16,6 +16,7 @@ El menú lateral izquierdo tiene estos destinos:
 | Tesorería | `/tesoreria` | Cuentas, movimientos y cheques |
 | Impuestos | `/impuestos` | Obligaciones impositivas |
 | Comprobantes | `/comprobantes` | Facturas de venta y compras |
+| Resultados | `/resultados` | Estado de resultados y rentabilidad |
 | Equipo | `/equipo` | Usuarios de la empresa |
 | Parámetros | `/parametros` | Umbrales del panel |
 | Historial | `/historial` | Auditoría de cambios |

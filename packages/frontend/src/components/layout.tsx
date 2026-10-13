@@ -12,6 +12,7 @@ import {
   ScrollText,
   Settings,
   SlidersHorizontal,
+  TrendingUp,
   UserCog,
   Users,
   Wallet,
@@ -43,6 +44,7 @@ const NAVEGACION: ItemNav[] = [
   { a: "/tesoreria", etiqueta: "Tesorería", Icono: Wallet, habilitado: true },
   { a: "/impuestos", etiqueta: "Impuestos", Icono: Receipt, habilitado: true },
   { a: "/comprobantes", etiqueta: "Comprobantes", Icono: FileText, habilitado: true },
+  { a: "/resultados", etiqueta: "Resultados", Icono: TrendingUp, habilitado: true },
 ];
 
 /**

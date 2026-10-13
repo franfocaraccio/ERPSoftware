@@ -313,6 +313,53 @@ begin
   values (v_tenant, 'ganancias', date_trunc('month', v_hoy)::date, 420000.00, 'Anticipo 5', 0,
           (date_trunc('month', v_hoy) + interval '14 days')::date);
 
+  -- --- Categorías y gastos -------------------------------------------------
+  -- La misma lista inicial que crea la app (modules/resultados/service.ts).
+  insert into categorias (tenant_id, nombre, tipo, orden)
+  select v_tenant, c.nombre, c.tipo::tipo_categoria, c.orden
+  from (values
+    ('Sueldos y cargas sociales', 'gasto', 0),
+    ('Alquiler', 'gasto', 1),
+    ('Servicios (luz, gas, internet)', 'gasto', 2),
+    ('Fletes', 'gasto', 3),
+    ('Honorarios', 'gasto', 4),
+    ('Comisiones bancarias', 'gasto', 5),
+    ('Impuestos y tasas', 'gasto', 6),
+    ('Otros gastos', 'gasto', 7),
+    ('Intereses ganados', 'ingreso', 8),
+    ('Otros ingresos', 'ingreso', 9)
+  ) as c(nombre, tipo, orden)
+  on conflict do nothing;
+
+  -- Los gastos sin comprobante, con su categoría: es lo que los lleva al
+  -- estado de resultados.
+  update movimientos m set categoria_id = c.id
+  from categorias c
+  where m.tenant_id = v_tenant and c.tenant_id = v_tenant
+    and m.cliente_id is null and m.proveedor_id is null
+    and c.nombre = case m.concepto
+      when 'Sueldos' then 'Sueldos y cargas sociales'
+      when 'Alquiler del depósito' then 'Alquiler'
+      when 'Gastos varios' then 'Otros gastos'
+    end;
+
+  -- Los fletes son un servicio, no mercadería: gasto del mes.
+  update comprobantes_compra cc set categoria_id = c.id
+  from categorias c, proveedores p
+  where cc.tenant_id = v_tenant and c.tenant_id = v_tenant and p.id = cc.proveedor_id
+    and p.razon_social = 'Logística Ruta 9' and c.nombre = 'Fletes';
+
+  -- Sueldos y alquiler se repiten todos los meses: se proyectan en la caja.
+  insert into gastos_recurrentes (tenant_id, descripcion, categoria_id, cuenta_id, importe, dia_del_mes, desde)
+  select v_tenant, g.descripcion,
+         (select id from categorias where tenant_id = v_tenant and nombre = g.categoria),
+         (select id from cuentas where tenant_id = v_tenant and nombre = 'Banco Nación — cuenta corriente'),
+         g.importe, g.dia, v_hoy - 120
+  from (values
+    ('Sueldos', 'Sueldos y cargas sociales', 1650000.00, 30),
+    ('Alquiler del depósito', 'Alquiler', 520000.00, 5)
+  ) as g(descripcion, categoria, importe, dia);
+
   -- --- Parámetros ----------------------------------------------------------
   -- Sin una fila acá, el panel usa los valores por defecto y el mínimo
   -- operativo queda en null: el gráfico de saldo proyectado no dibuja la línea
@@ -343,10 +390,12 @@ $$;
 --     delete from cheques                 where tenant_id = v_tenant;
 --     delete from impuestos               where tenant_id = v_tenant;
 --     delete from retenciones_iibb        where tenant_id = v_tenant;
+--     delete from gastos_recurrentes      where tenant_id = v_tenant;
 --     delete from imputaciones            where tenant_id = v_tenant;
 --     delete from productos               where tenant_id = v_tenant;
 --     delete from proveedores             where tenant_id = v_tenant;
 --     delete from clientes                where tenant_id = v_tenant;
 --     delete from cuentas                 where tenant_id = v_tenant;
 --     delete from parametros              where tenant_id = v_tenant;
+--     delete from categorias              where tenant_id = v_tenant;
 --   end $$;

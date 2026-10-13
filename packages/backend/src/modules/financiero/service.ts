@@ -1,4 +1,9 @@
-import { type FilaProyeccion, proyectarCaja, separarVencidos } from "@erp/core/cashflow";
+import {
+  type FilaProyeccion,
+  proyectarCaja,
+  semanasDelHorizonte,
+  separarVencidos,
+} from "@erp/core/cashflow";
 import { hoyEnArgentina } from "@erp/core/dates";
 import {
   cicloConversionEfectivo,
@@ -23,6 +28,7 @@ import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { conSigno, totalConSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
 import { saldosCuentaCorriente } from "../cuenta-corriente/saldos.js";
 import { obligacionesImpositivas } from "../impuestos/obligaciones.js";
+import { recurrentesAProyectar } from "../resultados/service.js";
 import { obtenerParametros } from "./parametros.js";
 
 const ARS = "ARS" as const;
@@ -371,11 +377,16 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     // mostraba pagos en cero con deudas vencidas por millones.
     const pagos = separarVencidos([...pagosCompras, ...pagosImpuestos], hoy);
 
+    // Sueldos, alquiler: no tienen comprobante pero se pagan todos los meses.
+    // Se proyectan desde hoy hasta el fin del horizonte.
+    const horizonte = semanasDelHorizonte(hoy);
+    const recurrentes = await recurrentesAProyectar(tx, hoy, horizonte.at(-1)?.fin ?? hoy);
+
     const proyeccion: FilaProyeccion[] = proyectarCaja({
       hoy,
       saldoInicial: saldoTesoreria,
       cobros: [...facturasACobrar.vigentes, ...cobrosCheques],
-      pagos: [...pagos.vigentes, ...pagos.vencidosAHoy],
+      pagos: [...pagos.vigentes, ...pagos.vencidosAHoy, ...recurrentes],
       minimoOperativo: parametros.minimoOperativo ? ars(parametros.minimoOperativo) : null,
     });
 

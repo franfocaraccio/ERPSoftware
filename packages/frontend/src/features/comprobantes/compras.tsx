@@ -41,6 +41,7 @@ const compraSchema = z.object({
     .trim()
     .refine((v) => /^\d+$/.test(v) && Number(v) <= 365, "Días entre 0 y 365"),
   concepto: z.string().trim(),
+  categoriaId: z.string(),
   neto: importe("Usá punto decimal, máximo 2 decimales"),
   iva: importe("Usá punto decimal, máximo 2 decimales"),
   total: importe("Usá punto decimal, máximo 2 decimales"),
@@ -55,6 +56,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
   const proveedores = useQuery(
     trpc.proveedores.listar.queryOptions({ pagina: 1, tamanoPagina: 100 }),
   );
+  const categorias = useQuery(trpc.resultados.categorias.listar.queryOptions());
 
   const form = useForm({
     defaultValues: {
@@ -64,6 +66,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
       fechaRecepcion: hoyEnArgentina(),
       condicionPagoDias: "30",
       concepto: "",
+      categoriaId: "",
       neto: "",
       iva: "",
       total: "",
@@ -77,6 +80,7 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
         fechaRecepcion: value.fechaRecepcion,
         condicionPagoDias: Number(value.condicionPagoDias),
         concepto: opcional(value.concepto),
+        categoriaId: value.categoriaId || null,
         moneda: "ARS",
         neto: value.neto.trim(),
         iva: value.iva.trim(),
@@ -209,6 +213,34 @@ function FormularioCompra({ onListo }: { onListo: () => void }) {
                     onChange={(e) => field.handleChange(e.target.value)}
                     onBlur={field.handleBlur}
                   />
+                )}
+              </Campo>
+            )}
+          </form.Field>
+
+          <form.Field name="categoriaId">
+            {(field) => (
+              <Campo
+                etiqueta="Qué es"
+                ayuda="La mercadería va al stock; un servicio es un gasto del mes"
+              >
+                {({ id }) => (
+                  <Selector
+                    id={id}
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                  >
+                    <option value="">Mercadería para stock</option>
+                    <optgroup label="Gasto">
+                      {categorias.data
+                        ?.filter((c) => c.tipo === "gasto" && c.activa)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nombre}
+                          </option>
+                        ))}
+                    </optgroup>
+                  </Selector>
                 )}
               </Campo>
             )}
