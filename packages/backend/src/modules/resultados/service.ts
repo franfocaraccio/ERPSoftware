@@ -16,7 +16,7 @@ import { categorias, gastosRecurrentes } from "../../db/schema/resultados.js";
 import { productos } from "../../db/schema/stock.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { type TenantTx, withTenant } from "../../db/tenant-db.js";
-import { conSigno, ventasQueCuentan } from "../_comunes/comprobantes.js";
+import { conSigno, costoDelItem, ventasQueCuentan } from "../_comunes/comprobantes.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
 import { obligacionesImpositivas } from "../impuestos/obligaciones.js";
 import type {
@@ -273,7 +273,7 @@ export async function obtenerEstadoResultados(
     const costos = await tx
       .select({
         mes: mes(comprobantesVenta.fechaEmision),
-        total: sql<string>`sum(${conSigno(sql`${itemsComprobanteVenta.cantidad} * coalesce(${productos.costoUnitario}, 0)`)})`,
+        total: sql<string>`sum(${conSigno(costoDelItem())})`,
       })
       .from(itemsComprobanteVenta)
       .innerJoin(comprobantesVenta, eq(comprobantesVenta.id, itemsComprobanteVenta.comprobanteId))
@@ -389,7 +389,8 @@ export async function obtenerRentabilidad(actor: Actor, input: RentabilidadInput
       .select({
         clave,
         ventas: sql<string>`sum(${conSigno(sql`${itemsComprobanteVenta.cantidad} * ${itemsComprobanteVenta.precioUnitario}`)})`,
-        costo: sql<string>`sum(${conSigno(sql`${itemsComprobanteVenta.cantidad} * coalesce(${productos.costoUnitario}, 0)`)})`,
+        costo: sql<string>`sum(${conSigno(costoDelItem())})`,
+        cantidad: sql<string>`sum(${conSigno(itemsComprobanteVenta.cantidad)})`,
         sinCosto: sql<boolean>`bool_or(${productos.id} is null)`,
       })
       .from(itemsComprobanteVenta)
@@ -407,13 +408,22 @@ export async function obtenerRentabilidad(actor: Actor, input: RentabilidadInput
 
     const sinCosto = new Set(filas.filter((f) => f.sinCosto).map((f) => f.clave));
     return rentabilidad(
-      filas.map((f) => ({ clave: f.clave, ventas: ars(f.ventas), costo: ars(f.costo) })),
+      filas.map((f) => ({
+        clave: f.clave,
+        ventas: ars(f.ventas),
+        costo: ars(f.costo),
+        cantidad: f.cantidad,
+      })),
     ).map((r) => ({
       clave: r.clave,
       ventas: r.ventas.aStringFiscal(),
       costo: r.costo.aStringFiscal(),
       margen: r.margen.aStringFiscal(),
       margenPorcentual: r.margenPorcentual,
+      cantidad: r.cantidad,
+      /** Promedios por unidad: sólo dicen algo agrupando por producto. */
+      precioPromedio: r.precioPromedio?.aStringFiscal() ?? null,
+      costoPromedio: r.costoPromedio?.aStringFiscal() ?? null,
       /** Tiene ítems sin producto: su costo está subestimado. */
       incluyeTextoLibre: sinCosto.has(r.clave),
     }));
