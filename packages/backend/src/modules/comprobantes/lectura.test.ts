@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { aFechaIso, aImporte, aNumeracion, cuitLeido } from "./lectura.js";
+import {
+  aFechaIso,
+  aImporte,
+  aNumeracion,
+  type ComprobanteLeido,
+  cuitLeido,
+  interpretar,
+} from "./lectura.js";
 
 /**
  * Los casos salen de las tres facturas reales que trajo Fran. Cada formato de
@@ -118,5 +125,99 @@ describe("aNumeracion", () => {
     // Un solo campo que no trae el guión: falta la mitad del dato.
     expect(aNumeracion("00002")).toBeNull();
     expect(aNumeracion("1-2-3")).toBeNull();
+  });
+});
+
+describe("interpretar", () => {
+  /** Lo que devolvería el modelo: todo string, "" cuando el papel no lo trae. */
+  function leido(parcial: Partial<ComprobanteLeido> = {}): ComprobanteLeido {
+    return {
+      emisorRazonSocial: "AXCER S.R.L.",
+      emisorCuit: "30716644495",
+      letra: "A",
+      puntoVenta: "00002",
+      numero: "00000080",
+      numeroCompleto: "",
+      fechaEmision: "09/10/2026",
+      concepto: "Servicios",
+      neto: "10000,00",
+      iva: "2100,00",
+      otrosTributos: "0,00",
+      total: "12100,00",
+      ...parcial,
+    };
+  }
+
+  it("arma el número como se escribe en Argentina", () => {
+    expect(interpretar(leido()).numeroCompleto).toBe("0002-00000080");
+  });
+
+  it("entiende el número pegado de un ticket", () => {
+    // Farmcity: un solo campo, "02715-00574048".
+    const p = interpretar(leido({ puntoVenta: "", numero: "", numeroCompleto: "02715-00574048" }));
+    expect(p.numeroCompleto).toBe("2715-00574048");
+    expect(p.reparos).toEqual([]);
+  });
+
+  it("una factura C sin línea de IVA no tiene reparos", () => {
+    // Focaraccio, monotributo: 3.500.000 y ni una línea de IVA. El IVA vacío
+    // acá es lo normal, no un campo que no se pudo leer.
+    const p = interpretar(leido({ letra: "C", neto: "3500000,00", iva: "", total: "3500000,00" }));
+    expect(p.iva).toBe("0.00");
+    expect(p.reparos).toEqual([]);
+  });
+
+  it("una factura A sin IVA sí es un campo que falta", () => {
+    // La A siempre discrimina: si no se leyó, se leyó mal.
+    const p = interpretar(leido({ iva: "", total: "10000,00" }));
+    expect(p.iva).toBeNull();
+    expect(p.reparos).toContainEqual({ campo: "iva", motivo: "ilegible" });
+  });
+
+  it("marca el total que no cierra y dice cuál esperaba", () => {
+    const p = interpretar(leido({ total: "12000,00" }));
+    expect(p.reparos).toContainEqual({
+      campo: "total",
+      motivo: "no_cierra",
+      esperado: "12100.00",
+    });
+    // Y no lo corrige: el campo queda con lo que decía el papel.
+    expect(p.total).toBe("12000.00");
+  });
+
+  it("marca el IVA contenido de una B cargado como si sumara", () => {
+    // El error caro: los 1382,01 de Farmcity ya están adentro de los 7963.
+    const p = interpretar(leido({ letra: "B", neto: "7963,00", iva: "1382,01", total: "7963,00" }));
+    expect(p.reparos).toContainEqual({ campo: "iva", motivo: "sin_discriminar" });
+  });
+
+  it("deja en null lo que no entendió, nunca un valor inventado", () => {
+    const p = interpretar(
+      leido({ emisorCuit: "", letra: "", puntoVenta: "", numero: "", fechaEmision: "", total: "" }),
+    );
+    expect(p).toMatchObject({
+      emisorCuit: null,
+      letra: null,
+      numeroCompleto: null,
+      fechaEmision: null,
+      total: null,
+    });
+    expect(p.reparos.map((r) => r.campo).sort()).toEqual([
+      "emisorCuit",
+      "fechaEmision",
+      "letra",
+      "numeroCompleto",
+      "total",
+    ]);
+  });
+
+  it("un CUIT con el verificador mal queda como ilegible", () => {
+    const p = interpretar(leido({ emisorCuit: "30716644494" }));
+    expect(p.emisorCuit).toBeNull();
+    expect(p.reparos).toContainEqual({ campo: "emisorCuit", motivo: "ilegible" });
+  });
+
+  it("no inventa reparos cuando todo cierra", () => {
+    expect(interpretar(leido()).reparos).toEqual([]);
   });
 });

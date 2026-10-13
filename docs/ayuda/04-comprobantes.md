@@ -126,6 +126,37 @@ la fecha de recepción y el importe. La fecha de recepción, más el plazo de pa
 del proveedor, es lo que alimenta el próximo vencimiento y la proyección de
 egresos.
 
+### Leer una factura de un archivo
+
+En la pestaña **Compras** hay un botón **Leer de un archivo**. Subís la factura
+del proveedor —un PDF o una foto, hasta 10 MB— y el sistema la lee y **completa
+el formulario** con lo que entendió: proveedor, letra, número, fechas, concepto
+e importes.
+
+Tres cosas que conviene saber:
+
+- **No guarda nada solo.** Siempre queda un formulario que una persona revisa,
+  corrige y recién ahí guarda. Esto es a propósito: un dato mal leído se
+  arregla tipeando encima, pero un comprobante mal cargado ya es un número en
+  el panel.
+- **El archivo no se guarda.** Se lee y se descarta. De la factura queda el
+  nombre y una huella del archivo en el historial, para poder reconocer después
+  de cuál salió cada carga. Si querés conservar el PDF, guardalo vos.
+- **Lo que no se entendió queda vacío y marcado**, nunca relleno con un valor
+  inventado. Arriba del formulario aparece cuántos datos hay para revisar, y
+  cada campo con problema lo explica abajo.
+
+Si el emisor todavía no está cargado como proveedor, el aviso te lo dice con su
+razón social y su CUIT: hay que crearlo antes de poder guardar la compra.
+
+Sobre el IVA: en una factura **B o C** el IVA va incluido en el precio y el
+campo queda en cero, aunque el papel muestre un "IVA contenido" por el régimen
+de transparencia fiscal. Ese número ya está adentro del total. Sólo la factura
+**A** lo lleva discriminado.
+
+Hay un tope de lecturas por empresa y por día, porque cada lectura tiene un
+costo. Cuando se agota, el aviso lo dice y se renueva al día siguiente.
+
 ## Filtros
 
 - Por estado
