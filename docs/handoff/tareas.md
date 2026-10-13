@@ -13,14 +13,16 @@ Las tareas son cuatro, y el orden importa:
 | # | Tarea | Depende de | Tamaño |
 |---|---|---|---|
 | 1 | Las notas de crédito suman en vez de restar | nada | chica, cerrada |
-| 2 | Adjuntar archivos (Supabase Storage) | nada | mediana |
-| 3 | Leer extractos bancarios y conciliar | tarea 2 | grande |
-| 4 | Leer comprobantes de pago | tarea 2 | mediana, con una pregunta abierta |
+| 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
+| 3 | Leer extractos bancarios y conciliar | nada | grande |
+| 4 | Leer facturas de proveedor | nada | mediana, plan acordado |
 
-Las tareas 3 y 4 son el "OCR". **No se pueden empezar sin la tarea 2**: hoy no
-existe ninguna forma de subir un archivo a la aplicación (ver "Estado real" en
-esa sección). Quien arranque por el OCR sin leer eso lo va a descubrir al tercer
-día.
+Las tareas 3 y 4 son el "OCR". **La tarea 2 se descartó** (12 de octubre de
+2026, decisión de Fran): la aplicación **no guarda los archivos ni permite
+bajarlos después**. Recibe el archivo, lo lee, muestra lo leído para que una
+persona lo confirme y lo descarta. Por eso las tareas 3 y 4 no dependen de nada
+y **no usan `adjunto_path`, `pdf_path` ni Supabase Storage**. Leer las
+referencias a la tarea 2 que queden más abajo con esto en mente.
 
 ---
 
@@ -210,6 +212,15 @@ A ojo, en el navegador: `/panel`, con una nota de crédito cargada desde
 
 ## Tarea 2 — Adjuntar archivos
 
+> **Descartada el 12 de octubre de 2026, por decisión de Fran.** La aplicación
+> **no guarda** los archivos ni permite bajarlos después: recibe el archivo, lo
+> lee y vuelca los datos. No hace falta Supabase Storage ni tabla de adjuntos, y
+> las tareas 3 y 4 **ya no dependen de esta**. Cuando esas tareas hablen de "la
+> tarea 2" o de `adjunto_path`, leerlo con esto en mente. Lo único que se
+> conserva es `modules/_comunes/tipo-archivo.ts`: detección del tipo de un
+> archivo por su contenido (PDF, PNG, JPEG, WebP; faltan CSV y Excel). La
+> sección de abajo es el diseño original y queda sólo como referencia.
+
 ### Objetivo
 
 Poder subir un archivo, guardarlo, y volver a bajarlo. Sin leerlo todavía.
@@ -395,7 +406,61 @@ Con extractos reales en la mano:
 
 Que no haya que tipear a mano un comprobante que llegó por mail o por WhatsApp.
 
-### Antes de escribir una línea: hay que resolver una ambigüedad
+### Plan acordado con Fran (12 de octubre de 2026)
+
+Se va con la **lectura 2: facturas de proveedor → `comprobantes_compra`**. Lo
+pidió Fran así: subir un comprobante (PDF o imagen), que la aplicación lo
+entienda y, **antes de guardar, mostrar una ventana para que una persona valide
+los datos**. El archivo no se guarda.
+
+Pasos, en orden:
+
+1. **Leer el archivo.** Endpoint Express multipart (patrón de
+   `modules/asistente/ruta.ts`) que recibe PDF o imagen **en memoria**
+   (`multer.memoryStorage()`, que hay que volver a agregar a las dependencias)
+   y nunca lo escribe a disco ni a ningún storage. El tipo se valida por
+   contenido con `modules/_comunes/tipo-archivo.ts` (ya existe, con tests).
+   Tope de 10 MB. La sesión y el rol de escritura se verifican **antes** de
+   leer un solo byte.
+2. **Extraer con el modelo.** El AI SDK y `@ai-sdk/openai` ya están
+   instalados; el proveedor se elige en un solo lugar, `modules/asistente/ruta.ts`.
+   Se le pide salida estructurada: proveedor, CUIT, letra, número, fechas,
+   moneda, neto, IVA, total e ítems. **Verificar en la documentación y en el SDK
+   instalado cómo se le pasa un PDF o una imagen y cómo se pide salida
+   estructurada antes de escribir código**: no asumir la firma.
+3. **Validar lo que devuelve.** Zod primero; después el dominio: CUIT con
+   `validarCuit` (`core/tax/cuit.ts`), total contra neto + IVA con `Money`. Si
+   no cuadra se **marca**, nunca se corrige solo. Si el CUIT coincide con un
+   proveedor existente, se sugiere ese proveedor.
+4. **Pantalla de validación.** El formulario de compra de
+   `features/comprobantes/formulario.tsx`, precargado y con los campos dudosos
+   marcados. Una persona lo revisa, corrige y recién ahí guarda. **Nada se crea
+   desde el archivo directamente.**
+5. **Guardar** por el mismo service de compras de siempre, con audit log que
+   registre que el origen fue un archivo leído, quién lo confirmó, y el nombre y
+   el hash SHA-256 del archivo (no el archivo).
+6. **Tope de consumo** por empresa y por día (`modules/asistente/limite.ts`).
+7. **Manual** (`docs/ayuda/04-comprobantes.md`) y, si se suma una ruta, la lista
+   blanca de `features/asistente/rutas.ts`.
+
+Aclaración sobre "aprobar": las **compras no tienen máquina de estados** (sólo
+las ventas tienen `borrador → enviada → aprobada`). Para una compra, la
+validación humana es el paso de confirmar el formulario precargado. No hay un
+estado "aprobada" que agregar.
+
+Pendiente de Fran/Jesi: **2 o 3 facturas reales de proveedor anonimizadas**
+(PDF o foto, idealmente una A y una B) para usar de fixtures. Sin ellas se puede
+armar la estructura y los tests con datos inventados, pero la lectura real no se
+puede dar por probada.
+
+### Alternativas descartadas por ahora
+
+Quedan de contexto. La lectura 3 (respaldo de una venta) no tiene sentido sin
+guardar el archivo. La lectura 1 (comprobante de transferencia de un cliente →
+`movimiento` de ingreso) sigue siendo válida y es otra tarea distinta:
+**confirmar con Jesi** si además la quiere.
+
+### La ambigüedad original
 
 El pedido de Jesi dice, bajo el título "Comprobantes": *"acá el cliente nos
 envía un comprobante de pago y hay que cargarlo a mano? O se puede subir y que
@@ -409,7 +474,8 @@ una tabla distinta**:
    lectura literal de sus palabras.
 2. **Un proveedor manda una factura** → lo que hay que crear es una fila en
    `comprobantes_compra`, que es la pestaña "Compras" de esa misma pantalla y la
-   única tabla con una columna de adjunto ya prevista (`adjunto_path`).
+   única tabla con una columna de adjunto (`adjunto_path`, que ya no se va a
+   usar).
 3. **Adjuntar el archivo como respaldo** de un comprobante de venta que ya
    existe, sin crear nada.
 
@@ -434,7 +500,8 @@ saberlo para no construirlo de nuevo:
 
 ### Estado real, verificado
 
-- `comprobantes_compra.adjunto_path` ya existe y **nada lo escribe** (tarea 2).
+- `comprobantes_compra.adjunto_path` existe y **nada lo escribe, ni lo va a
+  escribir**: la tarea 2 se descartó y los archivos no se guardan.
 - `modules/comprobantes/` tiene `router.ts`, `schema.ts`, `service.ts` y
   `service.test.ts`. La creación y la edición ya están, con la regla de que sólo
   `borrador` es editable (`service.ts:215`).
