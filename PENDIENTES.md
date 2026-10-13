@@ -146,7 +146,9 @@ de entrada se leen cacheados a partir del segundo mensaje.
   del modelo ni aritmética del modelo. **No se probó contra la API real**: los
   tests cubren el acceso, no la calidad de las respuestas. Si el modelo mini
   elige mal la herramienta en preguntas de varios saltos, subirlo con
-  `ASISTENTE_MODELO`.
+  `ASISTENTE_MODELO`. Cubre todos los módulos: un test compara las consultas
+  del asistente con todas las de lectura del router, así que una pantalla nueva
+  obliga a decidir si el asistente la ve (`herramientas.test.ts`).
 - **El tope diario vive en memoria** (`modules/asistente/limite.ts`): se
   reinicia en cada deploy y no se comparte entre instancias. Alcanza con un solo
   contenedor; si el backend escala, hay que moverlo a Postgres.

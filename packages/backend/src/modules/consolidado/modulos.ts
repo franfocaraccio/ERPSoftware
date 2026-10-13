@@ -42,6 +42,8 @@ const POR_PROCEDURE: Record<string, ModuloLink> = {
   "cuentaCorriente.cliente": "clientes",
   "cuentaCorriente.proveedor": "proveedores",
   "cuentaCorriente.abiertos": "tesoreria",
+  "cuentaCorriente.pendientesClientes": "clientes",
+  "cuentaCorriente.pendientesProveedores": "proveedores",
 };
 
 /** True si un link con esos módulos puede llamar a ese procedure. */

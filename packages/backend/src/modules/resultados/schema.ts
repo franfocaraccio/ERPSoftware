@@ -46,6 +46,10 @@ export const rentabilidadSchema = z.object({
   agrupar: z.enum(["cliente", "producto", "categoria"]),
   desde: fechaSchema,
   hasta: fechaSchema,
+  /** Sólo las ventas a este cliente: "¿qué productos me compra X?". */
+  clienteId: z.uuid().optional(),
+  /** Sólo este producto: "¿quién me compra Y?". */
+  productoId: z.uuid().optional(),
 });
 
 export type CategoriaInput = z.infer<typeof categoriaInputSchema>;

@@ -83,26 +83,7 @@ async function cuentaCorrienteDe(
     .sort((a, b) => a.vencimiento.localeCompare(b.vencimiento));
   const ids = abiertosCC.map((c) => c.id);
 
-  const datos = new Map(
-    (lado === "ventas"
-      ? await tx
-          .select({
-            id: comprobantesVenta.id,
-            descripcion: sql<string>`case ${comprobantesVenta.clase} when 'nota_debito' then 'ND ' else 'FC ' end || ${comprobantesVenta.letra} || ' ' || lpad(${comprobantesVenta.puntoVenta}::text, 4, '0') || '-' || coalesce(lpad(${comprobantesVenta.numero}::text, 8, '0'), 's/n')`,
-            fecha: comprobantesVenta.fechaEmision,
-          })
-          .from(comprobantesVenta)
-          .where(ids.length > 0 ? inArray(comprobantesVenta.id, ids) : sql`false`)
-      : await tx
-          .select({
-            id: comprobantesCompra.id,
-            descripcion: sql<string>`coalesce(${comprobantesCompra.numeroCompleto}, ${comprobantesCompra.concepto}, 'Compra')`,
-            fecha: comprobantesCompra.fechaRecepcion,
-          })
-          .from(comprobantesCompra)
-          .where(ids.length > 0 ? inArray(comprobantesCompra.id, ids) : sql`false`)
-    ).map((d) => [d.id, d]),
-  );
+  const datos = await datosDeComprobantes(tx, lado, ids);
 
   const pendiente = Money.sumarTodos(
     abiertosCC.map((c) => c.pendiente),
@@ -152,6 +133,34 @@ async function cuentaCorrienteDe(
       movimientos: ultimos,
     },
   };
+}
+
+/** Número legible y fecha de cada comprobante, para listarlos. */
+export async function datosDeComprobantes(
+  tx: TenantTx,
+  lado: Lado,
+  ids: string[],
+): Promise<Map<string, { descripcion: string; fecha: string }>> {
+  return new Map(
+    (lado === "ventas"
+      ? await tx
+          .select({
+            id: comprobantesVenta.id,
+            descripcion: sql<string>`case ${comprobantesVenta.clase} when 'nota_debito' then 'ND ' else 'FC ' end || ${comprobantesVenta.letra} || ' ' || lpad(${comprobantesVenta.puntoVenta}::text, 4, '0') || '-' || coalesce(lpad(${comprobantesVenta.numero}::text, 8, '0'), 's/n')`,
+            fecha: comprobantesVenta.fechaEmision,
+          })
+          .from(comprobantesVenta)
+          .where(ids.length > 0 ? inArray(comprobantesVenta.id, ids) : sql`false`)
+      : await tx
+          .select({
+            id: comprobantesCompra.id,
+            descripcion: sql<string>`coalesce(${comprobantesCompra.numeroCompleto}, ${comprobantesCompra.concepto}, 'Compra')`,
+            fecha: comprobantesCompra.fechaRecepcion,
+          })
+          .from(comprobantesCompra)
+          .where(ids.length > 0 ? inArray(comprobantesCompra.id, ids) : sql`false`)
+    ).map((d) => [d.id, { descripcion: d.descripcion, fecha: d.fecha }]),
+  );
 }
 
 /** Todo lo de un cliente en una pantalla: deuda, antigüedad, mora y crédito. */

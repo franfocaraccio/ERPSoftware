@@ -2,8 +2,9 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import { pool } from "../../db/client.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import type { Sesion } from "../../trpc/context.js";
+import { appRouter } from "../../trpc/router.js";
 import { crearCliente } from "../clientes/service.js";
-import { herramientasDeDatos, recortar } from "./herramientas.js";
+import { CONSULTAS_DEL_ASISTENTE, herramientasDeDatos, recortar } from "./herramientas.js";
 
 // El panel trae la cotización del dólar: los tests no salen a internet.
 vi.mock("../cotizaciones/dolar.js", () => ({
@@ -91,11 +92,77 @@ describe("herramientas del asistente", () => {
     ).toEqual([]);
   });
 
+  it("las de administración contestan sin acceso a quien no es administrador", async () => {
+    const t = await crearTenantDePrueba();
+    const lector = herramientasDeDatos({
+      session: sesion(t.tenantId, t.usuarioId),
+      headers: new Headers(),
+    });
+    expect(await usar(lector.historial, {})).toEqual({
+      error: "Este usuario no tiene acceso a esa información.",
+    });
+    expect(await usar(lector.equipo_y_accesos, {})).toEqual({
+      error: "Este usuario no tiene acceso a esa información.",
+    });
+  });
+
   it("ninguna herramienta usa modo estricto, que no admite filtros opcionales", () => {
     const todas = Object.values(
       herramientasDeDatos({ session: sesion("x", "y"), headers: new Headers() }),
     );
     expect(todas.every((h) => h.strict === false)).toBe(true);
+  });
+});
+
+/**
+ * Las consultas de lectura que el asistente NO usa, cada una con su motivo.
+ * Si aparece una consulta nueva en la app, tiene que ir a una de las dos
+ * listas: el asistente la usa, o se decide que no.
+ */
+const EXCLUIDAS: Record<string, string> = {
+  "clientes.exportar": "deja una exportación en el historial",
+  "proveedores.exportar": "deja una exportación en el historial",
+  "stock.exportar": "deja una exportación en el historial",
+  "comprobantes.ventas.exportar": "deja una exportación en el historial",
+  "comprobantes.compras.exportar": "deja una exportación en el historial",
+  "tesoreria.movimientos.exportar": "deja una exportación en el historial",
+  "tesoreria.cheques.exportar": "deja una exportación en el historial",
+  "impuestos.exportar": "deja una exportación en el historial",
+  "auditoria.exportar": "deja una exportación en el historial",
+  "clientes.obtener": "buscar_clientes y la ficha traen los mismos datos",
+  "proveedores.obtener": "buscar_proveedores y la ficha traen los mismos datos",
+  "stock.obtener": "stock trae los mismos datos",
+  "tesoreria.cuentas.obtener": "cuentas_y_saldos trae los mismos datos",
+  "tesoreria.movimientos.obtener": "el listado trae los mismos datos",
+  "tesoreria.cheques.obtener": "el listado trae los mismos datos",
+  "impuestos.obtener": "el listado trae los mismos datos",
+  "cuentaCorriente.abiertos": "es el armado del formulario de imputación",
+  "auditoria.modulos": "es la lista de un filtro de pantalla",
+  "consolidado.duracionHoras": "es una constante de pantalla",
+  "consolidado.abrir": "es la entrada pública de un link",
+  "explicacion.habilitada": "es un interruptor de pantalla",
+  "invitaciones.ver": "es la pantalla pública de una invitación",
+  "plataforma.organizaciones": "es del panel de plataforma, no de una empresa",
+  "plataforma.invitacionesPendientes": "es del panel de plataforma, no de una empresa",
+  "plataforma.admins": "es del panel de plataforma, no de una empresa",
+};
+
+describe("cobertura del asistente", () => {
+  it("toda consulta de la app la usa el asistente o está excluida con su motivo", () => {
+    const procedures = appRouter._def.procedures as unknown as Record<
+      string,
+      { _def: { type: string } }
+    >;
+    const consultas = Object.entries(procedures)
+      .filter(([, p]) => p._def.type === "query")
+      .map(([nombre]) => nombre);
+    const usadas = new Set<string>(CONSULTAS_DEL_ASISTENTE);
+
+    expect(consultas.filter((c) => !usadas.has(c) && !(c in EXCLUIDAS))).toEqual([]);
+    // Y que ninguna de las listas nombre algo que ya no existe.
+    expect([...usadas, ...Object.keys(EXCLUIDAS)].filter((c) => !consultas.includes(c))).toEqual(
+      [],
+    );
   });
 });
 
@@ -118,6 +185,12 @@ describe("recortar", () => {
     };
     expect(r.filas).toHaveLength(25);
     expect(r.nota).toContain("25 de 30");
+  });
+
+  it("saca los campos internos, también en los anidados", () => {
+    expect(
+      recortar({ tenantId: "t", saldo: "1.00", items: [{ id: "a", createdAt: "x", nombre: "A" }] }),
+    ).toEqual({ saldo: "1.00", items: [{ id: "a", nombre: "A" }] });
   });
 
   it("lo chico pasa igual", () => {

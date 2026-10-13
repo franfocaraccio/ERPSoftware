@@ -402,6 +402,8 @@ export async function obtenerRentabilidad(actor: Actor, input: RentabilidadInput
           ventasQueCuentan(),
           gte(comprobantesVenta.fechaEmision, input.desde),
           lte(comprobantesVenta.fechaEmision, input.hasta),
+          input.clienteId ? eq(comprobantesVenta.clienteId, input.clienteId) : undefined,
+          input.productoId ? eq(itemsComprobanteVenta.productoId, input.productoId) : undefined,
         ),
       )
       .groupBy(sql`1`);
