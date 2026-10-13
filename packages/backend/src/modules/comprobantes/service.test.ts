@@ -37,7 +37,13 @@ describe("comprobantes de venta (integración, RLS activo)", () => {
     // monotributista veía sus facturas guardadas como A, que es un comprobante
     // que no puede emitir.
     const tenant = await crearTenantDePrueba();
-    await guardarParametros(tenant, { umbralMoraDias: 60, regimenFiscal: "monotributo" });
+    await guardarParametros(tenant, {
+      umbralMoraDias: 60,
+      margenObjetivo: null,
+      minimoOperativo: null,
+      umbralConcentracion: "20.00",
+      regimenFiscal: "monotributo",
+    });
     const cliente = await crearCliente(tenant, {
       razonSocial: "Cliente RI SA",
       condicionIva: "responsable_inscripto",
