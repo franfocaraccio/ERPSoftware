@@ -92,12 +92,46 @@ function leerXml(archivos: Record<string, Uint8Array>, ruta: string): unknown {
   return parser.parse(strFromU8(bytes).replace(/^\uFEFF/, ""));
 }
 
+/**
+ * Lo más que puede ocupar, descomprimida, cada parte que se lee.
+ *
+ * Un `.xlsx` es un ZIP, y un ZIP se puede descomprimir a mucho más de lo que
+ * pesa: veinte megas de ceros comprimen a veinte kilos. La hoja de un extracto
+ * real de seis meses ocupa 81 KB, así que esto deja margen de sobra.
+ *
+ * Hay dos bombas posibles y las dos quedan acotadas. La que miente sobre su
+ * tamaño no puede crecer: fflate reserva exactamente lo declarado y descomprime
+ * ahí adentro (probado: una que declara 1 KB y trae 20 MB devuelve 1 KB). La
+ * que declara su tamaño verdadero se frena acá, antes de descomprimir nada.
+ */
+const TOPE_DESCOMPRIMIDO = 20 * 1024 * 1024;
+
+/** Lo único que se descomprime: las hojas y los textos compartidos. */
+const PARTES_QUE_SE_LEEN = /^xl\/(worksheets\/sheet\d+|sharedStrings)\.xml$/;
+
 export function leerHojaXlsx(bytes: Uint8Array): Celda[][] {
   let archivos: Record<string, Uint8Array>;
+  let demasiadoGrande = false;
   try {
-    archivos = unzipSync(bytes);
+    archivos = unzipSync(bytes, {
+      filter: (parte) => {
+        if (!PARTES_QUE_SE_LEEN.test(parte.name)) {
+          return false;
+        }
+        if (parte.originalSize > TOPE_DESCOMPRIMIDO) {
+          demasiadoGrande = true;
+          return false;
+        }
+        return true;
+      },
+    });
   } catch {
     throw new ArchivoNoLegibleError("El archivo no es un Excel (.xlsx) válido.");
+  }
+  if (demasiadoGrande) {
+    throw new ArchivoNoLegibleError(
+      "El Excel es demasiado grande para ser un extracto bancario. Bajá un período más corto.",
+    );
   }
 
   const hoja = Object.keys(archivos)

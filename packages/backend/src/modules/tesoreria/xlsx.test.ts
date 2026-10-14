@@ -129,6 +129,30 @@ describe("leerHojaXlsx", () => {
     );
   });
 
+  it("frena una bomba zip antes de descomprimirla", () => {
+    // Veinte megas de ceros comprimen a unos veinte kilos: subirlos es barato
+    // y descomprimirlos, no. Se rechaza por el tamaño declarado, sin llegar a
+    // reservar la memoria.
+    const bomba = zipSync(
+      { "xl/worksheets/sheet1.xml": new Uint8Array(21 * 1024 * 1024) },
+      { level: 9 },
+    );
+    expect(bomba.length).toBeLessThan(100 * 1024);
+    expect(() => leerHojaXlsx(bomba)).toThrow("demasiado grande");
+  });
+
+  it("sólo descomprime las hojas, no cualquier cosa que traiga el zip", () => {
+    // Un archivo enorme en otra parte del zip no se toca: no hace falta.
+    const conRelleno = zipSync(
+      {
+        "xl/worksheets/sheet1.xml": strToU8(hojaGalicia(["Fecha"])),
+        "xl/media/relleno.bin": new Uint8Array(21 * 1024 * 1024),
+      },
+      { level: 9 },
+    );
+    expect(leerHojaXlsx(conRelleno)).toEqual([["Fecha"]]);
+  });
+
   it("un zip sin hojas también", () => {
     expect(() => leerHojaXlsx(zipSync({ "otra.txt": strToU8("x") }))).toThrow(
       ArchivoNoLegibleError,
