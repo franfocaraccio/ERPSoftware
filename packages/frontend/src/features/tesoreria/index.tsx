@@ -2,6 +2,7 @@ import { cn } from "@erp/design-system";
 import { useState } from "react";
 import { EncabezadoPagina } from "../../components/layout.js";
 import { Cheques } from "./cheques.js";
+import { Conciliacion } from "./conciliacion.js";
 import { Cuentas } from "./cuentas.js";
 import { Movimientos } from "./movimientos.js";
 
@@ -9,6 +10,7 @@ const VISTAS = [
   { id: "cuentas", etiqueta: "Cuentas" },
   { id: "movimientos", etiqueta: "Movimientos" },
   { id: "cheques", etiqueta: "Cheques en cartera" },
+  { id: "conciliacion", etiqueta: "Conciliación" },
 ] as const;
 
 type Vista = (typeof VISTAS)[number]["id"];
@@ -20,7 +22,7 @@ export function Tesoreria() {
     <>
       <EncabezadoPagina
         titulo="Tesorería"
-        descripcion="Saldos por cuenta, movimientos de caja y cheques en cartera."
+        descripcion="Saldos por cuenta, movimientos de caja, cheques en cartera y conciliación con el banco."
       />
 
       {/* Pestañas: las tres tablas del módulo viven en una sola pantalla. */}
@@ -57,6 +59,7 @@ export function Tesoreria() {
         {vista === "cuentas" && <Cuentas />}
         {vista === "movimientos" && <Movimientos />}
         {vista === "cheques" && <Cheques />}
+        {vista === "conciliacion" && <Conciliacion />}
       </div>
     </>
   );

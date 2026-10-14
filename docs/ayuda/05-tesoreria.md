@@ -108,6 +108,52 @@ caducan en los próximos 7 días, la pantalla lo avisa arriba de la lista.
 Por estado y por rango de fechas, que aplica sobre la **fecha de pago** —que es
 la que dice cuándo entra la plata.
 
+## Conciliar una cuenta con el extracto del banco
+
+En la pestaña **Conciliación** elegís la cuenta, subís el Excel que exporta el
+banco y el sistema te dice, línea por línea, qué es cada movimiento del banco.
+Por ahora lee el extracto de **Banco Galicia** en Excel (.xlsx).
+
+Para cada línea propone una de tres cosas:
+
+- **Ya cargado**: coincide con un movimiento que ya está en el sistema —mismo
+  sentido, mismo importe y fecha cercana—. Se propone conciliarlo con ese.
+- **No está cargado**: el banco lo tiene y el sistema no. Suele ser una
+  comisión, un impuesto o un cobro que nadie anotó. Se propone crearlo. Si es
+  una transferencia y el CUIT que imprime el banco coincide con un cliente o un
+  proveedor, el movimiento nace ya atado a él.
+- **Varios movimientos posibles**: hay más de uno que coincide, por ejemplo dos
+  cobros iguales en la misma semana. El sistema **no elige**: elegís vos, porque
+  conciliar con el equivocado le imputa el cobro al cliente que no es.
+
+Para cada una podés cambiar la propuesta: conciliar, crear, **ignorar** (no es
+de la empresa) o **dejar para después** (queda pendiente y vuelve a aparecer en
+el próximo extracto). No se carga nada hasta que apretás **Confirmar**.
+
+### Qué conviene saber
+
+- **El saldo controla la lectura.** Cada línea del extracto trae el saldo de la
+  cuenta después de ese movimiento. Si se leyó mal un importe o falta una línea,
+  el saldo deja de cerrar, y la pantalla te dice **en qué línea**.
+- **Podés subir extractos que se superponen.** Lo normal es bajar los últimos
+  meses cada vez: lo que ya conciliaste no se vuelve a mostrar, y confirmar dos
+  veces lo mismo no duplica nada.
+- **Si ninguna línea coincide con lo cargado, la pantalla te avisa** y no deja
+  nada marcado para crear. Puede ser que hayas subido el extracto de otra cuenta
+  —fijate el bloque del banco, arriba— o que sea la primera vez que conciliás
+  esta. Para cargar todo de una vez está **Crearlas todas**.
+- **Cada extracto carga sólo su lado.** Una transferencia entre dos cuentas
+  propias es un egreso en un extracto y un ingreso en el otro. Si no subiste el
+  extracto de la otra cuenta, ese ingreso no aparece: no se inventa.
+- **Lo cargado que el banco no muestra** se lista aparte. Es un error de carga o
+  algo que todavía no se acreditó, como un cheque depositado ayer. No se toca
+  nada: es para revisarlo.
+- Un movimiento creado desde el extracto queda **sin categoría**. Para que una
+  comisión o un impuesto entren bien en el estado de resultados, categorizalos
+  después en **Movimientos**.
+
+El archivo no se guarda: se lee y se descarta.
+
 ## Si la tabla no te entra en la pantalla
 
 Arriba a la derecha de la tabla hay dos botones que cambian la **densidad**:
