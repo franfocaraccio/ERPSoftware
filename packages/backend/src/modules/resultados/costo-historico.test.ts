@@ -76,5 +76,10 @@ describe("costo de lo vendido", () => {
     expect(fila?.costo).toBe("200.00");
     const margen = (await resumenFinanciero(t)).kpis.find((k) => k.id === "margen");
     expect(margen?.valor).toBe("50.00");
-  });
+    // Diez pasos contra la base y tres informes pesados: aislado tarda entre
+    // medio segundo y casi cinco. Con los tres paquetes corriendo a la vez en
+    // `pnpm test`, a veces pasaba los cinco segundos por defecto y la suite
+    // daba rojo sin que nada estuviera mal. Un rojo intermitente enseña a
+    // ignorar el rojo.
+  }, 20_000);
 });
