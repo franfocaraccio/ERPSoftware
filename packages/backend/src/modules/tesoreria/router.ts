@@ -4,10 +4,12 @@ import { escrituraProcedure, router, tenantProcedure } from "../../trpc/trpc.js"
 import { exportarListado, TOPE_FILAS_EXPORT } from "../_comunes/exportar.js";
 import { ReferenciaAjenaError } from "../_comunes/pertenencia.js";
 import { ImputacionInvalidaError } from "../cuenta-corriente/imputaciones.js";
+import { ConciliacionInvalidaError, confirmarConciliacion } from "./conciliacion.js";
 import {
   chequeActualizarSchema,
   chequeInputSchema,
   chequesListarSchema,
+  confirmarConciliacionSchema,
   cuentaActualizarSchema,
   cuentaInputSchema,
   movimientoActualizarSchema,
@@ -33,7 +35,11 @@ const idSchema = z.object({ id: z.uuid() });
 
 /** Los errores de dominio llegan a la pantalla como un pedido inválido. */
 function traducirError(error: unknown): never {
-  if (error instanceof ImputacionInvalidaError || error instanceof ReferenciaAjenaError) {
+  if (
+    error instanceof ImputacionInvalidaError ||
+    error instanceof ReferenciaAjenaError ||
+    error instanceof ConciliacionInvalidaError
+  ) {
     throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
   }
   throw error;
@@ -125,5 +131,14 @@ export const tesoreriaRouter = router({
         }
         return cheque;
       }),
+  }),
+  /**
+   * Proponer va por una ruta de Express, porque recibe un archivo. Confirmar
+   * no: lo que llega son las decisiones de la persona, que son JSON.
+   */
+  conciliacion: router({
+    confirmar: escrituraProcedure
+      .input(confirmarConciliacionSchema)
+      .mutation(({ ctx, input }) => confirmarConciliacion(ctx, input).catch(traducirError)),
   }),
 });

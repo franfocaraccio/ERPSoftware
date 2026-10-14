@@ -20,6 +20,9 @@ import type { Celda } from "./xlsx.js";
  * saldo corrido sin decir por qué.
  */
 
+/** El Excel se leyó, pero no tiene forma de extracto bancario. */
+export class ExtractoNoReconocidoError extends Error {}
+
 export interface FilaIlegible {
   /** Número de fila en el Excel, empezando en 1, para que se la pueda buscar. */
   fila: number;
@@ -107,7 +110,7 @@ export function interpretarExtracto(filas: Celda[][]): Extracto {
     return columnas.fecha !== undefined && columnas.saldo !== undefined;
   });
   if (filaEncabezado < 0) {
-    throw new Error(
+    throw new ExtractoNoReconocidoError(
       "No se encontró el encabezado del extracto: hace falta al menos una columna Fecha y una de Saldo.",
     );
   }
@@ -120,7 +123,9 @@ export function interpretarExtracto(filas: Celda[][]): Extracto {
     cFecha === undefined ||
     cSaldo === undefined
   ) {
-    throw new Error("El extracto tiene que tener columnas de Débito y de Crédito.");
+    throw new ExtractoNoReconocidoError(
+      "El extracto tiene que tener columnas de Débito y de Crédito.",
+    );
   }
 
   const cuenta = filas
@@ -165,7 +170,7 @@ export function interpretarExtracto(filas: Celda[][]): Extracto {
   });
 
   if (leidas.length === 0) {
-    throw new Error("El extracto no tiene ningún movimiento.");
+    throw new ExtractoNoReconocidoError("El extracto no tiene ningún movimiento.");
   }
 
   const lineas = enOrdenCronologico(leidas);
