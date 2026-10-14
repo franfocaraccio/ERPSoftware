@@ -152,3 +152,52 @@ export const imputaciones = pgTable(
     ),
   ],
 );
+
+export const resolucionLineaExtractoEnum = pgEnum("resolucion_linea_extracto", [
+  "conciliada", // casaba con un movimiento ya cargado
+  "creada", // no había movimiento y se creó desde la línea
+  "ignorada", // no es de la empresa, o no se quiere seguir en el ERP
+]);
+
+/**
+ * Cada línea de un extracto bancario que ya se resolvió.
+ *
+ * Existe para que dos extractos superpuestos no dupliquen nada: lo normal es
+ * bajar "los últimos seis meses" cada mes, y el hash del archivo no reconoce
+ * las líneas que se repiten entre un archivo y el siguiente. La `huella` sí:
+ * es un hash de fecha, importe, saldo y descripción, y el saldo la vuelve casi
+ * única.
+ *
+ * Una línea ignorada no tiene movimiento; una conciliada o creada, sí. Si el
+ * movimiento se borra, la línea se va con él y vuelve a aparecer en el
+ * próximo extracto, porque lo que la explicaba ya no existe.
+ */
+export const lineasExtracto = pgTable(
+  "lineas_extracto",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: text("tenant_id").notNull(),
+    cuentaId: uuid("cuenta_id")
+      .references(() => cuentas.id)
+      .notNull(),
+    fecha: date("fecha").notNull(),
+    descripcion: text("descripcion").notNull(),
+    /** Con signo, como en el extracto: negativo es un débito. */
+    importe: numeric("importe", { precision: 14, scale: 2 }).notNull(),
+    saldo: numeric("saldo", { precision: 14, scale: 2 }).notNull(),
+    huella: text("huella").notNull(),
+    resolucion: resolucionLineaExtractoEnum("resolucion").notNull(),
+    movimientoId: uuid("movimiento_id").references(() => movimientos.id, { onDelete: "cascade" }),
+    archivoHash: text("archivo_hash").notNull(),
+    usuarioId: text("usuario_id"),
+    creado: timestamp("creado", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("lineas_extracto_huella_unq").on(t.tenantId, t.cuentaId, t.huella),
+    index("lineas_extracto_tenant_cuenta_fecha_idx").on(t.tenantId, t.cuentaId, t.fecha),
+    check(
+      "lineas_extracto_movimiento_check",
+      sql`(${t.resolucion} = 'ignorada') = (${t.movimientoId} IS NULL)`,
+    ),
+  ],
+);
