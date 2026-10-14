@@ -20,7 +20,7 @@ Eran cuatro: dos están hechas, la 2 se descartó, y **queda sólo la 3**.
 |---|---|---|---|
 | 1 | ~~Las notas de crédito suman en vez de restar~~ | — | **hecha** el 12/10/2026 |
 | 2 | ~~Adjuntar archivos~~ (descartada) | — | — |
-| 3 | Leer extractos bancarios y conciliar | nada | grande |
+| 3 | ~~Leer extractos bancarios y conciliar~~ | — | **hecha** el 14/10/2026 |
 | 4 | ~~Leer facturas de compra y de venta~~ | — | **hecha** el 13/10/2026 |
 | 5 | ~~Etapa 1: que los números del panel sean correctos~~ | — | **hecha** el 13/10/2026 |
 | 6 | ~~Etapa 2: cuenta corriente con imputación~~ | — | **hecha** el 13/10/2026 |
@@ -317,7 +317,55 @@ Y lo demás que no se puede saltear:
 
 ---
 
-## Tarea 3 — Leer extractos bancarios y conciliar
+## Tarea 3 — Leer extractos bancarios y conciliar — HECHA
+
+**Terminada el 14 de octubre de 2026**, verificada en la aplicación. Tesorería
+tiene una pestaña **Conciliación**: se elige la cuenta, se sube el Excel del
+banco, se revisa la propuesta línea por línea y se confirma.
+
+Decisiones de Fran que cambiaron el plan:
+
+- **Cada extracto carga sólo su lado.** Una transferencia entre cuentas propias
+  es un egreso en un extracto y un ingreso en el otro; no se inventa el lado de
+  una cuenta cuyo extracto no se subió. Por eso no hizo falta un concepto nuevo
+  de "transferencia entre cuentas".
+- **Se diseñó para una cuenta corriente de empresa.** El extracto de prueba fue
+  una caja de ahorro personal de Galicia: sirvió para el formato, no para el
+  emparejamiento real.
+
+Lo que enseñó el archivo real:
+
+- **Ninguna librería común lo lee.** El Excel de Galicia tiene tres rarezas: un
+  BOM al principio de cada XML, celdas sin referencia de columna y un prefijo
+  `x:` en todas las etiquetas. `exceljs` y `read-excel-file` se probaron contra
+  el archivo y se cayeron. `tesoreria/xlsx.ts` es un lector propio y chico.
+- **El saldo corrido es perfecto**: las 230 transiciones del archivo real
+  encadenan sin una sola rotura. Es el control de la lectura entera, y dice en
+  qué línea se corta.
+- **El hash del archivo no alcanza**: los extractos se superponen. Cada línea
+  tiene una huella (fecha, importe, saldo, descripción) en `lineas_extracto`.
+- **Un extracto de otra cuenta estaba a un clic de cargar 231 movimientos
+  falsos.** Si ninguna línea casa, la pantalla avisa y no deja nada marcado
+  para crear.
+
+### Lo que quedó afuera
+
+- **Un extracto real de la cuenta corriente de la empresa.** Hace falta para
+  probar el emparejamiento de verdad, y para confirmar que las comisiones y el
+  impuesto al débito/crédito (ley 25.413) vienen en líneas aparte. El diseño lo
+  supone; el archivo de prueba no lo puede confirmar.
+- **Categorizar al crear.** Un movimiento creado desde el extracto queda sin
+  categoría, así que una comisión no entra bien en Resultados hasta que alguien
+  la categoriza en Movimientos.
+- **Deshacer una resolución.** La tabla lo permite (hay `DELETE`), pero no hay
+  pantalla. Hoy, una línea ignorada por error queda ignorada.
+- **Otros bancos.** Las columnas se buscan por nombre, así que otro formato puede
+  andar, pero sólo Galicia está probado.
+- **La moneda.** No se verifica que el extracto sea de la moneda de la cuenta
+  elegida.
+
+Lo que sigue abajo es el plan original, como registro.
+
 
 ### Objetivo
 

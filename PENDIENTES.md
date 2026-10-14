@@ -75,10 +75,10 @@ dólar oficial con compra y venta en el panel.
 
 **Pendiente, grande:**
 
-- **Leer extractos bancarios.** Es lo único que queda de OCR: leer facturas de
-  proveedor ya está hecho y andando. Listo para trabajar en
-  `docs/handoff/tareas.md`, tarea 3. La aplicación **no guarda** los archivos
-  (se leen y se descartan).
+- **Conciliación bancaria: falta probarla con un extracto de la cuenta de la
+  empresa.** La función está hecha (14/10/2026) y verificada con el formato de
+  Galicia, pero el archivo de prueba fue una caja de ahorro personal. Lo que
+  quedó afuera está en `docs/handoff/tareas.md`, tarea 3.
 - **Falta una factura A de un proveedor real** para terminar de probar la
   lectura de comprobantes. La que se usó es una muestra de demo, y las A reales
   son las que más varían entre proveedores. Es de Fran.
