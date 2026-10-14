@@ -7,7 +7,7 @@ import { clientes } from "../../db/schema/clientes.js";
 import { proveedores } from "../../db/schema/proveedores.js";
 import { categorias } from "../../db/schema/resultados.js";
 import { cheques, cuentas, movimientos } from "../../db/schema/tesoreria.js";
-import { withTenant } from "../../db/tenant-db.js";
+import { type TenantTx, withTenant } from "../../db/tenant-db.js";
 import { filtroRango } from "../_comunes/fechas.js";
 import { aplicarOrden } from "../_comunes/orden.js";
 import { exigirPropios } from "../_comunes/pertenencia.js";
@@ -245,25 +245,39 @@ async function exigirReferenciasMovimiento(
 }
 
 export async function crearMovimiento(actor: Actor, input: MovimientoInput): Promise<Movimiento> {
-  return withTenant(actor.tenantId, async (tx) => {
-    await exigirReferenciasMovimiento(tx, input);
-    const [creado] = await tx
-      .insert(movimientos)
-      .values({ tenantId: actor.tenantId, ...aColumnasMovimiento(input) })
-      .returning();
-    if (!creado) {
-      throw new Error("No se pudo registrar el movimiento");
-    }
-    const imputadas = await guardarImputaciones(tx, creado, input.imputaciones ?? []);
-    // Impacta saldos: la auditoría es obligatoria.
-    await auditar(tx, actor, {
-      tabla: "movimientos",
-      registroId: creado.id,
-      accion: "alta",
-      detalle: { despues: { ...creado, imputaciones: imputadas } },
-    });
-    return creado;
+  return withTenant(actor.tenantId, (tx) => crearMovimientoEn(tx, actor, input));
+}
+
+/**
+ * Lo mismo que `crearMovimiento`, dentro de una transacción ya abierta.
+ *
+ * Lo usa la conciliación bancaria, que crea el movimiento y registra la línea
+ * del extracto que lo originó en un solo paso: si fueran dos transacciones, un
+ * fallo entre una y otra dejaría un movimiento sin su línea, y el próximo
+ * extracto lo volvería a proponer.
+ */
+export async function crearMovimientoEn(
+  tx: TenantTx,
+  actor: Actor,
+  input: MovimientoInput,
+): Promise<Movimiento> {
+  await exigirReferenciasMovimiento(tx, input);
+  const [creado] = await tx
+    .insert(movimientos)
+    .values({ tenantId: actor.tenantId, ...aColumnasMovimiento(input) })
+    .returning();
+  if (!creado) {
+    throw new Error("No se pudo registrar el movimiento");
+  }
+  const imputadas = await guardarImputaciones(tx, creado, input.imputaciones ?? []);
+  // Impacta saldos: la auditoría es obligatoria.
+  await auditar(tx, actor, {
+    tabla: "movimientos",
+    registroId: creado.id,
+    accion: "alta",
+    detalle: { despues: { ...creado, imputaciones: imputadas } },
   });
+  return creado;
 }
 
 export async function actualizarMovimiento(

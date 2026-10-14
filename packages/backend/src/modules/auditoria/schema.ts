@@ -9,7 +9,10 @@ export const MODULOS_AUDITABLES = {
   clientes: { etiqueta: "Clientes", tablas: ["clientes"] },
   proveedores: { etiqueta: "Proveedores", tablas: ["proveedores"] },
   stock: { etiqueta: "Stock", tablas: ["productos", "movimientos_stock"] },
-  tesoreria: { etiqueta: "Tesorería", tablas: ["cuentas", "movimientos", "cheques"] },
+  tesoreria: {
+    etiqueta: "Tesorería",
+    tablas: ["cuentas", "movimientos", "cheques", "lineas_extracto"],
+  },
   impuestos: { etiqueta: "Impuestos", tablas: ["impuestos", "retenciones_iibb"] },
   comprobantes: {
     etiqueta: "Comprobantes",

@@ -135,3 +135,60 @@ export type MovimientosListar = z.infer<typeof movimientosListarSchema>;
 export type ChequeInput = z.infer<typeof chequeInputSchema>;
 export type ChequeActualizar = z.infer<typeof chequeActualizarSchema>;
 export type ChequesListar = z.infer<typeof chequesListarSchema>;
+
+// --- Conciliación bancaria ---
+
+/** Un importe con signo, como viene del extracto: "-3600.00". */
+const importeConSigno = z
+  .string()
+  .regex(/^-?\d+(\.\d{1,2})?$/, "Importe inválido (usar punto decimal, máximo 2 decimales)");
+
+/**
+ * Una línea del extracto, de vuelta desde la pantalla.
+ *
+ * Vuelve tal como se propuso; el servidor recalcula su huella y no confía en
+ * nada más de lo que trae.
+ */
+const lineaExtractoSchema = z.object({
+  fecha,
+  descripcion: z.string().max(500),
+  importe: importeConSigno,
+  saldo: importeConSigno,
+});
+
+const decisionSchema = z.discriminatedUnion("accion", [
+  z.object({
+    linea: lineaExtractoSchema,
+    accion: z.literal("conciliar"),
+    movimientoId: z.uuid(),
+  }),
+  z
+    .object({
+      linea: lineaExtractoSchema,
+      accion: z.literal("crear"),
+      // Sin "cheque": un cheque se carga vinculado a su cheque, desde Tesorería.
+      medioPago: z.enum(["efectivo", "transferencia"]).default("transferencia"),
+      concepto: z.string().trim().max(300).optional(),
+      clienteId: z.uuid().nullable().optional(),
+      proveedorId: z.uuid().nullable().optional(),
+      categoriaId: z.uuid().nullable().optional(),
+    })
+    .refine((d) => !(d.clienteId && d.proveedorId), {
+      message: "Un movimiento no puede ser de un cliente y un proveedor a la vez",
+      path: ["proveedorId"],
+    }),
+  z.object({
+    linea: lineaExtractoSchema,
+    accion: z.literal("ignorar"),
+  }),
+]);
+
+export const confirmarConciliacionSchema = z.object({
+  cuentaId: z.uuid(),
+  archivoHash: z.string().regex(/^[0-9a-f]{64}$/, "Hash inválido"),
+  // Un extracto de seis meses de una cuenta corriente activa tiene cientos de
+  // líneas; el tope es para que un pedido no sea una forma de colgar la base.
+  decisiones: z.array(decisionSchema).min(1).max(2000),
+});
+
+export type ConfirmarConciliacion = z.infer<typeof confirmarConciliacionSchema>;
