@@ -78,7 +78,8 @@ dólar oficial con compra y venta en el panel.
 - **Conciliación bancaria: falta probarla con un extracto de la cuenta de la
   empresa.** La función está hecha (14/10/2026) y verificada con el formato de
   Galicia, pero el archivo de prueba fue una caja de ahorro personal. Lo que
-  quedó afuera está en `docs/handoff/tareas.md`, tarea 3.
+  quedó afuera está en `docs/handoff/tareas.md`, tarea 3; ahí también está qué
+  haría falta para un banco que no sea Galicia.
 - **Falta una factura A de un proveedor real** para terminar de probar la
   lectura de comprobantes. La que se usó es una muestra de demo, y las A reales
   son las que más varían entre proveedores. Es de Fran.

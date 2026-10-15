@@ -157,3 +157,115 @@ describe("interpretarExtracto", () => {
     expect(r.filasIlegibles).toEqual([]);
   });
 });
+
+/**
+ * Otro banco imprime un solo importe con signo en vez de dos columnas, y deja
+ * en blanco la celda que no corresponde en vez de poner un cero. Las columnas
+ * se buscan por nombre, así que estos archivos entran por el mismo lector.
+ */
+describe("un extracto con una sola columna de importe", () => {
+  const COLUMNAS_UNICA: Celda[] = ["Fecha", "Descripcion", "Importe", "Saldo"];
+
+  function conImportes(...importes: [string, string][]): Celda[][] {
+    return [
+      COLUMNAS_UNICA,
+      ...importes.map(([importe, saldo], i): Celda[] => [
+        `0${i + 1}/10/2026`,
+        "MOVIMIENTO",
+        importe,
+        saldo,
+      ]),
+    ];
+  }
+
+  it("el signo de la columna es el que decide si entra o sale", () => {
+    const r = interpretarExtracto(conImportes(["1.000,00", "11000"], ["-1.000,00", "10000"]));
+    expect(r.lineas.map((l) => l.importe.aStringFiscal())).toEqual(["1000.00", "-1000.00"]);
+  });
+
+  it("el saldo corrido se verifica igual que con dos columnas", () => {
+    const r = interpretarExtracto(conImportes(["1.000,00", "11000"], ["-1.000,00", "10000"]));
+    expect(r.saldo.ok).toBe(true);
+    expect(r.saldo.ok && r.saldo.saldoInicial.aStringFiscal()).toBe("10000.00");
+    expect(r.saldo.ok && r.saldo.saldoFinal.aStringFiscal()).toBe("10000.00");
+  });
+
+  it("si el banco imprimiera el débito sin signo, el saldo no cierra y lo dice", () => {
+    // Es el motivo por el que el signo no se deduce del saldo: el saldo es el
+    // control de que la lectura estuvo bien, y completarlo con él haría que
+    // cerrara siempre, incluso leyendo al revés un egreso.
+    const r = interpretarExtracto(
+      conImportes(["1.000,00", "11000"], ["1.000,00", "10000"], ["1.000,00", "12000"]),
+    );
+    expect(r.saldo.ok).toBe(false);
+  });
+
+  it("un importe ilegible se informa, no se saltea", () => {
+    const r = interpretarExtracto(conImportes(["1.000,00", "11000"], ["basura", "10000"]));
+    expect(r.filasIlegibles).toEqual([{ fila: 3, motivo: "importe" }]);
+  });
+});
+
+describe("dos columnas de importe con celdas en blanco", () => {
+  const COLUMNAS_BLANCO: Celda[] = ["Fecha", "Movimiento", "Débito", "Crédito", "Saldo"];
+
+  it("la celda que el banco deja en blanco vale cero", () => {
+    // Galicia imprime "0,00" en la columna que no corresponde; otro banco la
+    // deja vacía, y antes eso hacía ilegible toda la fila.
+    const r = interpretarExtracto([
+      COLUMNAS_BLANCO,
+      ["01/10/2026", "DEPOSITO", null, "1.000,00", "11000"],
+      ["05/10/2026", "COMISION", "1.000,00", "", "10000"],
+    ]);
+    expect(r.lineas.map((l) => l.importe.aStringFiscal())).toEqual(["1000.00", "-1000.00"]);
+    expect(r.filasIlegibles).toEqual([]);
+  });
+
+  it("las dos en blanco no son un movimiento de cero: es una fila que no se leyó", () => {
+    const r = interpretarExtracto([
+      COLUMNAS_BLANCO,
+      ["01/10/2026", "DEPOSITO", null, "1.000,00", "11000"],
+      ["05/10/2026", "RARA", null, null, "11000"],
+    ]);
+    expect(r.filasIlegibles).toEqual([{ fila: 3, motivo: "importe" }]);
+  });
+});
+
+describe("sin ninguna columna de importe", () => {
+  it("no es un extracto, y el mensaje nombra las dos formas que se aceptan", () => {
+    expect(() =>
+      interpretarExtracto([
+        ["Fecha", "Movimiento", "Saldo"],
+        ["01/10/2026", "DEPOSITO", "11000"],
+      ]),
+    ).toThrow(/Débito y de Crédito, o una sola de Importe/);
+  });
+});
+
+describe("cuando las fechas no alcanzan para ordenar", () => {
+  /** Todo en el mismo día: la fecha no dice qué pasó primero. */
+  const UN_SOLO_DIA: Celda[][] = [
+    ["Fecha", "Movimiento", "Débito", "Crédito", "Saldo"],
+    ["13/10/2026", "SEGUNDO", "0,00", "5.000,00", "15000"],
+    ["13/10/2026", "PRIMERO", "0,00", "10.000,00", "10000"],
+  ];
+
+  it("el saldo decide el orden", () => {
+    const r = interpretarExtracto(UN_SOLO_DIA);
+    expect(r.lineas.map((l) => l.descripcion)).toEqual(["PRIMERO", "SEGUNDO"]);
+    expect(r.saldo.ok).toBe(true);
+  });
+
+  it("con fechas distintas no se da vuelta el extracto para que el saldo cierre", () => {
+    // Dar vuelta hasta que cierre convierte una lectura equivocada en una que
+    // parece buena. Con dos líneas de días distintos, invertirlas casi siempre
+    // cierra: acá el egreso quedó sin signo y se tiene que ver.
+    const r = interpretarExtracto([
+      ["Fecha", "Descripcion", "Importe", "Saldo"],
+      ["01/10/2026", "DEPOSITO", "1.000,00", "11000"],
+      ["05/10/2026", "COMISION", "1.000,00", "10000"],
+    ]);
+    expect(r.lineas.map((l) => l.descripcion)).toEqual(["DEPOSITO", "COMISION"]);
+    expect(r.saldo.ok).toBe(false);
+  });
+});

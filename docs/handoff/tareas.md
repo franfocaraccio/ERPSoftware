@@ -359,8 +359,14 @@ Lo que enseñó el archivo real:
   la categoriza en Movimientos.
 - **Deshacer una resolución.** La tabla lo permite (hay `DELETE`), pero no hay
   pantalla. Hoy, una línea ignorada por error queda ignorada.
-- **Otros bancos.** Las columnas se buscan por nombre, así que otro formato puede
-  andar, pero sólo Galicia está probado.
+- **Otros bancos.** Las columnas se buscan por nombre y el importe se acepta en
+  dos columnas o en una sola con signo (15/10/2026), así que otro formato puede
+  andar, pero sólo Galicia está probado con un archivo real. Lo que falta para un
+  banco nuevo, en orden de probabilidad: que exporte PDF o CSV en vez de .xlsx
+  (eso es un lector nuevo, no un ajuste); que imprima la fecha como fecha de
+  Excel y no como texto `dd/mm/aaaa`; que titule las columnas con un nombre que
+  no esté en `NOMBRES`. El saldo corrido es el que avisa: el peor caso es no
+  poder leerlo, no leerlo mal.
 - **La moneda.** No se verifica que el extracto sea de la moneda de la cuenta
   elegida.
 

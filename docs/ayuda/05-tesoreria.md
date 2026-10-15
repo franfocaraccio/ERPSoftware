@@ -112,7 +112,10 @@ la que dice cuándo entra la plata.
 
 En la pestaña **Conciliación** elegís la cuenta, subís el Excel que exporta el
 banco y el sistema te dice, línea por línea, qué es cada movimiento del banco.
-Por ahora lee el extracto de **Banco Galicia** en Excel (.xlsx).
+Lee el extracto en **Excel (.xlsx)**. Está probado con el de **Banco Galicia**;
+de otro banco entra si trae una columna de fecha, una de saldo y el importe en
+dos columnas (Débito y Crédito) o en una sola con signo. Si no lo puede leer lo
+dice y no carga nada: lo que no puede pasar es que lea mal.
 
 Para cada línea propone una de tres cosas:
 
