@@ -76,11 +76,12 @@ describe("leerHojaXlsx", () => {
   });
 
   it("un número sin punto de miles sigue siendo texto", () => {
-    // El saldo de Galicia viene como "4824,35" y "47336,2": tiene que llegar
-    // igual, no convertido en un número que pierda la coma.
-    expect(leerHojaXlsx(xlsx(hojaGalicia(["4824,35", "47336,2"])))[0]).toEqual([
-      "4824,35",
-      "47336,2",
+    // Galicia escribe el saldo sin punto de miles y con los decimales que
+    // tenga: "1234,56", "9876,5". Tiene que llegar igual, no convertido en un
+    // número que pierda la coma ni el cero de más.
+    expect(leerHojaXlsx(xlsx(hojaGalicia(["1234,56", "9876,5"])))[0]).toEqual([
+      "1234,56",
+      "9876,5",
     ]);
   });
 
