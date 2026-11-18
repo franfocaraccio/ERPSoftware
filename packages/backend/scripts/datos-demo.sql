@@ -8,7 +8,8 @@
 -- útil dentro de un mes: las ventas viejas alimentan el gráfico mensual y las
 -- recientes caen dentro de las trece semanas de la proyección de caja.
 --
--- Cambiá el mail de la primera consulta si querés cargárselo a otra cuenta.
+-- `v_mail` es la cuenta a la que se le cargan los datos: ponele la tuya, la que
+-- usaste para registrarte. El valor de abajo es un ejemplo y no existe.
 do $$
 declare
   v_tenant text;
@@ -17,7 +18,7 @@ declare
   -- sin un primer mes a medias que pague un sueldo entero con medio mes de
   -- ventas.
   v_inicio date := (date_trunc('month', current_date) - interval '5 months')::date;
-  v_mail text := 'empresa1@gmail.com';
+  v_mail text := 'demo@example.com';
 begin
   select o.id into v_tenant
   from organization o
@@ -50,20 +51,20 @@ begin
   -- Los CUIT son válidos de verdad (dígito verificador incluido), para que se
   -- puedan abrir y guardar desde la UI sin que la validación los rechace.
   insert into clientes (tenant_id, razon_social, cuit, condicion_iva, email, telefono, direccion, limite_credito, estado) values
-    (v_tenant, 'Distribuidora del Sur SA',  '30710000006', 'responsable_inscripto', 'compras@delsur.com.ar',   '1145678901', 'Av. Mitre 2340, Avellaneda',      5000000.00, 'activo'),
-    (v_tenant, 'Corralón Belgrano SRL',     '30710000014', 'responsable_inscripto', 'admin@corralonbel.com.ar','1156789012', 'Cabildo 1875, CABA',              3500000.00, 'activo'),
-    (v_tenant, 'Ferretería Industrial MyM', '30710000022', 'responsable_inscripto', 'ventas@mym.com.ar',       '1167890123', 'Ruta 8 km 34, Malvinas Argentinas',5000000.00, 'activo'),
-    (v_tenant, 'Metalúrgica Pilar SA',      '30710000030', 'responsable_inscripto', 'pagos@metalpilar.com.ar', '2304445566', 'Parque Industrial Pilar',         6000000.00, 'activo'),
-    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@gmail.com',       '1178901234', 'San Martín 450, San Isidro',      2000000.00, 'activo'),
-    (v_tenant, 'Construcciones Aráoz',      '30710000057', 'responsable_inscripto', 'info@araoz.com.ar',       '1189012345', 'Aráoz 1200, CABA',                4000000.00, 'activo');
+    (v_tenant, 'Distribuidora del Sur SA',  '30710000006', 'responsable_inscripto', 'compras@delsur.example.com',   '1145678901', 'Av. Mitre 2340, Avellaneda',      5000000.00, 'activo'),
+    (v_tenant, 'Corralón Belgrano SRL',     '30710000014', 'responsable_inscripto', 'admin@corralonbel.example.com','1156789012', 'Cabildo 1875, CABA',              3500000.00, 'activo'),
+    (v_tenant, 'Ferretería Industrial MyM', '30710000022', 'responsable_inscripto', 'ventas@mym.example.com',       '1167890123', 'Ruta 8 km 34, Malvinas Argentinas',5000000.00, 'activo'),
+    (v_tenant, 'Metalúrgica Pilar SA',      '30710000030', 'responsable_inscripto', 'pagos@metalpilar.example.com', '2304445566', 'Parque Industrial Pilar',         6000000.00, 'activo'),
+    (v_tenant, 'Obras y Servicios Norte',   '30710000049', 'monotributo',           'osnorte@example.com',       '1178901234', 'San Martín 450, San Isidro',      2000000.00, 'activo'),
+    (v_tenant, 'Construcciones Aráoz',      '30710000057', 'responsable_inscripto', 'info@araoz.example.com',       '1189012345', 'Aráoz 1200, CABA',                4000000.00, 'activo');
 
   -- --- Proveedores ---------------------------------------------------------
   insert into proveedores (tenant_id, razon_social, cuit, condicion_iva, rubro, condicion_pago_dias, cbu, alias_cbu, email, telefono) values
-    (v_tenant, 'Aceros del Plata SA',    '30710000065', 'responsable_inscripto', 'Hierro y acero',   30, '0170099220000067797890', 'aceros.plata.pago',  'ventas@acerosdelplata.com.ar', '1143210987'),
-    (v_tenant, 'Tornillos Córdoba SRL',  '30710000073', 'responsable_inscripto', 'Bulonería',        45, '0290051110000000123456', 'tornillos.cba',      'pedidos@tornicba.com.ar',      '3514567890'),
-    (v_tenant, 'Pinturas Litoral',       '30710000081', 'responsable_inscripto', 'Pinturas',         30, '0110599520000012345678', 'pinturas.litoral',   'admin@pinturaslitoral.com.ar', '3424567890'),
-    (v_tenant, 'Herramientas Global SA', '30710000103', 'responsable_inscripto', 'Herramientas',     60, '0070123430004567890123', 'herr.global.sa',     'compras@hglobal.com.ar',       '1132109876'),
-    (v_tenant, 'Logística Ruta 9',       '30710000111', 'monotributo',           'Fletes',            0, '0140999801234567890123', 'ruta9.fletes',       'ruta9fletes@gmail.com',        '3487654321');
+    (v_tenant, 'Aceros del Plata SA',    '30710000065', 'responsable_inscripto', 'Hierro y acero',   30, '0170099220000067797890', 'aceros.plata.pago',  'ventas@acerosdelplata.example.com', '1143210987'),
+    (v_tenant, 'Tornillos Córdoba SRL',  '30710000073', 'responsable_inscripto', 'Bulonería',        45, '0290051110000000123456', 'tornillos.cba',      'pedidos@tornicba.example.com',      '3514567890'),
+    (v_tenant, 'Pinturas Litoral',       '30710000081', 'responsable_inscripto', 'Pinturas',         30, '0110599520000012345678', 'pinturas.litoral',   'admin@pinturaslitoral.example.com', '3424567890'),
+    (v_tenant, 'Herramientas Global SA', '30710000103', 'responsable_inscripto', 'Herramientas',     60, '0070123430004567890123', 'herr.global.sa',     'compras@hglobal.example.com',       '1132109876'),
+    (v_tenant, 'Logística Ruta 9',       '30710000111', 'monotributo',           'Fletes',            0, '0140999801234567890123', 'ruta9.fletes',       'ruta9fletes@example.com',        '3487654321');
 
   -- --- Productos -----------------------------------------------------------
   -- costo_unitario importa: el KPI de margen compara lo facturado contra el
@@ -475,7 +476,7 @@ $$;
 --     from organization o
 --     join member m on m.organization_id = o.id
 --     join "user" u on u.id = m.user_id
---     where u.email = 'empresa1@gmail.com' limit 1;
+--     where u.email = 'demo@example.com' limit 1;
 --     perform set_config('app.tenant_id', v_tenant, true);
 --     -- Primero lo que apunta a otras tablas: imputaciones y movimientos
 --     -- referencian comprobantes, y los ítems referencian productos.
