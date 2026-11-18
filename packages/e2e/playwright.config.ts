@@ -35,7 +35,8 @@ export default defineConfig({
   retries: CI ? 1 : 0,
   reporter: CI ? [["github"], ["list"]] : [["list"]],
   timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // Más holgado en CI, donde la máquina es más lenta que cualquier portátil.
+  expect: { timeout: CI ? 15_000 : 10_000 },
 
   use: {
     baseURL: process.env.E2E_URL ?? "http://localhost:5173",

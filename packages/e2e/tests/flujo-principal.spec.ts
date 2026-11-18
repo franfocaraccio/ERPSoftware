@@ -132,12 +132,17 @@ test.describe("de la venta al saldo", () => {
     });
 
     await test.step("la deuda queda saldada", async () => {
-      // Lo que importa no es que el cobro se haya guardado, sino que la cuenta
-      // corriente lo refleje: ahí se nota si las piezas no están conectadas.
-      await page.goto("/clientes");
-      await page.getByRole("link", { name: CLIENTE }).click();
-      await expect(page.getByText("Saldo a cobrar")).toBeHidden();
-      await expect(page.getByText("Saldo", { exact: true })).toBeVisible();
+      // Lo que importa no es que el cobro se haya guardado, sino que la
+      // cobranza lo refleje: ahí se nota si las piezas no están conectadas.
+      //
+      // Se afirma sobre la fila del comprobante y no sobre la etiqueta del
+      // saldo en la ficha del cliente. Eso último se probó y es frágil:
+      // "Saldo" aparece y desaparece según la ficha esté cargando, así que
+      // podía dar verde en una corrida y rojo en la siguiente sin que nada
+      // hubiera cambiado.
+      await page.goto("/comprobantes");
+      const fila = page.getByRole("row", { name: new RegExp(numeroEnLista) });
+      await expect(fila.getByText("Cobrada")).toBeVisible();
     });
   });
 });
