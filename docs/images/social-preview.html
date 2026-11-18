@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ERP PyME — social preview</title>
+    <!--
+      La imagen de preview del repositorio en GitHub, 1280x640.
+
+      Se guarda el fuente y no sólo el PNG para que se pueda volver a generar
+      cuando cambie algo. Los colores son los tokens del tema oscuro de
+      `packages/design-system/src/theme.css`, no aproximaciones.
+
+      Regenerar:
+        pnpm --filter @erp/e2e preview
+    -->
+    <style>
+      :root {
+        --canvas: oklch(17.5% 0.015 258);
+        --surface: oklch(21.5% 0.017 258);
+        --foreground: oklch(96% 0.005 258);
+        --muted: oklch(72% 0.015 258);
+        --border: oklch(30% 0.018 258);
+        --primary: oklch(70% 0.15 258);
+        --ok: oklch(72% 0.14 165);
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+
+      body {
+        width: 1280px;
+        height: 640px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 34px;
+        padding: 0 84px;
+        background: var(--canvas);
+        color: var(--foreground);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        /* Un resplandor tenue arriba a la derecha, para que no sea un rectángulo plano. */
+        background-image: radial-gradient(
+          900px 460px at 86% -16%,
+          oklch(70% 0.15 258 / 16%),
+          transparent 70%
+        );
+      }
+
+      .marca {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 19px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--primary);
+      }
+
+      .marca::before {
+        content: "";
+        width: 13px;
+        height: 13px;
+        border-radius: 4px;
+        background: var(--primary);
+      }
+
+      h1 {
+        font-size: 66px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.04;
+      }
+
+      h1 span {
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      .fila {
+        display: flex;
+        gap: 14px;
+      }
+
+      .chip {
+        padding: 11px 20px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 20px;
+      }
+
+      .chip b {
+        color: var(--foreground);
+        font-weight: 600;
+      }
+
+      .pie {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        font-size: 21px;
+        color: var(--muted);
+      }
+
+      .pie .verde {
+        color: var(--ok);
+        font-weight: 600;
+      }
+
+      .punto {
+        color: var(--border);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="marca">ERP PyME</div>
+
+    <h1>
+      An ERP for small Argentine<br />
+      businesses, <span>built to be read</span>
+    </h1>
+
+    <div class="fila">
+      <div class="chip"><b>Money</b> as a value object</div>
+      <div class="chip"><b>Tenant isolation</b> enforced by Postgres</div>
+      <div class="chip"><b>Domain</b> with no I/O</div>
+    </div>
+
+    <div class="pie">
+      <span>TypeScript · tRPC · Drizzle · React 19</span>
+      <span class="punto">·</span>
+      <span><span class="verde">715 tests</span>, 99 % on the domain</span>
+    </div>
+  </body>
+</html>
