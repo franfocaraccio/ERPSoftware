@@ -93,6 +93,11 @@ Five packages: `core` (pure domain), `backend` (Express 5 + tRPC 11 + Drizzle +
 BetterAuth), `frontend` (Vite SPA), `design-system` (shadcn/ui over Base UI +
 Tailwind v4) and `arca` (the electronic-invoicing boundary).
 
+[**`docs/ARCHITECTURE.md`**](docs/ARCHITECTURE.md) walks a request end to end,
+through the three independent layers that keep one company's data away from
+another's. [**`docs/adr/`**](docs/adr/) has one short record per decision —
+context, decision, consequences — including the ones that were replaced.
+
 ## Engineering highlights
 
 **Money is never a `number`.** Every amount is a `Money` value object over

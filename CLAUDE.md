@@ -103,6 +103,10 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 - No inventar APIs de librerías: si no estás seguro de una firma de BetterAuth, tRPC, Drizzle o la librería de ARCA, decirlo y verificarla en la documentación antes de escribir código.
 
 Ver `AGENTS.md` para el resumen del dominio y `.agents/skills/` para patrones por tecnología.
+El **porqué** de las reglas duras y de las decisiones de modelado está en `docs/adr/`,
+un archivo por decisión; el recorrido de un request y el modelo multi-tenant, en
+`docs/ARCHITECTURE.md`. Si una regla de acá te parece discutible, lo más probable es
+que su ADR ya discuta el trade-off.
 
 Las notas de trabajo —tareas listas para tomar y estado general del proyecto—
 están en `docs/internal/tareas.md` y `docs/internal/PENDIENTES.md`. **No están
