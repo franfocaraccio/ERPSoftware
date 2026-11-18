@@ -21,7 +21,15 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
-  packages/arca: {}
+  packages/arca:
+    dependencies:
+      '@erp/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.1.2)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.5))
 
   packages/backend:
     dependencies:

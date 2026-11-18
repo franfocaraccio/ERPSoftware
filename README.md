@@ -1,6 +1,13 @@
 # ERP PyME
 
-ERP SaaS multi-tenant para PyMEs argentinas, con facturación electrónica integrada contra ARCA (ex AFIP).
+ERP SaaS multi-tenant para PyMEs argentinas.
+
+La **facturación electrónica contra ARCA (ex AFIP) está diseñada, no implementada**:
+`packages/arca` tiene la interfaz `IFacturacionElectronica` y un fake que aplica las
+reglas del servicio, y los comprobantes de venta se cargan a mano mientras los
+adaptadores de WSAA y WSFEv1 no existan. El diseño previsto —idempotencia, numeración
+sin huecos, comprobante con CAE inmutable— está en
+[packages/arca/README.md](packages/arca/README.md).
 
 ## Stack
 
@@ -51,7 +58,7 @@ El seed es idempotente: se puede correr las veces que haga falta. Imprime las cr
   /frontend       Vite SPA
   /design-system  shadcn/ui + tema + componentes compartidos
   /core           Dominio puro — sin DB, sin HTTP, sin I/O
-  /arca           Integración WSAA / WSFEv1
+  /arca           Contrato de facturación electrónica + fake (sin integración)
 ```
 
 Ver [CLAUDE.md](CLAUDE.md) para las reglas del proyecto.
