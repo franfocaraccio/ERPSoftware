@@ -1,0 +1,38 @@
+name: Feature
+description: Something the system should be able to do and cannot
+labels: ["feature"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: The problem
+      description: >
+        What someone is trying to do today, and what it costs them. Not the
+        solution yet — a feature described as a solution hides the problem it
+        came from, and the problem usually has a cheaper answer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: hoy
+    attributes:
+      label: How it is handled today
+      description: The workaround, the spreadsheet, the thing typed twice.
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: What you have in mind
+      description: Optional. If you already pictured a screen, describe it.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: dominio
+    attributes:
+      label: Does this touch money, stock or taxes?
+      options:
+        - label: Yes — then it needs a rule in `@erp/core` with its tests, not a formula in a screen
+          required: false
