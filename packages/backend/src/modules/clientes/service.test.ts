@@ -33,7 +33,7 @@ describe("clientes service (integración, RLS activo)", () => {
   it("crea un cliente y lo devuelve en el listado", async () => {
     const creado = await crearCliente(tenantA, {
       razonSocial: "ACME SA",
-      cuit: "33693450239",
+      cuit: "30710000146",
       condicionIva: "responsable_inscripto",
       email: "compras@acme.com.ar",
       limiteCredito: "500000.00",
@@ -104,7 +104,7 @@ describe("clientes service (integración, RLS activo)", () => {
       id,
       datos: {
         razonSocial: "ACME Argentina SA",
-        cuit: "33693450239",
+        cuit: "30710000146",
         condicionIva: "responsable_inscripto",
         estado: "inactivo",
       },

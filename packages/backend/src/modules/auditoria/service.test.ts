@@ -17,7 +17,7 @@ beforeAll(async () => {
 
   await crearCliente(tenantA, {
     razonSocial: "Auditada SA",
-    cuit: "33693450239",
+    cuit: "30710000146",
     condicionIva: "responsable_inscripto",
   });
   await guardarParametros(tenantA, {

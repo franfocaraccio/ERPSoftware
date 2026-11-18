@@ -123,7 +123,7 @@ export function formatearFechaHora(valor: string | Date): string {
   return `${parte("day")}/${parte("month")}/${parte("year")} ${parte("hour")}:${parte("minute")}`;
 }
 
-/** 30703088534 → 30-70308853-4 */
+/** 30710000154 → 30-71000015-4 */
 export function formatearCuit(cuit: string | null): string {
   if (cuit?.length !== 11) {
     return cuit ?? "—";

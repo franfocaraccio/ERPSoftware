@@ -37,7 +37,7 @@ describe("proveedores service (integración, RLS activo)", () => {
   it("crea un proveedor con saldo inicial en cero", async () => {
     const creado = await crearProveedor(tenantA, {
       razonSocial: "Insumos del Norte SRL",
-      cuit: "30703088534",
+      cuit: "30710000154",
       condicionIva: "responsable_inscripto",
       rubro: "Materia prima",
       condicionPagoDias: 30,

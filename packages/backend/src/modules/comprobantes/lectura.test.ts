@@ -77,28 +77,28 @@ describe("aFechaIso", () => {
 
 describe("cuitLeido", () => {
   it("acepta con guiones y sin guiones", () => {
-    // Farmcity imprime "30-69213874-7"; las otras dos, los once dígitos juntos.
-    expect(cuitLeido("30-69213874-7")).toBe("30692138747");
-    expect(cuitLeido("20353225430")).toBe("20353225430");
-    expect(cuitLeido("30716644495")).toBe("30716644495");
+    // Farmcity imprime "30-71000013-8"; las otras dos, los once dígitos juntos.
+    expect(cuitLeido("30-71000013-8")).toBe("30710000138");
+    expect(cuitLeido("20000000028")).toBe("20000000028");
+    expect(cuitLeido("30710000103")).toBe("30710000103");
   });
 
   it("no acepta la etiqueta pegada al número", () => {
     // Al modelo se le pide el valor, no la línea entera. Si devuelve
-    // "CUIT: 30716644495", es que leyó mal el campo, y conviene que eso se
+    // "CUIT: 30710000103", es que leyó mal el campo, y conviene que eso se
     // vea como campo vacío a completar y no que el código lo adivine.
-    expect(cuitLeido("CUIT: 30716644495")).toBeNull();
+    expect(cuitLeido("CUIT: 30710000103")).toBeNull();
   });
 
   it("rechaza un CUIT con el dígito verificador mal", () => {
     // El verificador es lo que separa un CUIT mal leído de uno bueno: un
     // dígito cambiado por el OCR cae acá.
     expect(cuitLeido("30-69213874-8")).toBeNull();
-    expect(cuitLeido("20353225431")).toBeNull();
+    expect(cuitLeido("20000000029")).toBeNull();
   });
 
   it("rechaza lo que no tiene once dígitos", () => {
-    for (const basura of ["", "35322543", "203532254300", "no tiene"]) {
+    for (const basura of ["", "35322543", "200000000280", "no tiene"]) {
       expect(cuitLeido(basura)).toBeNull();
     }
   });
@@ -135,9 +135,9 @@ describe("interpretar", () => {
   function leido(parcial: Partial<ComprobanteLeido> = {}): ComprobanteLeido {
     return {
       emisorRazonSocial: "AXCER S.R.L.",
-      emisorCuit: "30716644495",
+      emisorCuit: "30710000103",
       receptorRazonSocial: "Cliente SA",
-      receptorCuit: "30692138747",
+      receptorCuit: "30710000138",
       cae: "",
       caeVencimiento: "",
       items: [],
@@ -219,7 +219,7 @@ describe("interpretar", () => {
   });
 
   it("un CUIT con el verificador mal queda como ilegible", () => {
-    const p = interpretar(leido({ emisorCuit: "30716644494" }));
+    const p = interpretar(leido({ emisorCuit: "30710000104" }));
     expect(p.emisorCuit).toBeNull();
     expect(p.reparos).toContainEqual({ campo: "emisorCuit", motivo: "ilegible" });
   });
@@ -252,9 +252,9 @@ describe("interpretarVenta", () => {
   function venta(parcial: Partial<ComprobanteLeido> = {}): ComprobanteLeido {
     return {
       emisorRazonSocial: "Mi Empresa SA",
-      emisorCuit: "30716644495",
+      emisorCuit: "30710000103",
       receptorRazonSocial: "Farmcity S.A",
-      receptorCuit: "30-69213874-7",
+      receptorCuit: "30-71000013-8",
       letra: "A",
       puntoVenta: "00003",
       numero: "00001234",
@@ -282,7 +282,7 @@ describe("interpretarVenta", () => {
   it("arma la propuesta con el cliente, el número y el CAE", () => {
     const p = interpretarVenta(venta());
     expect(p).toMatchObject({
-      receptorCuit: "30692138747",
+      receptorCuit: "30710000138",
       clase: "factura",
       letraLeida: "A",
       puntoVenta: 3,
