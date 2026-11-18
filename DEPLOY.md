@@ -482,7 +482,7 @@ desde el panel eligiendo el commit.
 **Cómo se detecta ahora:** `/health` devuelve la versión que está corriendo.
 
 ```bash
-curl -s https://erpbackend-production-2438.up.railway.app/health
+curl -s https://<backend-url>/health
 ```
 
 Si el `version` no coincide con el último commit de `main`, el backend está
