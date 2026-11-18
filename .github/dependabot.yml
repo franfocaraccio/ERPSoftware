@@ -1,0 +1,38 @@
+# Actualizaciones agrupadas y semanales.
+#
+# Agrupadas a propósito: con ~40 dependencias, una PR por paquete son veinte
+# PRs por semana que nadie mira, y lo que no se mira termina mergeado sin
+# leer. Agrupar deja dos o tres PRs con un changelog cada una.
+#
+# Las mayores van sueltas porque son las que rompen, y conviene verlas de a
+# una con su CI al lado.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      menores-y-parches:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"

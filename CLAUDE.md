@@ -1,6 +1,8 @@
 # CLAUDE.md — ERP PyME
 
-ERP SaaS multi-tenant para PyMEs argentinas con facturación electrónica contra ARCA (ex AFIP).
+ERP SaaS multi-tenant para PyMEs argentinas. La facturación electrónica contra ARCA
+(ex AFIP) **está diseñada pero no implementada**: hay contrato y fake, no integración.
+Ver `packages/arca/README.md`.
 Monorepo pnpm + Turborepo.
 
 **Idiomas.** La UI, el dominio y la documentación de producto —`docs/ayuda/`, que
@@ -30,7 +32,9 @@ docker compose up -d  # Postgres 17 local (erp/erp@localhost:5432/erp)
 - `packages/backend` — Express 5 + tRPC 11 + Drizzle + BetterAuth + pg-boss. Slices verticales en `src/modules/`.
 - `packages/frontend` — Vite SPA, React 19, TanStack Router/Query/Form/Table.
 - `packages/design-system` — shadcn/ui sobre Base UI + Tailwind v4.
-- `packages/arca` — WSAA/WSFEv1 detrás de `IFacturacionElectronica`.
+- `packages/arca` — `IFacturacionElectronica` y un fake para los tests. Los
+  adaptadores de WSAA/WSFEv1 todavía no existen; el diseño previsto está en el
+  README del paquete.
 
 ## Reglas duras (innegociables)
 
@@ -99,6 +103,10 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 - No inventar APIs de librerías: si no estás seguro de una firma de BetterAuth, tRPC, Drizzle o la librería de ARCA, decirlo y verificarla en la documentación antes de escribir código.
 
 Ver `AGENTS.md` para el resumen del dominio y `.agents/skills/` para patrones por tecnología.
+El **porqué** de las reglas duras y de las decisiones de modelado está en `docs/adr/`,
+un archivo por decisión; el recorrido de un request y el modelo multi-tenant, en
+`docs/ARCHITECTURE.md`. Si una regla de acá te parece discutible, lo más probable es
+que su ADR ya discuta el trade-off.
 
 Las notas de trabajo —tareas listas para tomar y estado general del proyecto—
 están en `docs/internal/tareas.md` y `docs/internal/PENDIENTES.md`. **No están

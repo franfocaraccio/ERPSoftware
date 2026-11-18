@@ -64,16 +64,109 @@ jobs:
 
       # Con el rol de la app (sin BYPASSRLS): si una query se escapara del
       # wrapper withTenant, acá se cae.
+      # Con cobertura, para no correr la suite dos veces. El reporte se sube
+      # como artifact: no hay badge todavía porque publicarlo pide conectar el
+      # repo a un servicio, y eso es una decisión, no un paso de CI.
       - name: Tests
-        run: pnpm test
+        run: pnpm test:coverage
         env:
           DATABASE_URL: postgresql://erp_app:erp_app@localhost:5432/erp
           # Hoy ningún test importa auth.ts, que aborta el proceso si falta.
           # Está puesto para que agregar uno no falle solo en CI.
           BETTER_AUTH_SECRET: ci-no-es-un-secreto-real
 
+      - name: Resumen de cobertura
+        if: always()
+        run: |
+          echo "## Cobertura" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Paquete | Líneas | Ramas | Funciones |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          for f in packages/*/coverage/coverage-summary.json; do
+            [ -f "$f" ] || continue
+            paquete=$(echo "$f" | cut -d/ -f2)
+            node -e "
+              const t = require('./$f').total;
+              const p = (x) => x.pct.toFixed(1) + ' %';
+              console.log('| $paquete | ' + p(t.lines) + ' | ' + p(t.branches) + ' | ' + p(t.functions) + ' |');
+            " >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Subir la cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: packages/*/coverage/
+          retention-days: 14
+
       - name: Build
         run: pnpm build
+
+  # End-to-end del flujo principal, contra la aplicación levantada de verdad.
+  #
+  # Va en su propio job, en paralelo con `verificar`: duplica el arranque de
+  # Postgres, y a cambio no suma su tiempo al del resto. Lo que sí hace es
+  # frenar el deploy si se rompe —`migrar-dev` lo espera— y eso es a
+  # propósito: si vender, cobrar o ver el saldo dejó de funcionar, lo último
+  # que hay que hacer es subirlo.
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: erp
+          POSTGRES_PASSWORD: erp
+          POSTGRES_DB: erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp -d erp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://erp_app:erp_app@localhost:5432/erp
+      DATABASE_URL_MIGRATIONS: postgresql://erp:erp@localhost:5432/erp
+      BETTER_AUTH_SECRET: ci-no-es-un-secreto-real
+      FRONTEND_URL: http://localhost:5173
+      VITE_API_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Migraciones
+        run: pnpm --filter @erp/backend db:migrate
+
+      # Crea el admin de plataforma y la organización de prueba con la que
+      # entran los tests. Es idempotente.
+      - name: Seed
+        run: pnpm --filter @erp/backend db:seed
+
+      - name: Navegador
+        run: pnpm --filter @erp/e2e exec playwright install --with-deps chromium
+
+      # Playwright levanta backend y frontend por su cuenta (ver
+      # playwright.config.ts) y espera a que /health conteste.
+      - name: End-to-end
+        run: pnpm --filter @erp/e2e e2e
+
+      - name: Subir el reporte si falló
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fallido
+          path: packages/e2e/test-results/
+          retention-days: 7
 
   # Aplica las migraciones al entorno de desarrollo real, después de que todo
   # lo anterior pasó. Va acá y no en el contenedor de Railway a propósito: las
@@ -84,7 +177,7 @@ jobs:
   # Railway tiene "Wait for CI" activado, así que el orden queda garantizado:
   # tests -> migraciones -> deploy. Si esto falla, el código nuevo no sube.
   migrar-dev:
-    needs: verificar
+    needs: [verificar, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: erp-dev
