@@ -16,6 +16,10 @@ build/
 # Tests
 coverage/
 
+# Notas de trabajo internas — no se publican: mencionan a personas y pedidos
+# concretos. Viven en la máquina de quien trabaja el proyecto.
+docs/internal/
+
 # Logs
 *.log
 

@@ -70,7 +70,7 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 
 1. Compras en tabla propia (`comprobantes_compra`), separada de facturación de ventas.
 2. Fase 1 incluye comprobantes de venta con carga manual (sin ARCA/CAE); Fase 3 suma la emisión electrónica sobre el mismo schema.
-3. ~~`stock_actual` editable a mano~~ **Reemplazada el 12/10/2026:** el stock se mueve con una tabla de movimientos (venta confirmada descuenta, nota de crédito devuelve, compra con ítems suma, ajustes manuales). Ver `docs/handoff/tareas.md`, tarea 10.
+3. ~~`stock_actual` editable a mano~~ **Reemplazada el 12/10/2026:** el stock se mueve con una tabla de movimientos (venta confirmada descuenta, nota de crédito devuelve, compra con ítems suma, ajustes manuales). Ver `docs/internal/tareas.md`, tarea 10.
 4. ~~`costo_unitario` manual~~ **Reemplazada el 12/10/2026:** costo por promedio ponderado, recalculado con cada compra. Ver tarea 10.
 5. Impuestos: un único `importe_pagado` por registro (sin N pagos por obligación).
 6. Monedas: un movimiento hereda la moneda de su cuenta; cheques e impuestos siempre ARS.
@@ -86,9 +86,21 @@ React 19, Tailwind v4, shadcn sobre **Base UI (no Radix)**, TanStack Router (no 
 - No implementar el módulo de **voz** — fuera de alcance.
 - El **OCR** dejó de estar fuera de alcance el 12 de octubre de 2026 (decisión de
   Fran): leer extractos bancarios y comprobantes subidos se va a hacer. El alcance,
-  las decisiones ya tomadas y los riesgos están en `docs/handoff/tareas.md`.
+  las decisiones ya tomadas y los riesgos están en `docs/internal/tareas.md`.
 - No inventar APIs de librerías: si no estás seguro de una firma de BetterAuth, tRPC, Drizzle o la librería de ARCA, decirlo y verificarla en la documentación antes de escribir código.
 
 Ver `AGENTS.md` para el resumen del dominio y `.agents/skills/` para patrones por tecnología.
-Las tareas pendientes, listas para trabajarse por separado, están en
-`docs/handoff/tareas.md`; el estado general del proyecto, en `PENDIENTES.md`.
+
+Las notas de trabajo —tareas listas para tomar y estado general del proyecto—
+están en `docs/internal/tareas.md` y `docs/internal/PENDIENTES.md`. **No están
+en el repositorio**: es público, y esas notas nombran personas y pedidos
+concretos. Viven en la máquina de quien trabaja el proyecto, y `.gitignore` las
+excluye. Si `docs/internal/` no existe en tu copia, no hay nada que leer ahí y
+el resto de este archivo se sostiene solo.
+
+Las migraciones anteriores a esta limpieza citan `docs/handoff/tareas.md` en sus
+comentarios. Es el archivo que hoy es `docs/internal/tareas.md`; no se corrigen
+porque editar una migración ya aplicada le cambia el hash y `drizzle-kit` la
+volvería a aplicar. La convención que citan, para no perderla: las migraciones
+se escriben a mano, son idempotentes y cada una lleva su entrada agregada a
+mano en `drizzle/meta/_journal.json`.
