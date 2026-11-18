@@ -15,6 +15,16 @@ import { defineConfig, devices } from "@playwright/test";
 
 const CI = !!process.env.CI;
 
+/**
+ * Con qué navegador corre.
+ *
+ * Por defecto, el Chromium que Playwright descarga, que es lo que usa el CI.
+ * `E2E_CANAL=chrome` usa el Chrome ya instalado en la máquina: sirve cuando
+ * esa descarga no es viable —detrás de un proxy, con poca conexión— y permite
+ * correr los e2e sin bajar 130 MB.
+ */
+const CANAL = process.env.E2E_CANAL;
+
 export default defineConfig({
   testDir: "./tests",
   // En serie: comparten una base y un usuario. Paralelizarlos pide aislarlos
@@ -37,7 +47,12 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
 
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"], ...(CANAL ? { channel: CANAL } : {}) },
+    },
+  ],
 
   // En local se reusa lo que ya esté levantado; en CI siempre arranca limpio.
   webServer: [

@@ -15,6 +15,8 @@ build/
 
 # Tests
 coverage/
+test-results/
+playwright-report/
 
 # Notas de trabajo internas — no se publican: mencionan a personas y pedidos
 # concretos. Viven en la máquina de quien trabaja el proyecto.

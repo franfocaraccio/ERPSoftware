@@ -172,10 +172,12 @@ operation itself, so the two cannot diverge.
 - **Migrations are applied from scratch on every CI run**, so the chain —
   including the RLS policies and the grants — is verified exactly as it will
   run against the real database.
-- **End-to-end**, one path: sign in, create a customer, invoice them, collect,
-  and check the balance moved. Few on purpose — they are slow, and the rules
-  they would duplicate are already covered as arithmetic. What they prove is
-  that the pieces are connected.
+- **End-to-end**, one path: sign in, open a bank account, create a customer,
+  invoice them, issue the invoice, collect, and check the balance moved. Few on
+  purpose — they are slow, and the rules they would duplicate are already
+  covered as arithmetic. What they prove is that the pieces are connected.
+  `pnpm --filter @erp/e2e e2e` runs them; `E2E_CANAL=chrome` uses the Chrome
+  already on the machine instead of downloading Playwright's.
 
 ### Coverage
 
