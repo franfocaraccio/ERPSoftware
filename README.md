@@ -14,9 +14,33 @@ if someone writes it wrong.
 **[Live demo](https://erp-software-seven.vercel.app)** — loaded with invented
 data. Credentials are not published yet; ask if you want a look.
 
-![The dashboard: thirteen-week cash projection, weekly collections and payments, monthly sales and balances per account](docs/images/panel.jpg)
+![The dashboard: thirteen-week cash projection, weekly collections and payments, monthly sales and balances per account](docs/images/panel.png)
 
 <sub>Demo data. The figures are invented and the companies do not exist.</sub>
+
+<details>
+<summary>More screens</summary>
+
+**Sales and purchase documents** — one list, both sides, with the collection
+state of each.
+
+![Sales documents](docs/images/comprobantes.png)
+
+**Treasury** — accounts in pesos and dollars, movements, cheques, and the
+reconciliation tab.
+
+![Treasury](docs/images/tesoreria.png)
+
+**Results** — monthly profit and loss by category, compared against the
+previous period.
+
+![Results](docs/images/resultados.png)
+
+**Inventory** — stock derived from movements, with weighted-average cost.
+
+![Inventory](docs/images/stock.png)
+
+</details>
 
 ## What problem it solves
 
