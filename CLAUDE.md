@@ -1,9 +1,18 @@
 # CLAUDE.md — ERP PyME
 
 ERP SaaS multi-tenant para PyMEs argentinas con facturación electrónica contra ARCA (ex AFIP).
-Monorepo pnpm + Turborepo. Documentación y UI en castellano; **mensajes de commit siempre en inglés**,
-y también **todo lo que se escribe en GitHub**: título y descripción de PRs, comentarios en PRs e
-issues, respuestas a reviews y descripciones de issues.
+Monorepo pnpm + Turborepo.
+
+**Idiomas.** La UI, el dominio y la documentación de producto —`docs/ayuda/`, que
+además alimenta al asistente— van en **castellano**. Los **mensajes de commit** y
+**todo lo que se escribe en GitHub** —título y descripción de PRs, comentarios en
+PRs e issues, respuestas a reviews— van en **inglés**. La documentación técnica de
+presentación —`README.md`, `docs/DEPLOYMENT.md`, `docs/ARCHITECTURE.md`, `docs/adr/`—
+va en **inglés**: la lee alguien de afuera que llega por el README.
+
+Los identificadores del código están en castellano y se quedan así: el dominio es
+fiscal argentino y `comprobante`, `retencion` o `monotributo` no tienen traducción
+que no pierda precisión.
 
 ## Comandos
 
