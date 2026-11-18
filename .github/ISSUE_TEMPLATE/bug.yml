@@ -1,0 +1,53 @@
+name: Bug
+description: Something behaves differently from what it should
+labels: ["bug"]
+body:
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: How to reproduce it
+      description: The steps, in order. Include the screen and the data used.
+      placeholder: |
+        1. Treasury → Reconciliation
+        2. Upload a statement with …
+        3. The screen shows …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: donde
+    attributes:
+      label: Where
+      options:
+        - Local development
+        - Deployed environment
+        - Both
+    validations:
+      required: true
+
+  - type: textarea
+    id: datos
+    attributes:
+      label: Numbers involved
+      description: >
+        If an amount, a balance or a tax is wrong, write down what the screen
+        says and what it should say. Never paste real customer data, a real
+        CUIT or a real bank statement — change the figures.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Console errors, screenshots, when it started.
+    validations:
+      required: false

@@ -172,6 +172,29 @@ operation itself, so the two cannot diverge.
 - **Migrations are applied from scratch on every CI run**, so the chain —
   including the RLS policies and the grants — is verified exactly as it will
   run against the real database.
+- **End-to-end**, one path: sign in, create a customer, invoice them, collect,
+  and check the balance moved. Few on purpose — they are slow, and the rules
+  they would duplicate are already covered as arithmetic. What they prove is
+  that the pieces are connected.
+
+### Coverage
+
+| Package | Lines | What it is |
+| --- | --- | --- |
+| `core` | ~99 % | The domain. This is the number that matters: every financial rule. |
+| `arca` | ~95 % | The invoicing contract and its fake. |
+| `backend` | ~72 % | Services against a real Postgres. The gap is mostly routes and error paths. |
+| `frontend` | ~4 % | Only the pure helpers are unit-tested. Components are not. |
+
+There is no single coverage badge, because no single number here is honest.
+An aggregate would be dominated by the frontend's volume and would read as
+"barely tested" for a codebase whose domain is at 99 %; quoting `core` alone
+would be cherry-picking. The per-package table is published in every CI run's
+summary, and the full report is uploaded as an artifact.
+
+The frontend figure is low and that is a real gap, not a measurement
+artifact — it is the reason the end-to-end test exists, and the reason there
+should be more of them.
 
 ## Quick start
 

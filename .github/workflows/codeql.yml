@@ -1,0 +1,42 @@
+# Análisis estático de seguridad.
+#
+# No corre en push a main a propósito: Railway espera a que terminen TODAS las
+# Actions del commit antes de deployar, así que un análisis de varios minutos
+# acá se traduce en varios minutos más de deploy, cada vez. En una PR hay
+# tiempo de sobra, y el cron semanal cubre lo que entre por otro camino.
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # Lunes 6:00 UTC, antes de que empiece la semana.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # Incluye las consultas de calidad además de las de seguridad.
+          queries: security-and-quality
+
+      # Sin build: para JS/TS, CodeQL analiza el fuente directamente, y
+      # compilar no agrega nada que el typecheck del CI no cubra ya.
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
