@@ -24,6 +24,7 @@ vi.mock("../cotizaciones/dolar.js", () => ({
   }),
 }));
 
+import { enDias } from "../../test/fechas.js";
 import { resumenFinanciero } from "./service.js";
 
 /**
@@ -34,15 +35,6 @@ import { resumenFinanciero } from "./service.js";
 
 type Actor = { tenantId: string; usuarioId: string };
 type Resumen = Awaited<ReturnType<typeof resumenFinanciero>>;
-
-/** Fecha relativa a hoy en el formato `date` de Postgres, sin pasar por UTC. */
-function enDias(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  const mes = String(d.getMonth() + 1).padStart(2, "0");
-  const dia = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mes}-${dia}`;
-}
 
 interface Comprobante {
   total: string;

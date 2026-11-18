@@ -3,6 +3,7 @@ import { pool } from "../../db/client.js";
 import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { cuentas, movimientos } from "../../db/schema/tesoreria.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { enDias } from "../../test/fechas.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { guardarParametros } from "../parametros/service.js";
 import { crearCliente, listarClientes, resumenClientes } from "./service.js";
@@ -15,15 +16,6 @@ let cuentaPesos: string;
 let cuentaDolares: string;
 
 const LISTAR = { orden: "razonSocial", direccion: "asc", pagina: 1, tamanoPagina: 50 } as const;
-
-/** Fecha relativa a hoy en el formato `date` de Postgres, sin pasar por UTC. */
-function enDias(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  const mes = String(d.getMonth() + 1).padStart(2, "0");
-  const dia = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mes}-${dia}`;
-}
 
 interface Factura {
   clienteId: string;

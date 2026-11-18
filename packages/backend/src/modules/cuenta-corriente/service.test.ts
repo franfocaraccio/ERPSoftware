@@ -3,6 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { pool } from "../../db/client.js";
 import { comprobantesVenta } from "../../db/schema/facturacion.js";
 import { withTenant } from "../../db/tenant-db.js";
+import { enDias } from "../../test/fechas.js";
 import { crearTenantDePrueba, limpiarTenantsDePrueba } from "../../test/tenant.js";
 import { crearCliente } from "../clientes/service.js";
 import { guardarParametros } from "../parametros/service.js";
@@ -12,12 +13,6 @@ import { comprobantesAbiertos } from "./imputaciones.js";
 import { comprobantesPendientes } from "./pendientes.js";
 
 type Actor = { tenantId: string; usuarioId: string };
-
-function enDias(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 interface Escenario {
   actor: Actor;
