@@ -27,7 +27,7 @@ function extracto(...movimientosDelBanco: Celda[][]) {
 
 const COBRO = [
   "05/10/2026",
-  " CREDITO TRANSFERENCIA\n Cliente SRL\n 30692138747\n",
+  " CREDITO TRANSFERENCIA\n Cliente SRL\n 30710000138\n",
   "0,00",
   "15.000,00",
   "15000",
@@ -76,8 +76,8 @@ afterAll(async () => {
 
 describe("cuitEnDescripcion", () => {
   it("encuentra el CUIT de la contraparte en una transferencia de Galicia", () => {
-    expect(cuitEnDescripcion("CREDITO TRANSFERENCIA · Cliente SRL · 30692138747")).toBe(
-      "30692138747",
+    expect(cuitEnDescripcion("CREDITO TRANSFERENCIA · Cliente SRL · 30710000138")).toBe(
+      "30710000138",
     );
   });
 
@@ -88,7 +88,7 @@ describe("cuitEnDescripcion", () => {
 
   it("descarta once dígitos que no verifican", () => {
     // Un número de operación puede tener once dígitos por casualidad.
-    expect(cuitEnDescripcion("OPERACION 30692138748")).toBeNull();
+    expect(cuitEnDescripcion("OPERACION 30710000139")).toBeNull();
   });
 });
 
@@ -107,7 +107,7 @@ describe("proponerConciliacion", () => {
     const { actor, cuentaId } = await escenario();
     const cliente = await crearCliente(actor, {
       razonSocial: "Cliente SRL",
-      cuit: "30692138747",
+      cuit: "30710000138",
       condicionIva: "responsable_inscripto",
     });
 
@@ -153,7 +153,7 @@ describe("confirmarConciliacion", () => {
   });
   const LINEA_COBRO = linea(
     "2026-10-05",
-    "CREDITO TRANSFERENCIA · Cliente SRL · 30692138747",
+    "CREDITO TRANSFERENCIA · Cliente SRL · 30710000138",
     "15000.00",
     "15000.00",
   );

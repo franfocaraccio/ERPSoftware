@@ -42,9 +42,9 @@ const HTML_DISFRAZADO = new TextEncoder().encode("<html><script>alert(1)</script
 function leido(parcial: Record<string, unknown> = {}) {
   return {
     emisorRazonSocial: "Proveedora SA",
-    emisorCuit: "30716644495",
+    emisorCuit: "30710000103",
     receptorRazonSocial: "Cliente SA",
-    receptorCuit: "30692138747",
+    receptorCuit: "30710000138",
     letra: "A",
     puntoVenta: "00001",
     numero: "00000123",
@@ -191,7 +191,7 @@ describe("qué devuelve", () => {
     conSesion(propio.tenantId);
     const proveedor = await crearProveedor(propio, {
       razonSocial: "Proveedora SA",
-      cuit: "30716644495",
+      cuit: "30710000103",
       condicionIva: "responsable_inscripto",
       condicionPagoDias: 30,
     });
@@ -215,7 +215,7 @@ describe("qué devuelve", () => {
     const r = await leer({ tipo: "venta" });
     expect(r.cuerpo.tipo).toBe("venta");
     // La propuesta de una venta mira al receptor; la de una compra, al emisor.
-    expect(r.cuerpo.propuesta).toMatchObject({ receptorCuit: "30692138747" });
+    expect(r.cuerpo.propuesta).toMatchObject({ receptorCuit: "30710000138" });
   });
 
   it("devuelve el nombre y el hash del archivo, pero no el archivo", async () => {

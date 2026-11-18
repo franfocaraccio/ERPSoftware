@@ -2,9 +2,13 @@ import { describe, expect, it } from "vitest";
 import { normalizarCuit, validarCuit } from "./cuit.js";
 
 describe("validarCuit", () => {
-  it("acepta CUITs reales con dígito verificador correcto", () => {
-    expect(validarCuit("33693450239")).toBe(true); // AFIP/ARCA
-    expect(validarCuit("30703088534")).toBe(true);
+  it("acepta un CUIT con dígito verificador correcto", () => {
+    // El de ARCA (ex AFIP) es el único número real en los tests, y está acá a
+    // propósito: es público, cualquiera lo verifica, y prueba el algoritmo
+    // contra algo que existe. Todos los demás CUITs de los tests son
+    // sintéticos, con dígito verificador calculado.
+    expect(validarCuit("33693450239")).toBe(true); // ARCA (ex AFIP)
+    expect(validarCuit("30710000154")).toBe(true);
   });
 
   it("acepta el formato con guiones", () => {

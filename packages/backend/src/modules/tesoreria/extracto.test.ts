@@ -27,7 +27,7 @@ const COLUMNAS: Celda[] = [
 const MOVIMIENTOS: Celda[][] = [
   [
     "13/10/2026",
-    " TRANSFERENCIA A TERCEROS\n Proveedor SA\n 30716644495\n",
+    " TRANSFERENCIA A TERCEROS\n Proveedor SA\n 30710000103\n",
     "-3.600,00",
     "0,00",
     "21400",
@@ -35,7 +35,7 @@ const MOVIMIENTOS: Celda[][] = [
   ],
   [
     "09/10/2026",
-    " CREDITO TRANSFERENCIA\n Cliente SRL\n 30692138747\n",
+    " CREDITO TRANSFERENCIA\n Cliente SRL\n 30710000138\n",
     "0,00",
     "15.000,00",
     "25000",
@@ -78,7 +78,7 @@ describe("interpretarExtracto", () => {
 
   it("deja la descripción en una línea, sin los espacios del banco", () => {
     expect(interpretarExtracto(extracto()).lineas.at(-1)?.descripcion).toBe(
-      "TRANSFERENCIA A TERCEROS · Proveedor SA · 30716644495",
+      "TRANSFERENCIA A TERCEROS · Proveedor SA · 30710000103",
     );
   });
 
