@@ -194,6 +194,24 @@ jobs:
       # Mientras el secret no esté cargado, este paso se saltea en vez de
       # fallar. Si fallara, el CI quedaría en rojo y —por "Wait for CI"—
       # bloquearía todos los deploys hasta terminar de configurar GitHub.
+      # drizzle-kit falla sin decir por qué cuando no puede conectarse: imprime
+      # "applying migrations..." y sale con 1. Esto lo convierte en un
+      # diagnóstico, que es la diferencia entre mirar el log y entender nada o
+      # saber que el proyecto de Supabase se pausó por inactividad.
+      - name: ¿Contesta la base?
+        env:
+          DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
+        run: |
+          if [ -z "$DATABASE_URL_MIGRATIONS" ]; then
+            echo "Sin secret: no hay base a la que preguntarle."
+            exit 0
+          fi
+          if ! psql "$DATABASE_URL_MIGRATIONS" -c "select 1" > /dev/null; then
+            echo "::error::No se pudo conectar a erp-dev. Si el error de arriba habla de timeout o de DNS, lo más probable es que el proyecto de Supabase esté pausado por inactividad: entrá al panel y reactivalo."
+            exit 1
+          fi
+          echo "La base contesta."
+
       - name: Migrar erp-dev
         env:
           DATABASE_URL_MIGRATIONS: ${{ secrets.DATABASE_URL_MIGRATIONS }}
