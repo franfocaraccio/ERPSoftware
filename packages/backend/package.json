@@ -14,6 +14,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/scripts/seed.ts",
+    "demo:reset": "tsx src/scripts/reset-demo.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

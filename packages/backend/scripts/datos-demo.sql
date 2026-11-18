@@ -20,12 +20,20 @@ declare
   v_inicio date := (date_trunc('month', current_date) - interval '5 months')::date;
   v_mail text := 'demo@example.com';
 begin
-  select o.id into v_tenant
-  from organization o
-  join member m on m.organization_id = o.id
-  join "user" u on u.id = m.user_id
-  where u.email = v_mail
-  limit 1;
+  -- Si quien ejecuta ya declaró a qué organización va (lo hace
+  -- `reset-demo.ts`), se usa esa. Adivinarla por el mail no alcanza cuando una
+  -- cuenta pertenece a más de una empresa: `limit 1` elegiría cualquiera, y en
+  -- un reset eso significa vaciar una y cargar la otra.
+  v_tenant := nullif(current_setting('app.tenant_id', true), '');
+
+  if v_tenant is null then
+    select o.id into v_tenant
+    from organization o
+    join member m on m.organization_id = o.id
+    join "user" u on u.id = m.user_id
+    where u.email = v_mail
+    limit 1;
+  end if;
 
   if v_tenant is null then
     raise exception 'No encontré ninguna organización para %', v_mail;

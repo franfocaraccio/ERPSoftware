@@ -1,0 +1,56 @@
+# Deja la demo pública como recién cargada.
+#
+# Va acá y no en un cron del contenedor por la misma razón que las
+# migraciones: resetear necesita el rol dueño, y esa credencial no tiene por
+# qué vivir en un proceso expuesto a internet. Acá existe sólo durante el job.
+#
+# No corre en push, así que no suma tiempo a ningún deploy ni interfiere con
+# el "Wait for CI" de Railway.
+name: Resetear la demo
+
+on:
+  schedule:
+    # Todos los días a las 09:00 UTC — 06:00 en Argentina, antes de que
+    # alguien la mire.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: reset-demo
+  cancel-in-progress: false
+
+jobs:
+  resetear:
+    runs-on: ubuntu-latest
+    # El entorno `demo` guarda las credenciales y el id de la organización.
+    # Mientras no exista, este workflow no hace nada (ver el paso de abajo).
+    environment: demo
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Si el entorno todavía no está configurado se avisa y se termina bien,
+      # en vez de fallar todas las noches con un error que nadie va a mirar.
+      - name: ¿Está configurado?
+        id: configurado
+        run: |
+          if [ -z "${{ secrets.DEMO_DATABASE_URL }}" ] || [ -z "${{ vars.DEMO_TENANT_ID }}" ]; then
+            echo "El entorno 'demo' no tiene DEMO_DATABASE_URL o DEMO_TENANT_ID. No hay nada que resetear."
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resetear
+        if: steps.configurado.outputs.listo == 'si'
+        run: pnpm --filter @erp/backend demo:reset
+        env:
+          DATABASE_URL_MIGRATIONS: ${{ secrets.DEMO_DATABASE_URL }}
+          DEMO_TENANT_ID: ${{ vars.DEMO_TENANT_ID }}
+          DEMO_RESET_HABILITADO: si
