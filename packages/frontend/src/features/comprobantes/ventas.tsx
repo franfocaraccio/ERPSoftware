@@ -1,15 +1,7 @@
-import {
-  Boton,
-  clasesBoton,
-  cn,
-  Esqueleto,
-  EstadoVacio,
-  Insignia,
-  Tarjeta,
-} from "@erp/design-system";
+import { Boton, cn, Esqueleto, EstadoVacio, Insignia, Tarjeta } from "@erp/design-system";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useState } from "react";
 import { BotonExportar } from "../../components/boton-exportar.js";
 import { BotonNuevoComprobante } from "../../components/boton-nuevo-comprobante.js";

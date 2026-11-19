@@ -90,8 +90,6 @@ interface RespuestaVenta {
   archivo: { nombre: string; hash: string };
 }
 
-type RespuestaLectura = RespuestaCompra | RespuestaVenta;
-
 async function manejarLectura(req: Request, res: Response): Promise<void> {
   if (!process.env.OPENAI_API_KEY) {
     res.status(503).json({ error: "La lectura de comprobantes no está configurada." });
@@ -180,7 +178,13 @@ async function manejarLectura(req: Request, res: Response): Promise<void> {
         propuesta.receptorCuit === null
           ? null
           : await buscarClientePorCuit(actor, propuesta.receptorCuit);
-      res.json({ tipo: "venta", propuesta, contraparteId, archivo: archivoLeido });
+      const respuesta: RespuestaVenta = {
+        tipo: "venta",
+        propuesta,
+        contraparteId,
+        archivo: archivoLeido,
+      };
+      res.json(respuesta);
       return;
     }
 
@@ -189,7 +193,13 @@ async function manejarLectura(req: Request, res: Response): Promise<void> {
       propuesta.emisorCuit === null
         ? null
         : await buscarProveedorPorCuit(actor, propuesta.emisorCuit);
-    res.json({ tipo: "compra", propuesta, contraparteId, archivo: archivoLeido });
+    const respuesta: RespuestaCompra = {
+      tipo: "compra",
+      propuesta,
+      contraparteId,
+      archivo: archivoLeido,
+    };
+    res.json(respuesta);
   } catch (e) {
     console.error("[lectura] No se pudo leer el comprobante:", e);
     res.status(502).json({

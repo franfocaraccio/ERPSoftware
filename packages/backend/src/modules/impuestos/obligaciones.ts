@@ -125,6 +125,7 @@ export async function posicionIva(tx: TenantTx): Promise<PosicionMes[]> {
   const hasta = mesDe(hoyEnArgentina());
 
   return posicionMensual(
+    // biome-ignore lint/complexity/useMathMinMax: son strings "AAAA-MM", no números; Math.max las volvería NaN.
     mesesEntre(primero, hasta > primero ? hasta : primero).map((mes) => ({
       periodo: mes,
       // Un mes con más notas de crédito que facturas tiene débito negativo:

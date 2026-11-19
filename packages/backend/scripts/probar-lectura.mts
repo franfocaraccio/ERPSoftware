@@ -27,6 +27,13 @@ const comoVenta = process.argv.includes("--venta");
 for (const ruta of process.argv.slice(2).filter((a) => !a.startsWith("--"))) {
   const bytes = readFileSync(ruta);
   const tipo = detectarTipo(bytes);
+  // El archivo lo elige quien corre el script, así que puede ser cualquier
+  // cosa. Decirlo y seguir con el siguiente es más útil que afirmar que el
+  // tipo existe y que el error aparezca del otro lado de la API.
+  if (!tipo) {
+    console.error(`${ruta}: no reconozco el formato. Sólo PDF, JPEG, PNG o WebP.`);
+    continue;
+  }
   console.log(`\n=== ${ruta.split(/[/]/).pop()}  (${tipo}, ${(bytes.length / 1024) | 0} KB)`);
   const t = Date.now();
   const { object, usage } = await generateObject({
@@ -37,7 +44,7 @@ for (const ruta of process.argv.slice(2).filter((a) => !a.startsWith("--"))) {
       {
         role: "user",
         content: [
-          { type: "file", data: bytes, mediaType: tipo! },
+          { type: "file", data: bytes, mediaType: tipo },
           { type: "text", text: "Leé este comprobante." },
         ],
       },

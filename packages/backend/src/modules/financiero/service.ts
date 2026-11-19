@@ -493,6 +493,7 @@ export async function resumenFinanciero({ tenantId }: Actor): Promise<ResumenFin
     const limitePresentacion = diasAtras(hoy, DIAS_PRESENTACION_CHEQUE);
     const cobrosCheques = chequesPorCobrar
       .filter((c) => c.fechaPago >= limitePresentacion)
+      // biome-ignore lint/complexity/useMathMinMax: son strings "AAAA-MM-DD", no números; Math.max las volvería NaN.
       .map((c) => ({ fecha: c.fechaPago < hoy ? hoy : c.fechaPago, importe: ars(c.importe) }));
 
     const pagosCompras = aProyectar(comprasCC.comprobantes);
