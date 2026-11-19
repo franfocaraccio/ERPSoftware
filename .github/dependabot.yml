@@ -16,6 +16,16 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     groups:
+      # Primero, porque Dependabot asigna al primer grupo que coincide.
+      #
+      # `vitest` y `@vitest/coverage-v8` comparten un protocolo interno: con
+      # uno en 5 y el otro en 4, la cobertura falla con "Expected string
+      # coverage payload, received object". Separados por ser mayores, cada PR
+      # quedaba roja por sí sola y ninguna se podía mergear. Suben juntos.
+      vitest:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
       menores-y-parches:
         patterns:
           - "*"
