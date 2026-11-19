@@ -128,7 +128,14 @@ test.describe("de la venta al saldo", () => {
       // cuenta entra, que es lo único que el formulario no puede suponer.
       await page.getByLabel("Cuenta").selectOption({ label: CUENTA_BANCO });
       await page.getByRole("button", { name: "Registrar", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Registrar cobro" })).toBeHidden();
+
+      // Esperar a que el comprobante diga "Cobrada", y no a que el botón se
+      // oculte. `toBeHidden` también pasa con un elemento que todavía no se
+      // renderizó, así que el paso daba por terminado el cobro antes de que
+      // el servidor lo hubiera registrado, y el siguiente fallaba una de cada
+      // tantas corridas. Es el mismo error que ya había tenido este test con
+      // la etiqueta del saldo: una aserción negativa no prueba que algo pasó.
+      await expect(page.getByText("Cobrada").first()).toBeVisible();
     });
 
     await test.step("la deuda queda saldada", async () => {
