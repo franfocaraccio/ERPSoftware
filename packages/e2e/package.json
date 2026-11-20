@@ -6,9 +6,13 @@
   "scripts": {
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit",
-    "preview": "node scripts/social-preview.mjs"
+    "preview": "node scripts/social-preview.mjs",
+    "capturas": "tsx scripts/capturas.ts"
   },
   "devDependencies": {
-    "@playwright/test": "^1.57.0"
+    "@erp/core": "workspace:*",
+    "@playwright/test": "^1.57.0",
+    "tsx": "^4.23.15",
+    "write-excel-file": "^4.1.1"
   }
 }

@@ -40,6 +40,17 @@ previous period.
 
 ![Inventory](docs/images/stock.png)
 
+**Bank reconciliation** — a statement read line by line. Each line says
+whether it is already recorded, and the system refuses to guess when two
+movements would fit the same line equally well.
+
+![Bank reconciliation, with one line matched, one to be created, and one ambiguous](docs/images/conciliacion.png)
+
+**The assistant** — questions in plain Spanish, answered from the company's
+own figures rather than from a manual.
+
+![The assistant answering who owes money and how much](docs/images/asistente.png)
+
 </details>
 
 ## What problem it solves
