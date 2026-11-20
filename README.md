@@ -286,9 +286,11 @@ The commit history is written to be read: each message says what changed and
 - **Background jobs** — the projection recalculation, KPI snapshots and
   due-date alerts are designed as jobs but still run on request; the hosting
   decision that keeps a job runner possible is already made and documented.
-- **End-to-end tests** over the main flow, in CI.
-- **A public demo environment** separate from everything else, reset on a
-  schedule.
+- **More end-to-end coverage.** One test walks the main flow — customer,
+  invoice, collection, balance — and the paths around it are still only
+  covered by service tests.
+- **Credentials for the demo.** The link above is live; the login is not
+  published yet.
 
 ## Why the code is in Spanish
 

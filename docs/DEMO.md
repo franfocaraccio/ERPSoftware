@@ -1,30 +1,39 @@
 # The public demo
 
-A link anyone can open, with invented data, that resets itself. This describes
-how it is meant to work and what is already in the repository for it. **Nothing
-has been created on any provider** — the steps that need an account are marked
-and are the operator's to run.
+A link anyone can open, with invented data, that resets itself.
 
-## What it has to be, and what it must not
+**The deployed environment *is* the demo.** There is one deployment, not two, and
+it will never hold a real company's books. That is a decision, not a stage on the
+way to something else, and the rest of this document depends on it.
 
-The demo exists so a reader can click instead of taking the README's word for
-it. That means it has to let people *do* things — create a customer, issue a
-document, register a collection — which in turn means anyone can also empty it,
-rename everything to nonsense, or leave it half-filled. So it must be
-disposable, and it must be separate.
+## Why one environment and not two
 
-Three rules follow:
+An earlier version of this plan called for a second, separate deployment. The
+reason was an assumption: that the existing one would eventually hold real
+data — an actual company's invoices and balances — at which point letting
+strangers write into it stops being acceptable.
 
-1. **Its own database.** Not a second organization inside the real one. Tenant
-   isolation is good, and it is still not a reason to put strangers' writes in
-   the same database as a company's books.
-2. **Reset on a schedule**, so a bad hour is undone by itself rather than by
-   someone noticing.
+That is not where this is going. The deployment exists to be clicked on by
+people reading this repository. So separating it from a production environment
+that does not exist buys nothing and costs a second always-on service.
+
+The consequence worth stating plainly: **anyone who opens the link can create,
+edit and delete anything in it.** That is the point — a demo you cannot touch is
+a screenshot — and it is only tolerable because every figure in it is invented.
+
+## What follows from that
+
+1. **Nothing real goes in.** Not one actual invoice, not one actual customer,
+   not as a quick test. The reset below deletes everything in the organization
+   every morning, so anything real put there would be destroyed on a schedule;
+   and the demo is public, so until then it would be readable by anyone.
+2. **Reset on a schedule**, so a bad hour undoes itself rather than waiting for
+   someone to notice.
 3. **Nothing that costs money per use.** The AI assistant is the only endpoint
    in the system where a request spends real money, so the demo runs with no
-   key or a tiny daily cap.
+   key, or with a small daily cap.
 
-## What is already in the repository
+## How the reset works
 
 **`packages/backend/src/scripts/reset-demo.ts`** — empties one organization and
 reloads it from `datos-demo.sql`, in a single transaction. Run with
@@ -49,86 +58,70 @@ and a second run produced the same result.
 **`.github/workflows/reset-demo.yml`** — runs it daily at 09:00 UTC (06:00 in
 Argentina) and on demand. It lives in Actions rather than in a container cron
 for the same reason migrations do: resetting needs the owner role, and that
-credential should exist only for the length of a job. If the `demo` environment
-is not configured yet, the workflow says so and exits cleanly instead of failing
-every night.
+credential should exist only for the length of a job. While the `demo`
+environment is not configured, the workflow says so and exits cleanly instead of
+failing every night.
 
 **`packages/backend/scripts/datos-demo.sql`** — six months of invented
-movements. It now takes the organization from `app.tenant_id` when the caller
-sets it, falling back to the lookup by email. That matters: one account can
-belong to several organizations, and `limit 1` would otherwise empty one and
-reload another.
+movements. It takes the organization from `app.tenant_id` when the caller sets
+it, falling back to the lookup by email. That matters: one account can belong to
+several organizations, and `limit 1` would otherwise empty one and reload
+another.
 
-## What the operator has to create
+## What the operator has to do
 
-In order. Roughly half an hour.
+The deployment already exists, so this is short.
 
-### 1. A separate database
+### 1. Check the application role's password
 
-A new Supabase project — the free tier is enough. Then, **before migrating**,
-create the application role by hand with a strong password:
+Migration `0001` creates `erp_app` with the password `erp_app` **if the role
+does not exist yet**, and that line is public in this repository. Confirm the
+deployed database does not have the default:
 
 ```sql
-create role erp_app login password '<generada>';
+-- As the owner, against the deployed database:
+select rolname from pg_authid
+ where rolname = 'erp_app' and rolpassword = 'md5' || md5('erp_app' || 'erp_app');
 ```
 
-This matters. Migration `0001` creates `erp_app` with a weak default if the role
-does not exist yet, and that password is public in this repository. Creating it
-first means `IF NOT EXISTS` leaves it alone. Same procedure as the existing
-environments.
+A row means the password is the public one and has to be changed — in Postgres
+and then in the backend's `DATABASE_URL`.
 
-Then apply the migrations with the owner role, exactly as CI does.
+Row-level security does not cover this. RLS protects against a bug in this
+codebase forgetting to scope a query; it does nothing against someone holding
+`erp_app`'s password, because they can set `app.tenant_id` to whatever they
+like.
 
-### 2. The demo account and its organization
+### 2. Decide what the assistant costs
 
-Run the seed against the new database, then sign in once and note the
-organization's id — that is `DEMO_TENANT_ID`.
+`ASISTENTE_LIMITE_DIARIO` defaults to **100 questions per day**. On a public
+link with an `OPENAI_API_KEY` set, that is strangers spending real money.
 
-Decide the credentials now, because they go in the README. Something obvious:
-`demo@<dominio>` with a password that is not a secret.
+Leaving the key unset is the safe default: the assistant's bubble still appears
+and the endpoint answers 503. Setting a key with a cap of ten a day is the
+better demo, and it is a decision about money rather than about code.
 
-### 3. A separate backend
-
-A second Railway service from the same repository, with its own variables:
-
-| Variable | Value |
-| --- | --- |
-| `DATABASE_URL` | the new project, role `erp_app`, session mode |
-| `BETTER_AUTH_SECRET` | a new one, not the real environment's |
-| `FRONTEND_URL` | the demo frontend's URL |
-| `BETTER_AUTH_URL` | the demo backend's URL |
-| `ASISTENTE_LIMITE_DIARIO` | `10`, or leave the key out entirely |
-
-Leaving `OPENAI_API_KEY` unset is the safe default: the assistant's bubble still
-appears and the endpoint answers 503. Setting a key with a cap of ten questions
-a day is the better demo, and it is a decision about money.
-
-### 4. A separate frontend
-
-A second Vercel project from the same repository with `VITE_API_URL` pointing at
-the demo backend. The existing one keeps pointing where it does today.
-
-### 5. Wire the reset
+### 3. Wire the reset
 
 In the repository's Settings → Environments, create **`demo`** with:
 
 - secret `DEMO_DATABASE_URL` — the owner-role connection string;
-- variable `DEMO_TENANT_ID` — the organization id from step 2.
+- variable `DEMO_TENANT_ID` — the demo organization's id.
 
 Then run the workflow once by hand to confirm it works before trusting the cron.
 
-### 6. Point the README at it
+### 4. Publish the credentials
 
-The README already links a demo and says credentials are not published yet.
-Once the account exists, that line gets the address and the login.
+The README links the demo and says the credentials are not published yet. Once
+they are decided — something obvious, not a secret — that line gets the login.
 
 ## What this costs
 
 The Supabase free tier pauses a project after a week with no activity, which for
-a demo nobody visited is fine — the next visitor wakes it, slowly. Railway is
-around five dollars a month for a second always-on service. Vercel's free tier
-does not permit commercial use, which a demo of a product being sold arguably
-is; that question applies to the existing deployment too, and is noted in
+a demo nobody visited is fine: the next visitor wakes it, slowly. This already
+happened once and the symptom is worth recognising — `/health` answers while
+every login returns 500. Vercel's free tier does not permit commercial use,
+which a demo of a product being sold arguably is; that is noted in
 [ADR 0011](adr/0011-a-portable-frontend.md).
 
 ## What is deliberately not solved
@@ -142,5 +135,14 @@ thousands of rows. The reset handles it the next morning; a real limit is work
 that only matters if it actually happens.
 
 **One shared organization**, so two simultaneous visitors see each other's
-changes. Giving each visitor their own organization is the better demo and a
-much larger job — it needs provisioning, cleanup, and quotas.
+changes. Giving each visitor their own is the better demo and a much larger
+job — it needs provisioning, cleanup and quotas.
+
+## If this decision ever changes
+
+The day a real company's books are supposed to live in this system, they do
+**not** go into this deployment. They go into a new one, and this document goes
+back to describing a separate demo: a second database, a second backend, a
+second frontend, and the `demo` environment repointed at it. The reset script
+and workflow need no changes — they already take their target from the
+environment, which is why they are written that way.
