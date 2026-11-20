@@ -72,20 +72,23 @@ another.
 
 The deployment already exists, so this is short.
 
-### 1. Check the application role's password
+### 1. Rotate the application role's password
 
 Migration `0001` creates `erp_app` with the password `erp_app` **if the role
-does not exist yet**, and that line is public in this repository. Confirm the
-deployed database does not have the default:
+does not exist yet**, and that line is public in this repository. Whether the
+deployed database ended up with that default depends on whether the role was
+created by hand first, months ago.
+
+Do not try to find out — reading the stored password needs `pg_authid`, which
+is superuser-only and which a managed Postgres will refuse. Rotating costs the
+same and settles it:
 
 ```sql
--- As the owner, against the deployed database:
-select rolname from pg_authid
- where rolname = 'erp_app' and rolpassword = 'md5' || md5('erp_app' || 'erp_app');
+alter role erp_app password '<generated>';
 ```
 
-A row means the password is the public one and has to be changed — in Postgres
-and then in the backend's `DATABASE_URL`.
+Then update `DATABASE_URL` in the backend's variables and redeploy. The role
+keeps every grant it had; only the password changes.
 
 Row-level security does not cover this. RLS protects against a bug in this
 codebase forgetting to scope a query; it does nothing against someone holding
